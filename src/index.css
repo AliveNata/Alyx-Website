@@ -1,0 +1,184 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-y: scroll;
+}
+
+body {
+  background-color: #050505;
+  color: #ffffff;
+  font-family: 'Exo', sans-serif;
+  overflow-x: hidden;
+}
+
+.custom-cursor {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: screen;
+}
+
+.text-gradient {
+  background: linear-gradient(90deg, #00F0FF, #9D00FF, #FF00D6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.noise-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  opacity: 0.04;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+}
+
+.text-glitch {
+  position: relative;
+  overflow: hidden;
+}
+
+.section-container {
+  @apply max-w-7xl mx-auto px-4 md:px-8 py-20 md:py-32;
+  min-height: 100vh;
+}
+
+.scrambled-text-wrapper {
+  min-height: 4.5rem;
+  overflow: hidden;
+}
+
+.glow-button {
+  @apply relative overflow-hidden bg-space-navy px-6 py-3 rounded-md transition-all duration-300;
+}
+
+.glow-button::before {
+  content: '';
+  @apply absolute inset-0 bg-gradient-to-r from-neon-blue to-neon-purple opacity-0 transition-opacity duration-300;
+}
+
+.glow-button:hover::before {
+  @apply opacity-20;
+}
+
+.glow-button:hover {
+  @apply shadow-[0_0_15px_rgba(0,240,255,0.5)];
+}
+
+.magnetic-btn {
+  @apply relative inline-block transition-transform duration-300 transform-gpu;
+}
+
+.card-container {
+  perspective: 1000px;
+}
+
+.card {
+  transform-style: preserve-3d;
+  transition: transform 0.0s;
+}
+
+.card:hover {
+  transform: rotateY(180deg);
+}
+
+.card-front, .card-back {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.card-back {
+  transform: rotateY(180deg);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0A0A14;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #00F0FF, #9D00FF);
+  border-radius: 4px;
+}
+
+/* Hide scrollbar for tech stack */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Tech stack scroll container */
+.tech-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  cursor: grab;
+}
+
+.glitch {
+  position: relative;
+  color: white;
+  text-shadow:
+    2px 0 #00f0ff,
+    -2px 0 #ff00d6;
+}
+
+.no-glitch {
+  position: relative;
+  color: white;
+  text-shadow:
+    2px 0 #00f0ff,
+    -2px 0 #ff00d6;
+  animation: none !important;
+}
+
+.scrambled-paragraph {
+  min-height: 5rem;
+  overflow: hidden;
+  transition: min-height 0.3s ease;
+}
+
+/* Add styles for resizable chat window */
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: rgba(157, 0, 255, 0.3);
+  border-radius: 50%;
+  cursor: se-resize;
+  bottom: 0;
+  right: 0;
+  transition: background-color 0.3s ease;
+}
+
+.resize-handle:hover {
+  background-color: rgba(157, 0, 255, 0.5);
+}
+
+.chat-window {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10000;
+}
