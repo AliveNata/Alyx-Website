@@ -16,6 +16,7 @@
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-github-calendar": "^4.1.2",
     "react-particles": "^2.12.2",
     "react-parallax": "^3.5.1",
     "react-tilt": "^1.0.2",

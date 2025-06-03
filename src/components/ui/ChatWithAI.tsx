@@ -63,8 +63,7 @@ const ChatWithAI: React.FC<ChatWithAIProps> = ({ isNavbar = false }) => {
   useEffect(() => {
     if (messages.length === 0) {
       const introMessage: Message = {
-        id: Date.now(),
-        role: "ai",
+        type: 'ai',
         content: AI_CHAT_CONTEXT.introduction,
       };
       setMessages([introMessage]);
@@ -74,7 +73,7 @@ const ChatWithAI: React.FC<ChatWithAIProps> = ({ isNavbar = false }) => {
   const handleAIResponse = async (userMessage: string) => {
     setIsTyping(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     let response = "I understand you're asking about ";
     if (userMessage.toLowerCase().includes('experience')) {
       response = "Alief has extensive experience in Business Intelligence and Data Analysis, working with various tools and technologies. Would you like to know more about specific projects or skills?";
@@ -85,32 +84,19 @@ const ChatWithAI: React.FC<ChatWithAIProps> = ({ isNavbar = false }) => {
     } else if (userMessage.toLowerCase().includes('contact') || userMessage.toLowerCase().includes('hire')) {
       response = "You can reach out through the contact form or directly via email at alivenata@gmail.com. Alief is available for freelance work, collaborations and any professionals work!";
     } else if (userMessage.toLowerCase().includes('education') || userMessage.toLowerCase().includes('background')) {
-  response = "Alief has an educational background in Computer Science, which provides a strong foundation for his work in data analysis and software development.";
+      response = "Alief has an educational background in Computer Science, which provides a strong foundation for his work in data analysis and software development.";
     } else if (userMessage.toLowerCase().includes('location') || userMessage.toLowerCase().includes('based')) {
-  response = "Alief is based in Indonesia but open to remote opportunities and collaborations globally.";
+      response = "Alief is based in Indonesia but open to remote opportunities and collaborations globally.";
     } else if (userMessage.toLowerCase().includes('certification') || userMessage.toLowerCase().includes('certified')) {
-  response = "Alief holds certifications in Data Analytics and Business Intelligence. Let me know if you'd like details on any of them.";
+      response = "Alief holds certifications in Data Analytics and Business Intelligence. Let me know if you'd like details on any of them.";
     } else if (userMessage.toLowerCase().includes('language') || userMessage.toLowerCase().includes('speak')) {
       response = "Alief speaks both English and Indonesian fluently, which helps in working with diverse teams and clients.";
     } else if (userMessage.toLowerCase().includes('who is alief') || userMessage.toLowerCase().includes('about alief')) {
-  response = "Alief is a data analyst and web developer with a strong background in Business Intelligence, data visualization, and automation tools. He enjoys solving problems through data.";
+      response = "Alief is a data analyst and web developer with a strong background in Business Intelligence, data visualization, and automation tools. He enjoys solving problems through data.";
     } else if (userMessage.toLowerCase().includes('who are you') || userMessage.toLowerCase().includes('what is alyx')) {
-  response = "I'm Alyx, a virtual assistant designed to help answer your questions about Alief's background, work, and availability. While I strive to be helpful, I do have some limitations.";
+      response = "I'm Alyx, a virtual assistant designed to help answer your questions about Alief's background, work, and availability. While I strive to be helpful, I do have some limitations.";
     } else if (userMessage.toLowerCase().includes('limitation') || userMessage.toLowerCase().includes('can you do')) {
-  response = "As an AI assistant, I'm here to share information based on what's been programmed about Alief. I can't access private data, make decisions, or perform tasks outside of answering questions.";
-        } else if (userMessage.toLowerCase().includes('age') || userMessage.toLowerCase().includes('how old')) {
-      const birthDate = new Date('1993-04-22');
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const hasHadBirthdayThisYear = (
-        today.getMonth() > birthDate.getMonth() ||
-        (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate())
-      );
-    
-      if (!hasHadBirthdayThisYear) {
-        age -= 1;
-      }
-      response = `Alief is currently ${age} years old.`;
+      response = "As an AI assistant, I'm here to share information based on what's been programmed about Alief. I can't access private data, make decisions, or perform tasks outside of answering questions.";
     } else if (userMessage.toLowerCase().includes('feedback') || userMessage.toLowerCase().includes('suggestion') || userMessage.toLowerCase().includes('criticism') || userMessage.toLowerCase().includes('comment')) {
       response = "I'd love to hear your thoughts! You can send any feedback, suggestions, or constructive criticism directly to alivenata@gmail.com.";
     } else if (userMessage.toLowerCase().includes('sales') || userMessage.toLowerCase().includes('dashboard')) {
@@ -119,13 +105,9 @@ const ChatWithAI: React.FC<ChatWithAIProps> = ({ isNavbar = false }) => {
       response = "Alief built a classification system using Python and machine learning libraries like scikit-learn to categorize customer feedback into sentiment categories.";
     } else if (userMessage.toLowerCase().includes('visualization')) {
       response = "Alief's data visualization projects include building interactive charts and dashboards using libraries like Plotly, Tableau.";
-      } else if (
-  userMessage.toLowerCase().includes('contact') ||
-  userMessage.toLowerCase().includes('hire') ||
-  userMessage.toLowerCase().includes('freelance')
-) {
-  response = "Yes, Alief is available for freelance work, collaborations, and other professional opportunities. You can reach out via email at alivenata@gmail.com.";
-      } else {
+    } else if (userMessage.toLowerCase().includes('contact') || userMessage.toLowerCase().includes('hire') || userMessage.toLowerCase().includes('freelance')) {
+      response = "Yes, Alief is available for freelance work, collaborations, and other professional opportunities. You can reach out via email at alivenata@gmail.com.";
+    } else {
       response = "I'm not sure I understand your question, but I can help you learn more about Alief's background, skills, or availability. What would you like to ask about?";
     }
     
@@ -150,16 +132,22 @@ const ChatWithAI: React.FC<ChatWithAIProps> = ({ isNavbar = false }) => {
 
   const ChatButton = () => (
     <button
-        onClick={() => setIsOpen(true)}
-        className={`flex items-center gap-2 font-mono text-base transition-all duration-300 ${
-          isNavbar 
-            ? "px-4 py-2 bg-space-navy rounded-md border border-neon-purple/30 hover:border-neon-purple/60"
-            : "p-3 bg-neon-purple/20 rounded-full hover:bg-neon-purple/30 shadow-lg hover:shadow-neon-purple/20 border border-neon-purple/30"
-        }`}
+      onClick={() => setIsOpen(true)}
+      className={`flex items-center gap-2 font-mono text-base transition-colors duration-300 ${
+        isNavbar 
+          ? "px-4 py-2 bg-space-navy rounded-md border border-neon-purple/30 hover:border-neon-purple/60"
+          : "p-3 bg-neon-purple/20 rounded-full shadow-lg border border-neon-purple/30 hover:bg-neon-purple/30 hover:shadow-neon-purple/20"
+      }`}
+    >
+      <motion.div
+        whileHover={{ scale: 1.2 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+        style={{ display: 'flex', alignItems: 'center' }}
       >
         <MessageSquare size={20} className="text-neon-purple" />
-        {isNavbar && <span>Chat Alyx</span>}
-      </button>
+      </motion.div>
+      {isNavbar && <span>Chat Alyx</span>}
+    </button>
   );
 
   return (
@@ -192,8 +180,9 @@ const ChatWithAI: React.FC<ChatWithAIProps> = ({ isNavbar = false }) => {
                 y: prev.y + info.offset.y
               }));
             }}
-            className="fixed bottom-4 right-4 bg-space-navy rounded-lg shadow-lg border border-neon-purple/20 overflow-hidden z-50"
+            className="fixed bottom-4 right-24 bg-space-navy rounded-lg shadow-lg border border-neon-purple/20 overflow-hidden z-[60]"
             style={{ 
+              position: 'fixed',
               resize: 'both',
               minWidth: '300px',
               minHeight: '400px',

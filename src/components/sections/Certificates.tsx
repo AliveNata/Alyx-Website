@@ -42,7 +42,7 @@ const Certificates: React.FC = () => {
                   autoplay
                   loop
                   src={cert.animation}
-                  className="w-full h-full object-cover"
+                  className="w-32 h-32 mx-auto"
                 />
               </div>
               

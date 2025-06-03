@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Code } from 'lucide-react';
+import { Menu, X, Code, MessageSquare } from 'lucide-react';
 import MagneticButton from '../ui/MagneticButton';
 import ChatWithAI from '../ui/ChatWithAI';
 
@@ -8,12 +8,15 @@ const Header: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showFloatingChat, setShowFloatingChat] = useState(false);
+  const [showHeaderChat, setShowHeaderChat] = useState(true);
 
   useEffect(() => {
     const handleScroll = () => {
       const isScrolled = window.scrollY > 50;
+      const shouldShowFloating = window.scrollY > 100;
       setScrolled(isScrolled);
-      setShowFloatingChat(window.scrollY > window.innerHeight);
+      setShowFloatingChat(shouldShowFloating);
+      setShowHeaderChat(!shouldShowFloating);
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
@@ -24,6 +27,7 @@ const Header: React.FC = () => {
     { name: 'Projects', href: 'projects' },
     { name: 'Skills', href: 'skills' },
     { name: 'Experience', href: 'experience' },
+    { name: 'Achievements', href: 'achievements' },
     { name: 'Certificates', href: 'certificates' },
     { name: 'Contact', href: 'contact' },
   ];
@@ -79,15 +83,19 @@ const Header: React.FC = () => {
 
             {/* Hire Me Button and Menu Button */}
             <div className="flex items-center space-x-4">
-              {!showFloatingChat && (
-                <MagneticButton 
-                  onClick={() => setShowFloatingChat(true)}
-                  className="text-sm font-mono"
-                >
-                  Chat Alyx
-                </MagneticButton>
-              )}
-              <MagneticButton 
+              <AnimatePresence>
+                {showHeaderChat && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ChatWithAI isNavbar={true} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <MagneticButton
                 onClick={() => window.open('https://drive.google.com/uc?export=download&id=1JcGgx0lQRQZha_qSNkIJt3CmmLFobWnW', '_blank')}
                 className="text-sm"
               >

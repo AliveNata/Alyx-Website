@@ -4,6 +4,7 @@ import { XIcon as Icon } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { TECH_STACK } from '../../constants/data';
 import GlitchText from '../animations/GlitchText';
+import GitHubCalendar from 'react-github-calendar';
 
 const TechStack: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -12,35 +13,34 @@ const TechStack: React.FC = () => {
   useEffect(() => {
     const scrollContainer = scrollRef.current;
     if (!scrollContainer) return;
-
-    let scrollInterval: NodeJS.Timeout;
+  
+    let animationFrameId: number;
     let isHovering = false;
-
-    const startAutoScroll = () => {
-      scrollInterval = setInterval(() => {
-        if (!isHovering && scrollContainer) {
-          scrollContainer.scrollLeft += 2;
-          if (scrollContainer.scrollLeft >= scrollContainer.scrollWidth / 2) {
-            scrollContainer.scrollLeft = 0;
-          }
+  
+    const scrollStep = () => {
+      if (!isHovering) {
+        scrollContainer.scrollLeft += 1; // scroll lebih halus, 1px per frame
+        if (scrollContainer.scrollLeft >= scrollContainer.scrollWidth / 2) {
+          scrollContainer.scrollLeft = 0;
         }
-      }, 10);
+      }
+      animationFrameId = requestAnimationFrame(scrollStep);
     };
-
+  
     const handleMouseEnter = () => {
       isHovering = true;
     };
     const handleMouseLeave = () => {
       isHovering = false;
     };
-
+  
     scrollContainer.addEventListener('mouseenter', handleMouseEnter);
     scrollContainer.addEventListener('mouseleave', handleMouseLeave);
-
-    startAutoScroll();
-
+  
+    animationFrameId = requestAnimationFrame(scrollStep);
+  
     return () => {
-      clearInterval(scrollInterval);
+      cancelAnimationFrame(animationFrameId);
       scrollContainer.removeEventListener('mouseenter', handleMouseEnter);
       scrollContainer.removeEventListener('mouseleave', handleMouseLeave);
     };
@@ -132,6 +132,26 @@ const TechStack: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* GitHub Contribution Calendar, tempatkan di bawah tech cards */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8 }}
+        viewport={{ once: true, amount: 0.3 }}
+        className="max-w-4xl mx-auto mt-12 px-4 py-8 bg-space-navy/70 rounded-xl border border-white/20 backdrop-blur-md overflow-x-hidden"
+      >
+        <h4 className="text-white/70 text-xl font-semibold mb-6 text-center">
+          My GitHub Contributions
+        </h4>
+      
+        <GitHubCalendar
+          username="AliveNata"
+          blockSize={12}      // kecilkan kotak
+          blockMargin={3}     // kecilkan margin antar kotak
+          color="#22c55e"
+        />
+      </motion.div>
     </section>
   );
 };

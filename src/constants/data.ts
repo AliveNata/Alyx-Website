@@ -1,6 +1,5 @@
 import { Project, Experience, TechStack, Certificate, Achievement } from '../types';
 
-// Replace with actual profile photo of Alief Akbar
 export const PROFILE_PHOTO = "https://images.pexels.com/photos/2379005/pexels-photo-2379005.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2";
 
 export const AI_CHAT_CONTEXT = {
@@ -69,7 +68,8 @@ export const EXPERIENCES: Experience[] = [
       "Cross-departmental collaboration and reporting",
       "Standardization and optimization of data models"
     ],
-    technologies: ["BigQuery", "AppScript", "Python", "Looker", "Apache", "Spreadsheet", "CRM Tools", "Project Management Tools"]
+    technologies: ["BigQuery", "AppScript", "Python", "Looker", "Apache", "Spreadsheet", "CRM Tools", "Project Management Tools"],
+    type: 'it'
   },
   {
     id: 2,
@@ -81,19 +81,94 @@ export const EXPERIENCES: Experience[] = [
       "Data presentation and reporting",
       "Visualization development and data integration"
     ],
-    technologies: ["BigQuery", "AppScript", "Python", "Looker", "Google Analytics", "Spreadsheet", "CRM Tools", "Project Management Tools"]
+    technologies: ["BigQuery", "AppScript", "Python", "Looker", "Google Analytics", "Spreadsheet", "CRM Tools", "Project Management Tools"],
+    type: 'it'
   },
   {
     id: 3,
     role: "IT Management Information System",
     company: "PT. Suzuki Finance Indonesia",
-    duration: "Mar 2018 - Dec 2019",
+    duration: "Oct 2018 - Dec 2019",
     description: [
       "Creating reports to system with query in SQL server, manage trigger jobs, store procedures and schedulers data",
       "Developed report into app or email",
       "Development business requirements from request user, analyst data for board of directors"
     ],
-    technologies: ["HTML/CSS", "C++", "SQL Server", "SSRS", "SSIS", "Excel"]
+    technologies: ["HTML/CSS", "C++", "SQL Server", "SSRS", "SSIS", "Excel"],
+    type: 'it'
+  },
+  {
+    id: 4,
+    role: "IT Quality Assurance Manual",
+    company: "PT. Suzuki Finance Indonesia",
+    duration: "Mar 2018 - Oct 2018",
+    description: [
+      "Test Planning and Quality Assurance",
+      "Validation and Compliance Testing",
+      "Backend Testing and Deployment"
+    ],
+    technologies: ["SQL Server", "SSMS", "Selenium", "Jira", "Postman", "Excel"],
+    type: 'it'
+  },
+  {
+    id: 5,
+    role: "Social Media Specialist",
+    company: "PT Kudo Teknologi Indonesia (KUDO)",
+    duration: "Feb 2016 - Dec 2017",
+    description: [
+      "Handling Agent Issues on Social Media",
+      "Escalation to IT Helpdesk Team",
+      "Bridge Between Digital Marketing and Users"
+    ],
+    type: 'non-it'
+  },
+  {
+    id: 6,
+    role: "Customer Loyalty",
+    company: "Zalora Indonesia",
+    duration: "Nov 2014 - Jul 2015",
+    description: [
+      "Customer Transaction Support",
+      "Logistics Coordination and Follow-up",
+      "Customer Engagement and Voucher Distribution"
+    ],
+    type: 'non-it'
+  },
+  {
+    id: 7,
+    role: "Technician Support 'Apple Service Provider'",
+    company: "eStore",
+    duration: "Jan 2013 - Aug 2013",
+    description: [
+      "Technical Support for Apple Devices",
+      "Hardware and Software Services",
+      "Consultation and Product Reservations"
+    ],
+    type: 'non-it'
+  },
+  {
+    id: 8,
+    role: "HRIS Staff",
+    company: "TVRI Nasional",
+    duration: "May 2012 - Jul 2012",
+    description: [
+      "Employee Data Management with Haermes HRMS",
+      "Payroll System Integration",
+      "Internship Program Coordination"
+    ],
+    type: 'non-it'
+  },
+  {
+    id: 9,
+    role: "Waiter",
+    company: "Benihana Restaurant",
+    duration: "Jul 2011 - Mar 2012",
+    description: [
+      "Teppan and À la Carte Service",
+      "Event Support and Food Running",
+      "Order Entry and System Management"
+    ],
+    type: 'non-it'
   }
 ];
 
@@ -144,7 +219,7 @@ export const CERTIFICATES: Certificate[] = [
     description: "Professional certification in R for Data Science",
     issuer: "DQLab",
     date: "2021",
-    animation: "https://assets2.lottiefiles.com/packages/lf20_xyadoh9h.json",
+    animation: "https://assets2.lottiefiles.com/packages/lf20_w51pcehl.json",
     link: "https://academy.dqlab.id/certificate/pdf/DQLABINTR1WKRBWW"
   },
   {
@@ -162,7 +237,7 @@ export const CERTIFICATES: Certificate[] = [
     description: "Professional certification in Python for Data Science",
     issuer: "DQLab",
     date: "2025",
-    animation: "https://assets9.lottiefiles.com/packages/lf20_xyadoh9h.json",
+    animation: "https://assets8.lottiefiles.com/packages/lf20_2znxgjyt.json",
     link: "https://academy.dqlab.id/"
   }
 ];
@@ -172,7 +247,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 1,
     title: "Data Visualization Expert",
     description: "Created impactful dashboards that improved data accessibility across 5 departments",
-    animation: "https://lottie.host/7c21bb12-8d1b-4323-a2f2-8545b55bde5f/2lWRr88dl5.json",
+    animation: "https://assets2.lottiefiles.com/packages/lf20_puciaact.json",
     metrics: [
       { icon: "award", text: "Best Dashboard Design" },
       { icon: "building", text: "Intrepid Group Asia" },
@@ -183,7 +258,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 2,
     title: "Q2 2020 Top Performers",
     description: "Recognized for outstanding contribution in implementing data-driven solutions in Fabelio Projects",
-    animation: "https://lottie.host/d842eab8-17f0-402f-842f-be21d2dffe85/5RJ9xU6Byq.json",
+    animation: "https://assets4.lottiefiles.com/packages/lf20_touohxv0.json",
     metrics: [
       { icon: "award", text: "Best Data Initiative 2022" },
       { icon: "building", text: "Fabelio Projects" },
@@ -194,11 +269,11 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 3,
     title: "Mentoring Formula Class",
     description: "Reduced support requests for formula issues by training teams through a structured Formula Class program",
-    animation: "https://lottie.host/38db7551-3caf-4d82-b5a6-9560060a41cb/m30ucSQ4bI.json",
+    animation: "https://assets3.lottiefiles.com/packages/lf20_hxart9lz.json",
     metrics: [
-      { icon: "award", text: "Process Automation Leader" },
+      { icon: "award", text: "Formula Class Initiatives" },
       { icon: "building", text: "Fabelio Projects" },
-      { icon: "medal", text: "Team Excellence Award" }
+      { icon: "medal", text: "Internal Team Impact" }
     ]
   }
 ];

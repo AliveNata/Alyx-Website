@@ -15,6 +15,7 @@ export interface Experience {
   duration: string;
   description: string[];
   technologies?: string[];
+  type: 'it' | 'non-it';
 }
 
 export interface TechStack {

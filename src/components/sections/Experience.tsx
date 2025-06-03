@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { EXPERIENCES } from '../../constants/data';
 import Timeline from '../ui/Timeline';
 import GlitchText from '../animations/GlitchText';
 
 const Experience: React.FC = () => {
+  const [experienceType, setExperienceType] = useState<'it' | 'non-it'>('it');
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 1000], [0, 150]);
   const y2 = useTransform(scrollY, [0, 1000], [0, -150]);
-  const opacity = useTransform(scrollY, [0, 300], [1, 0.5]);
+
+  const filteredExperiences = EXPERIENCES.filter(exp => exp.type === experienceType);
 
   return (
     <section id="experience" className="section-container scroll-mt-24 relative overflow-hidden">
@@ -54,12 +56,37 @@ const Experience: React.FC = () => {
           <p className="text-white/70 mt-4 max-w-2xl mx-auto">
             My professional journey and career milestones.
           </p>
+
+          {/* Experience Type Switch */}
+          <div className="mt-8 flex justify-center items-center space-x-4">
+            <button
+              onClick={() => setExperienceType('it')}
+              className={`px-4 py-2 rounded-lg transition-all duration-300 ${
+                experienceType === 'it'
+                  ? 'bg-neon-blue/20 text-neon-blue border border-neon-blue/50'
+                  : 'bg-space-navy/50 text-white/50 border border-white/10 hover:bg-space-navy/70'
+              }`}
+            >
+              IT Experience
+            </button>
+            <div className="w-px h-6 bg-white/10"></div>
+            <button
+              onClick={() => setExperienceType('non-it')}
+              className={`px-4 py-2 rounded-lg transition-all duration-300 ${
+                experienceType === 'non-it'
+                  ? 'bg-neon-purple/20 text-neon-purple border border-neon-purple/50'
+                  : 'bg-space-navy/50 text-white/50 border border-white/10 hover:bg-space-navy/70'
+              }`}
+            >
+              Non-IT Experience
+            </button>
+          </div>
         </motion.div>
         
-        <Timeline experiences={EXPERIENCES} />
+        <Timeline experiences={filteredExperiences} />
       </div>
     </section>
   );
 };
 
-export default Experience
+export default Experience;
