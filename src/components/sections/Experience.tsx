@@ -45,7 +45,7 @@ const Experience: React.FC = () => {
         <motion.div 
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: 0.0 }}
           viewport={{ once: true, amount: 0.3 }}
           className="text-center mb-16"
         >

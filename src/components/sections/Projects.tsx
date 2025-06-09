@@ -31,10 +31,11 @@ const Projects: React.FC = () => {
         {PROJECTS.map((project, index) => (
           <motion.div
             key={project.id}
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: index * 0.1 }}
-            viewport={{ once: true, amount: 0.3 }}
+            initial={{ opacity: 1, y: 0 }} 
+            whileInView={{ opacity: 1, y: 0 }} 
+            transition={{ duration: 0, delay: 0 }} 
+            viewport={{ once: true, amount: 0.3 }} 
+            className="flip-card"  
           >
             <ProjectCard project={project} />
           </motion.div>

@@ -107,16 +107,20 @@ body {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0A0A14;
+  background: #0F1A30;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, #00F0FF, #9D00FF);
-  border-radius: 4px;
+  background: #1a1a1a;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2a2a2a;
 }
 
 /* Hide scrollbar for tech stack */
@@ -159,26 +163,21 @@ body {
   transition: min-height 0.3s ease;
 }
 
-/* Add styles for resizable chat window */
-.resize-handle {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  background-color: rgba(157, 0, 255, 0.3);
-  border-radius: 50%;
-  cursor: se-resize;
-  bottom: 0;
-  right: 0;
-  transition: background-color 0.3s ease;
+@keyframes neonStrokeGlowNoShadow {
+  0%, 100% {
+    stroke: #9D00FF;
+  }
+  50% {
+    stroke: #D480FF;
+  }
 }
 
-.resize-handle:hover {
-  background-color: rgba(157, 0, 255, 0.5);
+.animate-neon-stroke-glow-no-shadow {
+  animation: neonStrokeGlowNoShadow 2s infinite ease-in-out;
+  transition: stroke 0.3s ease;
 }
 
-.chat-window {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 10000;
+.flip-card {
+  transform: rotateY(180deg);  /* Mengatur posisi flip */
+  transition: none;  /* Menghilangkan transisi atau animasi */
 }

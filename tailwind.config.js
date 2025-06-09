@@ -17,10 +17,11 @@ export default {
         sans: ['Exo', 'Rajdhani', 'sans-serif'],
       },
       animation: {
-        'float': 'float 6s ease-in-out infinite',
+        float: 'float 6s ease-in-out infinite',
         'pulse-glow': 'pulseGlow 2s infinite',
         'scroll-down': 'scrollDown 2.5s infinite',
         'spin-slow': 'spin 8s linear infinite',
+        'neon-glow': 'neonGlow 2s infinite ease-in-out',  // <== Tambahan neon glow
       },
       keyframes: {
         float: {
@@ -39,7 +40,7 @@ export default {
         },
       },
       backgroundImage: {
-        'stars': 'url("https://images.pexels.com/photos/998641/pexels-photo-998641.jpeg?auto=compress&cs=tinysrgb&w=1600")',
+        stars: 'url("https://images.pexels.com/photos/998641/pexels-photo-998641.jpeg?auto=compress&cs=tinysrgb&w=1600")',
         'space-gradient': 'linear-gradient(to bottom, #050505, #0A0A14, #0F1A30)',
       },
     },

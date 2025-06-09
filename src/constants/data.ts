@@ -1,7 +1,5 @@
 import { Project, Experience, TechStack, Certificate, Achievement } from '../types';
 
-export const PROFILE_PHOTO = "https://images.pexels.com/photos/2379005/pexels-photo-2379005.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2";
-
 export const AI_CHAT_CONTEXT = {
   introduction: "Hi! I'm Alyx's AI Assistant. I can help you learn more about Alief Akbar:",
   topics: [
@@ -10,13 +8,561 @@ export const AI_CHAT_CONTEXT = {
     "Educational background and certifications",
     "Potential collaboration opportunities"
   ],
-  suggestedQuestions: [
-    "What are Alief's key skills in data analysis?",
-    "Tell me about Alief's experience with BI tools",
-    "What kind of projects has Alief worked on?",
-    "Is Alief available for freelance work?"
+  suggestedQuestionsTree: [
+    {
+      question: "What are Alief's key skills in data analysis?",
+      answer: "Alief is proficient in data analysis tools like Python, SQL, BigQuery, and various BI platforms. He also has experience with web development technologies.",
+      followUps: [
+        {
+          question: "Tell me more about Python skills",
+          answer: "Alief has used Python for data cleaning, automation, and visualization with libraries like pandas, matplotlib, and seaborn.",
+          followUps: [
+            {
+              question: "What Python libraries does he use?",
+              answer: "Alief primarily uses pandas for data manipulation, matplotlib and seaborn for visualization, and scikit-learn for machine learning tasks."
+            }
+          ]
+        },
+        {
+          question: "What BI platforms does Alief use?",
+          answer: "He works with Looker, Tableau, Power BI, and Google Data Studio for creating interactive dashboards and reports."
+        }
+      ]
+    },
+    {
+      question: "Tell me about Alief's experience with BI tools",
+      answer: "Alief has extensive experience working with BI tools such as Looker, BigQuery, and Apache projects, delivering dashboards and reports for business insights.",
+      followUps: [
+        {
+          question: "What kind of dashboards has he built?",
+          answer: "He has built sales performance dashboards, customer analytics dashboards, and operational KPI tracking systems."
+        }
+      ]
+    },
+    {
+      question: "What kind of projects has Alief worked on?",
+      answer: "Alief has worked on projects like sales analysis dashboards, classification clustering systems, and eTicketing web apps.",
+      followUps: [
+        {
+          question: "Tell me about the eTicketing project",
+          answer: "The eTicketing web app includes features like QR code validation, analytics dashboard, and payment integration for enhanced user experience."
+        }
+      ]
+    },
+    {
+      question: "Is Alief available for freelance work?",
+      answer: "Yes, Alief is available for freelance work and collaborations. You can contact him via email at alivenata@gmail.com.",
+      followUps: [
+        {
+          question: "What type of work is he looking for?",
+          answer: "Alief is interested in data analysis, BI development, and web development projects, both remote and on-site opportunities."
+        }
+      ]
+    },
+    {
+      question: "Let's play some games!",
+      answer: "Great! Which game would you like to play? Choose one:",
+      followUps: [
+        {
+          question: "Fun riddles",
+          answer: "Alright, ready! I'll give you some riddles to solve. Do you want easy, medium or hard ones?",
+          followUps: [
+            {
+              question: "Easy riddle",
+              answer: "Here's an easy riddle: What always comes but never arrives?",
+              followUps: [
+                {
+                  question: "Tomorrow",
+                  answer: "Correct! Your answer is right."
+                },
+                {
+                  question: "Today",
+                  answer: "Almost right, but that's not the answer. Try again!"
+                },
+                {
+                  question: "Day after tomorrow",
+                  answer: "Not quite, give it another try."
+                }
+              ]
+            },
+            {
+              question: "Medium riddle",
+              answer: "Here's a medium riddle: The more you take, the more you leave behind. What am I?",
+              followUps: [
+                {
+                  question: "Footsteps",
+                  answer: "Correct! Your answer is right."
+                },
+                {
+                  question: "Time",
+                  answer: "Not quite, but that's a good guess!"
+                },
+                {
+                  question: "Memories",
+                  answer: "That's a creative answer, but try again!"
+                }
+              ]
+            },
+            {
+              question: "Hard riddle",
+              answer: "Here's a hard riddle: I have a city but no houses, a forest but no trees, and a river but no water. What am I?",
+              followUps: [
+                {
+                  question: "Map",
+                  answer: "Exactly! Your answer is correct."
+                },
+                {
+                  question: "Ghost town",
+                  answer: "No, think again."
+                },
+                {
+                  question: "Atlas book",
+                  answer: "Not quite, but very close!"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "question": "Interactive story",
+          "answer": "Awesome! Choose your adventure! Which story would you like to explore?",
+          "followUps": [
+            {
+              "question": "The Forest Adventure",
+              "answer": "You are Aerin, a young traveler seeking answers. The forest whispers your name. Do you go left into the foggy darkness or right into the golden light?",
+              "followUps": [
+                {
+                  "question": "Go left",
+                  "answer": "You enter the foggy path. Soon, a glowing cave appears. Do you explore the cave or walk past it?",
+                  "followUps": [
+                    {
+                      "question": "Explore the cave",
+                      "answer": "Inside the cave, you meet Thornal, a small ancient dragon. He asks why you're here. Do you tell him the truth or lie?",
+                      "followUps": [
+                        {
+                          "question": "Tell the truth",
+                          "answer": "Thornal senses your sincerity and offers you the Amber of Memory. With it, you see visions of your father's past. Do you accept the vision or resist?",
+                          "followUps": [
+                            {
+                              "question": "Accept",
+                              "answer": "You learn your father helped protect this forest. Thornal opens a secret passage leading deeper into the forest.",
+                              "ending": "Guardian's Awakening - You gain ancient knowledge and take your father's place as the protector of Elnar.",
+                              "endingType": "Best Ending"
+                            },
+                            {
+                              "question": "Resist",
+                              "answer": "The vision fades. Thornal grows disappointed. The cave darkens and you're gently pushed outside.",
+                              "ending": "Missed Destiny - You survive, but the forest's secrets remain locked away.",
+                              "endingType": "Bittersweet Ending"
+                            }
+                          ]
+                        },
+                        {
+                          "question": "Lie",
+                          "answer": "Thornal growls. He transforms into your greatest fear. You flee the cave, shaken.",
+                          "ending": "Rejected by the Forest - Your dishonesty leads you away from the path of truth and power.",
+                          "endingType": "Tragic Ending"
+                        }
+                      ]
+                    },
+                    {
+                      "question": "Walk past it",
+                      "answer": "You find a mysterious hut. An old hermit invites you in and offers tea that reveals your destiny. Do you drink it?",
+                      "followUps": [
+                        {
+                          "question": "Drink",
+                          "answer": "You see your future as the guardian of the forest. You awaken with a totem of power.",
+                          "ending": "Visionary Future - You embrace your calling and the forest grants you its blessing.",
+                          "endingType": "Neutral Ending"
+                        },
+                        {
+                          "question": "Refuse",
+                          "answer": "The hermit vanishes. The hut is now empty. You move on, feeling unsure but determined.",
+                          "ending": "Wanderer's Road - Without guidance, you forge your own uncertain but brave path.",
+                          "endingType": "Bittersweet Ending"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "question": "Go right",
+                  "answer": "You walk along a golden trail and meet a magical fox. It speaks: 'I can show you your destiny, if you trust me.' Do you follow the fox or ignore it?",
+                  "followUps": [
+                    {
+                      "question": "Follow the fox",
+                      "answer": "The fox brings you to the Spirit Tree. It asks if you wish to inherit your family's forgotten duty. Do you accept?",
+                      "followUps": [
+                        {
+                          "question": "Accept",
+                          "answer": "You gain the Mark of the Forest. The animals begin to follow your lead. A portal opens to an ancient sanctuary.",
+                          "ending": "Nature's Chosen - You become a living legend, a bridge between mankind and the wild.",
+                          "endingType": "Best Ending"
+                        },
+                        {
+                          "question": "Decline",
+                          "answer": "The fox disappears into the mist. You're left to find your own path, now more difficult.",
+                          "ending": "Fated to Stray - You deny your role and wander endlessly in the woods of forgotten purpose.",
+                          "endingType": "Bittersweet Ending"
+                        }
+                      ]
+                    },
+                    {
+                      "question": "Ignore",
+                      "answer": "The path vanishes beneath your feet and you fall into a hidden glade. There's a statue of your younger self. Do you touch it?",
+                      "followUps": [
+                        {
+                          "question": "Touch",
+                          "answer": "Memories flood your mind. You remember why you entered the forest—to heal. A new trail opens.",
+                          "ending": "Inner Healing - Through courage and memory, you find peace and your way home.",
+                          "endingType": "Neutral Ending"
+                        },
+                        {
+                          "question": "Step back",
+                          "answer": "The glade begins to collapse. You must flee or be trapped forever.",
+                          "ending": "Forest's Judgment - You rejected reflection. The forest swallows its secrets… and you.",
+                          "endingType": "Tragic Ending"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "question": "The Haunted Mansion",
+              "answer": "You are Elise Caldwell, a curious archaeologist drawn to the cursed Windmere Mansion. The main door creaks open. Do you go inside or look around outside?",
+              "followUps": [
+                {
+                  "question": "Enter the mansion",
+                  "answer": "You step into the dim foyer. Two doors await: one red, one blue. Which do you choose?",
+                  "followUps": [
+                    {
+                      "question": "Choose the red door",
+                      "answer": "You enter a hall of mirrors. One mirror reflects you as an old woman. Do you approach it or try to break it?",
+                      "followUps": [
+                        {
+                          "question": "Approach the mirror",
+                          "answer": "The mirror whispers secrets of your bloodline and offers to show you your fate. Do you accept or refuse?",
+                          "followUps": [
+                            {
+                              "question": "Accept",
+                              "answer": "You see your future as the next heir of Windmere. The mirror shatters and a door opens to the family crypt.",
+                              "ending": "Legacy Restored - You embrace your ancestry and become the protector of Windmere's secrets.",
+                              "endingType": "Neutral Ending"
+                            },
+                            {
+                              "question": "Refuse",
+                              "answer": "You step back, and the mirror fogs over. The room darkens, and you're left questioning your path.",
+                              "ending": "Faded Truth - You survive the night, but leave with more questions than answers.",
+                              "endingType": "Bittersweet Ending"
+                            }
+                          ]
+                        },
+                        {
+                          "question": "Break the mirror",
+                          "answer": "The shards scream as a ghostly figure is released. You flee down a hidden stairway.",
+                          "ending": "Accidental Awakening - You unleash a trapped spirit and barely escape. The curse continues.",
+                          "endingType": "Tragic Ending"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "question": "Look for clues outside",
+                  "answer": "You circle the mansion and find a garden maze. A stone statue of a child beckons. Do you follow it or search elsewhere?",
+                  "followUps": [
+                    {
+                      "question": "Follow the child",
+                      "answer": "The child leads you to a hidden gazebo. A spectral journal lies open. Do you read it?",
+                      "followUps": [
+                        {
+                          "question": "Read the journal",
+                          "answer": "It reveals the mansion was a prison for spirits. You're offered the role of keeper.",
+                          "ending": "Spirit Keeper - You remain to guide lost souls and watch over Windmere forever.",
+                          "endingType": "Tragic Ending"
+                        },
+                        {
+                          "question": "Close the journal",
+                          "answer": "The gazebo collapses. You run, but the memory of the mansion haunts you.",
+                          "ending": "Refused the Call - You flee with your life, but the spirits remain unrested.",
+                          "endingType": "Neutral Ending"
+                        }
+                      ]
+                    },
+                    {
+                      "question": "Search elsewhere",
+                      "answer": "You find a grave with your family name. Thunder cracks. The mansion's shadow looms.",
+                      "ending": "Bloodline Buried - You turn away from your heritage and miss your one chance at truth.",
+                      "endingType": "Neutral Ending"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "question": "The Desert Trek",
+              "answer": "You are Rafi Amari, a scholar crossing the Nahar desert to find ruins tied to your missing father. Ahead is a shimmering oasis and a shaded rock with carvings. Where do you go?",
+              "followUps": [
+                {
+                  "question": "Head to the oasis",
+                  "answer": "The oasis is real. A woman named Zarah greets you, saying she knew your father. She offers water in exchange for a memory. Do you accept?",
+                  "followUps": [
+                    {
+                      "question": "Accept the deal",
+                      "answer": "You give up a childhood memory and gain a map of the stars. Do you follow the map or rest for the night?",
+                      "followUps": [
+                        {
+                          "question": "Follow the map",
+                          "answer": "You discover the hidden ruins beneath the sand and awaken ancient machines.",
+                          "ending": "Ruins of Truth - Your sacrifice leads to the lost city's rediscovery and your father's journal.",
+                          "endingType": "Tragic Ending"
+                        },
+                        {
+                          "question": "Rest for the night",
+                          "answer": "You awaken to find the map gone and the oasis vanished. Only the sand remains.",
+                          "ending": "Lost Opportunity - The moment passed, and with it, the path to truth.",
+                          "endingType": "Tragic Ending"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "question": "Crimson Vow: The Mafia Saga",
+              "answer": "You are Nata Goricx, a feared yet respected Mafia Capo in Caelus. One night at your casino, you meet a mysterious woman named Yupi Coklat. She’s smart, deadly, and from a rival gang. Do you confront her or invite her for a private game?",
+              "followUps": [
+                {
+                  "question": "Invite her for a private game",
+                  "answer": "She agrees. As you play poker, your chemistry grows. She hints at a past involving a dead sibling. Do you open up about your own past or stay silent?",
+                  "followUps": [
+                    {
+                      "question": "Open up",
+                      "answer": "You tell her about your rise, and how you once killed your own cousin for betraying the family.",
+                      "followUps": [
+                        {
+                          "question": "Ask about her brother",
+                          "answer": "She reveals her brother was killed by someone wearing your gang’s crest. Do you offer to investigate?",
+                          "followUps": [
+                            {
+                              "question": "Offer to investigate",
+                              "answer": "You task your enforcer to quietly investigate. Days later, the killer is revealed: your right-hand man. Do you execute him or exile him?",
+                              "followUps": [
+                                {
+                                  "question": "Execute him",
+                                  "answer": "Blood spills on the floor of the garage. Yupi watches, conflicted. You tell her, 'I did this for us.'",
+                                  "followUps": [
+                                    {
+                                      "question": "Propose a truce to her gang",
+                                      "answer": "You and Yupi meet her gang leaders in Bluebay. Talks are tense. Do you offer a business deal or marriage alliance?",
+                                      "followUps": [
+                                        {
+                                          "question": "Business deal",
+                                          "answer": "The truce holds, but tensions remain. However, you and Yupi grow closer in secret.",
+                                          "followUps": [
+                                            {
+                                              "question": "Reveal the relationship publicly",
+                                              "answer": "It shocks both gangs — but earns unexpected respect.",
+                                              "next": {
+                                                "question": "The Wedding at the Vineyard",
+                                                "answer": "Months later, after bloodshed and betrayal, Nata and Yupi stand under a flowered arch in a Tuscan-style vineyard. The guests: family, mafia, gang leaders. A toast is made. The city watches silently. Peace? Or pause?",
+                                                "ending": "Crimson Vow – Love ends the war, but peace in Caelus is always temporary.",
+                                                "endingType": "Best Ending"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "question": "Marriage alliance",
+                                          "answer": "Yupi hesitates, unsure if this is love or politics. Do you give her time or insist?",
+                                          "followUps": [
+                                            {
+                                              "question": "Give her time",
+                                              "answer": "She returns days later and kisses you. 'Let’s do this together.'",
+                                              "next": {
+                                                "question": "The Wedding at the Vineyard",
+                                                "answer": "Months later, after bloodshed and betrayal, Nata and Yupi stand under a flowered arch in a Tuscan-style vineyard. The guests: family, mafia, gang leaders. A toast is made. The city watches silently. Peace? Or pause?",
+                                                "ending": "Crimson Vow – Love ends the war, but peace in Caelus is always temporary.",
+                                                "endingType": "Best Ending"
+                                              }
+                                            },
+                                            {
+                                              "question": "Insist now",
+                                              "answer": "She vanishes. Rumors spread she returned to Sweet Venom leadership.",
+                                              "ending": "Cracked Vow – You tried to force fate. She won’t be owned.",
+                                              "endingType": "Tragic Ending"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "question": "Exile him",
+                                  "answer": "He vows revenge. Days later, a hit is made on Yupi's life. She survives. Do you track him down or lie to Yupi?",
+                                  "followUps": [
+                                    {
+                                      "question": "Track him down",
+                                      "answer": "You find him working with a rival gang. You eliminate him, ending the threat.",
+                                      "next": {
+                                        "question": "The Wedding at the Vineyard",
+                                        "answer": "Months later, after bloodshed and betrayal, Nata and Yupi stand under a flowered arch in a Tuscan-style vineyard. The guests: family, mafia, gang leaders. A toast is made. The city watches silently. Peace? Or pause?",
+                                        "ending": "Crimson Vow – Love ends the war, but peace in Caelus is always temporary.",
+                                        "endingType": "Best Ending"
+                                      }
+                                    },
+                                    {
+                                      "question": "Lie to Yupi",
+                                      "answer": "She discovers the truth and walks away. 'We built this on a lie.'",
+                                      "ending": "Love Lost – A kingdom built on secrets cannot stand.",
+                                      "endingType": "Tragic Ending"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "question": "Tell her to move on",
+                              "answer": "She leaves the room silently. Days later, you're ambushed by her gang in Bluebay.",
+                              "ending": "Betrayed Heart – You lose both love and territory in a single night.",
+                              "endingType": "Tragic Ending"
+                            }
+                          ]
+                        },
+                        {
+                          "question": "Change the subject",
+                          "answer": "You share drinks. Tension remains, but the chemistry is undeniable. Later, you kiss under the casino lights.",
+                          "ending": "Dangerous Desire – Your love blooms, but the truth still lurks beneath.",
+                          "endingType": "Neutral Ending"
+                        }
+                      ]
+                    },
+                    {
+                      "question": "Stay silent",
+                      "answer": "She respects your silence. Before leaving, she whispers: 'I see pain behind your eyes.'",
+                      "ending": "Silent Bond – Trust begins to grow, slowly but dangerously.",
+                      "endingType": "Bittersweet Ending"
+                    }
+                  ]
+                },
+                {
+                  "question": "Confront her about her gang",
+                  "answer": "She smiles coldly. 'You think only you rule this city?' She pulls out a hidden blade. Do you fight or disarm her?",
+                  "followUps": [
+                    {
+                      "question": "Disarm her",
+                      "answer": "You grab her wrist. The guards rush in, but you stop them. 'Let her go,' you say.",
+                      "followUps": [
+                        {
+                          "question": "Meet her later",
+                          "answer": "You find her at the Rustzone market. You apologize. She agrees to a drink.",
+                          "ending": "Unlikely Allies – A truce forms, and love begins where rivalry once stood.",
+                          "endingType": "Best Ending"
+                        },
+                        {
+                          "question": "Threaten her",
+                          "answer": "She vanishes. Two days later, three of your trucks explode in the docks.",
+                          "ending": "Gang War Reignited – Love crushed by paranoia and control.",
+                          "endingType": "Tragic Ending"
+                        }
+                      ]
+                    },
+                    {
+                      "question": "Fight her",
+                      "answer": "You clash in the casino VIP room. She cuts your cheek but you hold her down.",
+                      "followUps": [
+                        {
+                          "question": "Let her go",
+                          "answer": "She vanishes, but sends you a note: 'You bleed for me. Maybe we’re not enemies.'",
+                          "ending": "Respect Through War – Violence births reluctant affection.",
+                          "endingType": "Bittersweet Ending"
+                        },
+                        {
+                          "question": "Keep her hostage",
+                          "answer": "You try to use her as leverage. Her gang retaliates, burning your Rustzone lab.",
+                          "ending": "Power Play – You gain nothing and lose more.",
+                          "endingType": "Tragic Ending"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          question: "Casual trivia quiz",
+          answer: "Ready! Which difficulty level do you prefer? Easy, Medium, or Hard?",
+          followUps: [
+            {
+              question: "Easy trivia",
+              answer: "Alright! Trivia question: What is the capital city of Australia?",
+              followUps: [
+                {
+                  question: "Canberra",
+                  answer: "Correct! Canberra is the capital city of Australia."
+                },
+                {
+                  question: "Sydney",
+                  answer: "Close, but Sydney is not the capital, it's the largest city."
+                },
+                {
+                  question: "Melbourne",
+                  answer: "No, Melbourne is not the capital."
+                }
+              ]
+            },
+            {
+              question: "Medium trivia",
+              answer: "Alright! Trivia question: Which planet is known as the Red Planet?",
+              followUps: [
+                {
+                  question: "Mars",
+                  answer: "Correct! Mars is known as the Red Planet."
+                },
+                {
+                  question: "Jupiter",
+                  answer: "Close, but not quite. Try again!"
+                },
+                {
+                  question: "Venus",
+                  answer: "Not the right answer, but it's a good guess."
+                }
+              ]
+            },
+            {
+              question: "Hard trivia",
+              answer: "Here comes the hard one: Which country has the longest coastline in the world?",
+              followUps: [
+                {
+                  question: "Canada",
+                  answer: "Correct! Canada has the longest coastline in the world."
+                },
+                {
+                  question: "Russia",
+                  answer: "Close, but it's not Russia. Try again!"
+                },
+                {
+                  question: "Australia",
+                  answer: "Incorrect. The right answer is Canada."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
   ]
 };
+
+export const PROFILE_PHOTO = "https://images.pexels.com/photos/2379005/pexels-photo-2379005.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2";
+
+
 
 export const PROJECTS: Project[] = [
   {

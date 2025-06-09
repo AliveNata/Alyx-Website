@@ -52,8 +52,8 @@ const Header: React.FC = () => {
       <header
         className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
           scrolled
-            ? 'bg-space-black/80 backdrop-blur-md py-3 border-b border-neon-blue/10'
-            : 'py-5'
+            ? 'bg-space-black/80 backdrop-blur-md py-2 sm:py-3 border-b border-neon-blue/10'
+            : 'py-3 sm:py-5'
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -61,7 +61,7 @@ const Header: React.FC = () => {
             {/* Logo */}
             <button
               onClick={() => handleScrollTo('home')}
-              className="text-white font-bold text-xl flex items-center gap-2"
+              className="text-white font-bold text-lg sm:text-xl flex items-center gap-2"
             >
               <motion.div
                 animate={{
@@ -74,15 +74,15 @@ const Header: React.FC = () => {
                   duration: 5,
                   ease: 'easeInOut',
                 }}
-                className="bg-neon-purple/20 p-2 rounded-lg"
+                className="bg-neon-purple/20 p-1.5 sm:p-2 rounded-lg"
               >
-                <Code size={24} className="text-neon-purple" />
+                <Code size={20} className="text-neon-purple sm:w-6 sm:h-6" />
               </motion.div>
-              <span className="font-mono">Alyx</span>
+              <span className="font-mono text-sm sm:text-base">Alyx</span>
             </button>
 
             {/* Hire Me Button and Menu Button */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <AnimatePresence>
                 {showHeaderChat && (
                   <motion.div
@@ -97,18 +97,19 @@ const Header: React.FC = () => {
               </AnimatePresence>
               <MagneticButton
                 onClick={() => window.open('https://drive.google.com/uc?export=download&id=1JcGgx0lQRQZha_qSNkIJt3CmmLFobWnW', '_blank')}
-                className="text-sm"
+                className="text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-3"
               >
-                Hire Me
+                <span className="hidden sm:inline">Hire Me</span>
+                <span className="sm:hidden">Hire</span>
               </MagneticButton>
               <button
                 className="text-white p-2"
                 onClick={() => setMenuOpen(!menuOpen)}
               >
                 {menuOpen ? (
-                  <X size={24} className="text-neon-pink" />
+                  <X size={20} className="text-neon-pink sm:w-6 sm:h-6" />
                 ) : (
-                  <Menu size={24} className="text-neon-blue" />
+                  <Menu size={20} className="text-neon-blue sm:w-6 sm:h-6" />
                 )}
               </button>
             </div>
@@ -125,7 +126,7 @@ const Header: React.FC = () => {
               transition={{ duration: 0.3 }}
               className="absolute top-full left-0 w-full bg-space-navy/95 backdrop-blur-md border-b border-neon-blue/10"
             >
-              <nav className="max-w-7xl mx-auto px-4 py-6 grid gap-4">
+              <nav className="max-w-7xl mx-auto px-4 py-4 sm:py-6 grid gap-2 sm:gap-4">
                 {navItems.map((item, index) => (
                   <motion.button
                     key={index}
@@ -133,7 +134,7 @@ const Header: React.FC = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
                     onClick={() => handleScrollTo(item.href)}
-                    className="w-full text-left py-3 px-4 text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-all duration-300 font-mono flex items-center justify-between group"
+                    className="w-full text-left py-2 sm:py-3 px-3 sm:px-4 text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-all duration-300 font-mono flex items-center justify-between group text-sm sm:text-base"
                   >
                     <span>{item.name}</span>
                     <span className="text-neon-blue opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -154,7 +155,7 @@ const Header: React.FC = () => {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            className="fixed bottom-8 right-24 z-50"
+            className="fixed bottom-8 left-4 z-50"
           >
             <ChatWithAI isNavbar={false} />
           </motion.div>

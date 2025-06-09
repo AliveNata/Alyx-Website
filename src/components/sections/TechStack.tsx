@@ -133,7 +133,7 @@ const TechStack: React.FC = () => {
         </div>
       </div>
 
-      {/* GitHub Contribution Calendar, tempatkan di bawah tech cards */}
+      {/* GitHub Contribution Calendar */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -147,8 +147,8 @@ const TechStack: React.FC = () => {
       
         <GitHubCalendar
           username="AliveNata"
-          blockSize={12}      // kecilkan kotak
-          blockMargin={3}     // kecilkan margin antar kotak
+          blockSize={12}      
+          blockMargin={3}     
           color="#22c55e"
         />
       </motion.div>
