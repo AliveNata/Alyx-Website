@@ -148,14 +148,14 @@ const Header: React.FC = () => {
         </AnimatePresence>
       </header>
 
-      {/* Floating Chat Button */}
+      {/* Floating Chat Button - positioned to the left of scroll up button */}
       <AnimatePresence>
         {showFloatingChat && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            className="fixed bottom-8 left-4 z-50"
+            className="fixed bottom-8 right-20 z-40"
           >
             <ChatWithAI isNavbar={false} />
           </motion.div>

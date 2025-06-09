@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
-import { MessageSquare, X, Send, Bot, User, GripVertical } from 'lucide-react';
+import { MessageSquare, X, Send, Bot, User, GripVertical, Maximize2, Minus } from 'lucide-react';
 import { AI_CHAT_CONTEXT } from '../../constants/data';
 
 interface Message {
@@ -21,12 +21,19 @@ interface ChatWithAIProps {
 
 const ChatWithAI: React.FC<ChatWithAIProps> = ({ isNavbar = false }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [currentSuggestions, setCurrentSuggestions] = useState<SuggestionNode[]>(AI_CHAT_CONTEXT.suggestedQuestionsTree);
   const [isTyping, setIsTyping] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [chatSize, setChatSize] = useState({ width: 384, height: 600 });
+  const [chatPosition, setChatPosition] = useState({ x: 0, y: 0 });
+  
   const dragControls = useDragControls();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatRef = useRef<HTMLDivElement>(null);
+  const resizeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
@@ -37,6 +44,40 @@ const ChatWithAI: React.FC<ChatWithAIProps> = ({ isNavbar = false }) => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Resize functionality
+  useEffect(() => {
+    const handleResize = (e: MouseEvent) => {
+      if (!chatRef.current) return;
+      
+      const rect = chatRef.current.getBoundingClientRect();
+      const newWidth = Math.max(300, Math.min(800, e.clientX - rect.left));
+      const newHeight = Math.max(400, Math.min(window.innerHeight - 100, e.clientY - rect.top));
+      
+      setChatSize({ width: newWidth, height: newHeight });
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleResize);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    const resizeElement = resizeRef.current;
+    if (resizeElement) {
+      const handleMouseDown = (e: MouseEvent) => {
+        e.preventDefault();
+        document.addEventListener('mousemove', handleResize);
+        document.addEventListener('mouseup', handleMouseUp);
+      };
+
+      resizeElement.addEventListener('mousedown', handleMouseDown);
+      return () => {
+        resizeElement.removeEventListener('mousedown', handleMouseDown);
+        document.removeEventListener('mousemove', handleResize);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, []);
 
   const handleAIResponse = async (userMessage: string) => {
     setIsTyping(true);
@@ -162,6 +203,24 @@ const ChatWithAI: React.FC<ChatWithAIProps> = ({ isNavbar = false }) => {
     await handleAIResponse(node.question);
   };
 
+  const toggleMaximize = () => {
+    setIsMaximized(!isMaximized);
+  };
+
+  const handleMinimize = () => {
+    setIsMinimized(true);
+  };
+
+  const handleClose = () => {
+    setIsOpen(false);
+    // Reset chat only when closing, not when minimizing
+    setMessages([]);
+    setCurrentSuggestions(AI_CHAT_CONTEXT.suggestedQuestionsTree);
+    setInput('');
+    setIsMinimized(false);
+    setIsMaximized(false);
+  };
+
   const ChatButton = () => (
     <motion.button
       onClick={() => setIsOpen(true)}
@@ -181,112 +240,217 @@ const ChatWithAI: React.FC<ChatWithAIProps> = ({ isNavbar = false }) => {
     </motion.button>
   );
 
+  // Check if we're on desktop
+  const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 640;
+
   return (
     <>
       <ChatButton />
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed bottom-20 left-4 sm:left-auto sm:right-24 sm:bottom-4 w-[calc(100vw-2rem)] sm:w-96 bg-space-navy rounded-lg shadow-lg border border-neon-purple/20 overflow-hidden z-[60] flex flex-col max-w-sm sm:max-w-none"
-            style={{ height: 'calc(100vh - 12rem)', maxHeight: '600px' }}
-          >
-            {/* Header */}
-            <div 
-              className="bg-space-black p-3 sm:p-4 border-b border-neon-purple/20 flex justify-between items-center cursor-move"
-              onPointerDown={(e) => dragControls.start(e)}
-            >
-              <div className="flex items-center gap-2">
-                <GripVertical size={14} className="text-white/40 hidden sm:block" />
-                <Bot size={18} className="text-neon-purple" />
-                <span className="text-white font-medium text-sm sm:text-base">Alyx</span>
-              </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="text-white/60 hover:text-white transition-colors"
+          <>
+            {/* Minimized state */}
+            {isMinimized ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className={`fixed bg-space-navy rounded-lg shadow-lg border border-neon-purple/20 z-[70] ${
+                  isDesktop 
+                    ? 'bottom-2 right-2 w-64 h-12' 
+                    : 'bottom-20 left-4 right-4 h-12'
+                }`}
               >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#1a1a1a #0F1A30' }}>
-              {messages.map((message, index) => (
-                <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] sm:max-w-[80%] p-2 sm:p-3 rounded-lg text-sm ${
-                    message.type === 'user'
-                      ? 'bg-neon-purple/20 text-white ml-2 sm:ml-4'
-                      : 'bg-space-black text-white/90 mr-2 sm:mr-4'
-                  }`}>
-                    <div className="flex items-start gap-2">
-                      {message.type === 'ai' ? (
-                        <Bot size={14} className="text-neon-blue mt-1 flex-shrink-0" />
-                      ) : (
-                        <User size={14} className="text-neon-purple mt-1 flex-shrink-0" />
-                      )}
-                      <p className="text-xs sm:text-sm leading-relaxed">{message.content}</p>
-                       {message.endingType && (
-                          <p className="text-xs text-gray-500 mt-1">Ending Type: {message.endingType}</p>
-                        )}
-                    </div>
+                <div className="p-3 flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Bot size={16} className="text-neon-purple" />
+                    <span className="text-white font-medium text-sm">Alyx</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIsMinimized(false)}
+                      className="text-white/60 hover:text-white transition-colors"
+                    >
+                      <Maximize2 size={14} />
+                    </button>
+                    <button
+                      onClick={handleClose}
+                      className="text-white/60 hover:text-white transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
                   </div>
                 </div>
-              ))}
-              {isTyping && (
-                <div className="flex justify-start">
-                  <div className="bg-space-black text-white/90 p-2 sm:p-3 rounded-lg max-w-[85%] sm:max-w-[80%] mr-2 sm:mr-4">
-                    <div className="flex items-center gap-2">
-                      <Bot size={14} className="text-neon-blue flex-shrink-0" />
-                      <div className="flex gap-1">
-                        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-neon-blue/50 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
-                        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-neon-blue/50 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-neon-blue/50 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+              </motion.div>
+            ) : (
+              /* Full chat window */
+              <motion.div
+                ref={chatRef}
+                drag
+                dragControls={dragControls}
+                dragMomentum={false}
+                dragElastic={0}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ 
+                  opacity: 1, 
+                  scale: 1,
+                  x: chatPosition.x,
+                  y: chatPosition.y
+                }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className={`fixed bg-space-navy rounded-lg shadow-lg border border-neon-purple/20 overflow-hidden flex flex-col ${
+                  isMaximized 
+                    ? 'inset-4 z-[70]' 
+                    : 'z-[70]'
+                }`}
+                style={
+                  isMaximized 
+                    ? {} 
+                    : {
+                        // Mobile positioning
+                        ...(window.innerWidth < 640 ? {
+                          bottom: '5rem',
+                          left: '1rem',
+                          width: 'calc(100vw - 2rem)',
+                          height: 'calc(100vh - 12rem)',
+                        } : {
+                          // Desktop positioning - positioned to completely cover scroll up button and extend beyond
+                          bottom: '0rem',
+                          right: '0rem',
+                          width: `${Math.max(chatSize.width, 400)}px`,
+                          height: `${Math.max(chatSize.height, 550)}px`,
+                          maxWidth: '800px',
+                          maxHeight: '90vh',
+                          minWidth: '400px',
+                          minHeight: '550px'
+                        })
+                      }
+                }
+              >
+                {/* Header */}
+                <div 
+                  className="bg-space-black p-3 sm:p-4 border-b border-neon-purple/20 flex justify-between items-center cursor-move"
+                  onPointerDown={(e) => dragControls.start(e)}
+                >
+                  <div className="flex items-center gap-2">
+                    <GripVertical size={14} className="text-white/40 hidden sm:block" />
+                    <Bot size={18} className="text-neon-purple" />
+                    <span className="text-white font-medium text-sm sm:text-base">Alyx</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleMinimize}
+                      className="text-white/60 hover:text-white transition-colors"
+                      title="Minimize"
+                    >
+                      <Minus size={16} />
+                    </button>
+                    <button
+                      onClick={toggleMaximize}
+                      className="text-white/60 hover:text-white transition-colors hidden sm:block"
+                      title={isMaximized ? "Restore" : "Maximize"}
+                    >
+                      <Maximize2 size={16} />
+                    </button>
+                    <button
+                      onClick={handleClose}
+                      className="text-white/60 hover:text-white transition-colors"
+                      title="Close"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#1a1a1a #0F1A30' }}>
+                  {messages.map((message, index) => (
+                    <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[85%] sm:max-w-[80%] p-2 sm:p-3 rounded-lg text-sm ${
+                        message.type === 'user'
+                          ? 'bg-neon-purple/20 text-white ml-2 sm:ml-4'
+                          : 'bg-space-black text-white/90 mr-2 sm:mr-4'
+                      }`}>
+                        <div className="flex items-start gap-2">
+                          {message.type === 'ai' ? (
+                            <Bot size={14} className="text-neon-blue mt-1 flex-shrink-0" />
+                          ) : (
+                            <User size={14} className="text-neon-purple mt-1 flex-shrink-0" />
+                          )}
+                          <p className="text-xs sm:text-sm leading-relaxed">{message.content}</p>
+                           {message.endingType && (
+                              <p className="text-xs text-gray-500 mt-1">Ending Type: {message.endingType}</p>
+                            )}
+                        </div>
                       </div>
                     </div>
+                  ))}
+                  {isTyping && (
+                    <div className="flex justify-start">
+                      <div className="bg-space-black text-white/90 p-2 sm:p-3 rounded-lg max-w-[85%] sm:max-w-[80%] mr-2 sm:mr-4">
+                        <div className="flex items-center gap-2">
+                          <Bot size={14} className="text-neon-blue flex-shrink-0" />
+                          <div className="flex gap-1">
+                            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-neon-blue/50 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
+                            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-neon-blue/50 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-neon-blue/50 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Suggestions */}
+                <div className="bg-space-black border-t border-neon-purple/20 p-3 sm:p-4">
+                  <div className="text-white/60 text-xs mb-2">Suggested Questions:</div>
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2 max-h-20 sm:max-h-24 overflow-y-auto">
+                    {currentSuggestions.map((node, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleSuggestedQuestion(node)}
+                        className="text-xs px-2 py-1 rounded-full bg-neon-purple/10 text-neon-purple border border-neon-purple/30 hover:bg-neon-purple/20 transition-colors whitespace-nowrap"
+                      >
+                        {node.question}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
 
-            {/* Suggestions */}
-            <div className="bg-space-black border-t border-neon-purple/20 p-3 sm:p-4">
-              <div className="text-white/60 text-xs mb-2">Suggested Questions:</div>
-              <div className="flex flex-wrap gap-1.5 sm:gap-2 max-h-20 sm:max-h-24 overflow-y-auto">
-                {currentSuggestions.map((node, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleSuggestedQuestion(node)}
-                    className="text-xs px-2 py-1 rounded-full bg-neon-purple/10 text-neon-purple border border-neon-purple/30 hover:bg-neon-purple/20 transition-colors whitespace-nowrap"
-                  >
-                    {node.question}
-                  </button>
-                ))}
-              </div>
-            </div>
+                {/* Input */}
+                <form onSubmit={handleSend} className="bg-space-black border-t border-neon-purple/20 p-3 sm:p-4">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      placeholder="Type your message..."
+                      className="flex-1 bg-space-navy rounded-md px-2 sm:px-3 py-2 text-white placeholder-white/40 border border-neon-purple/20 focus:outline-none focus:border-neon-purple/40 text-sm"
+                    />
+                    <button
+                      type="submit"
+                      className="p-2 bg-neon-purple/20 rounded-md text-neon-purple hover:bg-neon-purple/30 transition-colors flex-shrink-0"
+                    >
+                      <Send size={16} />
+                    </button>
+                  </div>
+                </form>
 
-            {/* Input */}
-            <form onSubmit={handleSend} className="bg-space-black border-t border-neon-purple/20 p-3 sm:p-4">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Type your message..."
-                  className="flex-1 bg-space-navy rounded-md px-2 sm:px-3 py-2 text-white placeholder-white/40 border border-neon-purple/20 focus:outline-none focus:border-neon-purple/40 text-sm"
-                />
-                <button
-                  type="submit"
-                  className="p-2 bg-neon-purple/20 rounded-md text-neon-purple hover:bg-neon-purple/30 transition-colors flex-shrink-0"
-                >
-                  <Send size={16} />
-                </button>
-              </div>
-            </form>
-          </motion.div>
+                {/* Resize handle - only show on desktop */}
+                {!isMaximized && (
+                  <div
+                    ref={resizeRef}
+                    className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize hidden sm:block"
+                    style={{
+                      background: 'linear-gradient(-45deg, transparent 30%, #9D00FF 30%, #9D00FF 70%, transparent 70%)'
+                    }}
+                  />
+                )}
+              </motion.div>
+            )}
+          </>
         )}
       </AnimatePresence>
     </>
