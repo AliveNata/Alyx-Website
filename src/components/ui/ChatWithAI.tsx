@@ -226,7 +226,7 @@ const ChatWithAI: React.FC<ChatWithAIProps> = ({ isNavbar = false }) => {
       onClick={() => setIsOpen(true)}
       className={`flex items-center gap-2 font-mono relative group ${
         isNavbar
-          ? "px-3 py-2 sm:px-4 sm:py-3 bg-space-navy hover:border-neon-purple/60 hover:bg-neon-purple/10 transition-all duration-300 text-xs sm:text-sm"
+          ? "px-3 py-2 sm:px-4 sm:py-3 bg-space-navy hover:border-neon-purple/60 hover:bg-neon-purple/10 transition-all duration-300 text-xs sm:text-sm rounded-md"
           : "p-3 bg-neon-purple/20 rounded-full shadow-lg border border-neon-purple/30 hover:bg-neon-purple/30"
       }`}
     >
@@ -315,15 +315,15 @@ const ChatWithAI: React.FC<ChatWithAIProps> = ({ isNavbar = false }) => {
                           width: 'calc(100vw - 2rem)',
                           height: 'calc(100vh - 12rem)',
                         } : {
-                          // Desktop positioning - positioned to completely cover scroll up button and extend beyond
-                          bottom: '0rem',
-                          right: '0rem',
+                          // Desktop positioning - properly positioned below header and away from scroll button
+                          top: '6rem', // Below header (header height + padding)
+                          right: '1rem',
                           width: `${Math.max(chatSize.width, 400)}px`,
-                          height: `${Math.max(chatSize.height, 550)}px`,
-                          maxWidth: '800px',
-                          maxHeight: '90vh',
+                          height: `calc(100vh - 8rem)`, // Full height minus header and bottom padding
+                          maxWidth: '500px',
+                          maxHeight: 'calc(100vh - 8rem)',
                           minWidth: '400px',
-                          minHeight: '550px'
+                          minHeight: '500px'
                         })
                       }
                 }
@@ -405,18 +405,20 @@ const ChatWithAI: React.FC<ChatWithAIProps> = ({ isNavbar = false }) => {
 
                 {/* Suggestions */}
                 <div className="bg-space-black border-t border-neon-purple/20 p-3 sm:p-4">
-                  <div className="text-white/60 text-xs mb-2">Suggested Questions:</div>
-                  <div className="flex flex-wrap gap-1.5 sm:gap-2 max-h-20 sm:max-h-24 overflow-y-auto">
+                  <div className="text-white/60 text-xs mb-2">Suggested:</div>
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2 overflow-y-auto" style={{
+    maxHeight: window.innerWidth < 640 ? 'calc(20vh - 3rem)' : 'auto',
+  }}>
                     {currentSuggestions.map((node, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleSuggestedQuestion(node)}
-                        className="text-xs px-2 py-1 rounded-full bg-neon-purple/10 text-neon-purple border border-neon-purple/30 hover:bg-neon-purple/20 transition-colors whitespace-nowrap"
-                      >
-                        {node.question}
-                      </button>
-                    ))}
-                  </div>
+                    <button
+                      key={index}
+                      onClick={() => handleSuggestedQuestion(node)}
+                      className="text-xs sm:text-[10px] px-2 py-1 rounded-full bg-neon-purple/10 text-neon-purple border border-neon-purple/30 hover:bg-neon-purple/20 transition-colors whitespace-nowrap"
+                    >
+                      {node.question}
+                    </button>
+                  ))}
+                </div>
                 </div>
 
                 {/* Input */}

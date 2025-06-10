@@ -49,7 +49,7 @@ const Footer: React.FC = () => {
       {/* Scroll up button at outside footer */}
       <button
         onClick={scrollToTop}
-        className="fixed bottom-8 right-4 z-50 p-3 bg-neon-blue/10 hover:bg-neon-blue/20 border border-neon-blue/30 rounded-full transition-all duration-300 hover:shadow-[0_0_15px_rgba(0,240,255,0.5)] group"
+        className="fixed bottom-8 right-4 z-40 p-3 bg-neon-blue/10 hover:bg-neon-blue/20 border border-neon-blue/30 rounded-full transition-all duration-300 hover:shadow-[0_0_15px_rgba(0,240,255,0.5)] group"
         aria-label="Scroll to top"
       >
         <ArrowUp
