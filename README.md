@@ -2,7 +2,7 @@
 
 ![image](https://github.com/user-attachments/assets/e2fcbad2-8189-4b14-818f-9d97fdd9c20f)
 
-Alyx is a website with a darkspace-themed design dedicated to a personal portfolio, showcasing the works of Alief Akbar, with a focus on data analysis, development, and related projects. This website is built using modern web technologies and follows best practices for responsive design and visually appealing interfaces.
+**Alyx** is a website with a darkspace-themed design dedicated to a personal portfolio, showcasing the works of Alief Akbar, with a focus on data analysis, development, and related projects. This website is built using modern web technologies and follows best practices for responsive design and visually appealing interfaces.
 
 ## Features
 
@@ -10,6 +10,7 @@ Alyx is a website with a darkspace-themed design dedicated to a personal portfol
 - **Projects**: Display of various projects with details.
 - **Contact Section**: An easy way to reach out for collaboration or inquiries.
 - **Interactive Design**: Smooth user experience with hover effects and transitions.
+- **AI Chat**: Users can engage in interactive chat with Alyx regarding Alief Akbar.
 
 ## Technologies Used
 
