@@ -1,10 +1,17 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { PROJECTS } from '../../constants/data';
 import ProjectCard from '../ui/ProjectCard';
 import GlitchText from '../animations/GlitchText';
+import MagneticButton from '../ui/MagneticButton';
 
 const Projects: React.FC = () => {
+  const navigate = useNavigate();
+  
+  // Show only first 4 projects on homepage
+  const displayedProjects = PROJECTS.slice(0, 4);
+
   return (
     <section id="projects" className="section-container scroll-mt-24 relative">
       {/* Section background with subtle gradient */}
@@ -27,8 +34,8 @@ const Projects: React.FC = () => {
         </p>
       </motion.div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {PROJECTS.map((project, index) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+        {displayedProjects.map((project, index) => (
           <motion.div
             key={project.id}
             initial={{ opacity: 1, y: 0 }} 
@@ -41,6 +48,25 @@ const Projects: React.FC = () => {
           </motion.div>
         ))}
       </div>
+
+      {/* Show More Button */}
+      {PROJECTS.length > 4 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.3 }}
+          viewport={{ once: true, amount: 0.3 }}
+          className="text-center"
+        >
+          <MagneticButton
+            onClick={() => navigate('/projects')}
+            className="text-base px-8 py-4 bg-transparent hover:border-neon-purple/60"
+          >
+            <span>Show More Projects</span>
+            <span className="ml-2">→</span>
+          </MagneticButton>
+        </motion.div>
+      )}
     </section>
   );
 };

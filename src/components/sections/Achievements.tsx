@@ -1,11 +1,18 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Trophy, Award, Star, Medal, Building } from 'lucide-react';
 import { Player } from '@lottiefiles/react-lottie-player';
 import GlitchText from '../animations/GlitchText';
+import MagneticButton from '../ui/MagneticButton';
 import { ACHIEVEMENTS } from '../../constants/data';
 
 const Achievements: React.FC = () => {
+  const navigate = useNavigate();
+  
+  // Show only first 6 achievements on homepage
+  const displayedAchievements = ACHIEVEMENTS.slice(0, 6);
+
   return (
     <section id="achievements" className="section-container scroll-mt-24 relative">
       {/* Background effects */}
@@ -40,8 +47,8 @@ const Achievements: React.FC = () => {
       </motion.div>
 
       {/* Achievements grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {ACHIEVEMENTS.map((achievement, index) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+        {displayedAchievements.map((achievement, index) => (
           <motion.div
             key={achievement.id}
             initial={{ opacity: 0, y: 20 }}
@@ -90,6 +97,25 @@ const Achievements: React.FC = () => {
           </motion.div>
         ))}
       </div>
+
+      {/* Show More Button */}
+      {ACHIEVEMENTS.length > 6 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.3 }}
+          viewport={{ once: true, amount: 0.3 }}
+          className="text-center"
+        >
+          <MagneticButton
+            onClick={() => navigate('/achievements')}
+            className="text-base px-8 py-4 bg-transparent hover:border-neon-blue/60"
+          >
+            <span>Show More Achievements</span>
+            <span className="ml-2">→</span>
+          </MagneticButton>
+        </motion.div>
+      )}
     </section>
   );
 };

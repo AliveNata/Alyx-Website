@@ -1,10 +1,17 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Player } from '@lottiefiles/react-lottie-player';
 import GlitchText from '../animations/GlitchText';
+import MagneticButton from '../ui/MagneticButton';
 import { CERTIFICATES } from '../../constants/data';
 
 const Certificates: React.FC = () => {
+  const navigate = useNavigate();
+  
+  // Show only first 6 certificates on homepage
+  const displayedCertificates = CERTIFICATES.slice(0, 6);
+
   return (
     <section id="certificates" className="section-container scroll-mt-24 relative">
       {/* Background effects */}
@@ -26,8 +33,8 @@ const Certificates: React.FC = () => {
       </motion.div>
 
       {/* Certificates grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {CERTIFICATES.map((cert, index) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+        {displayedCertificates.map((cert, index) => (
           <motion.div
             key={cert.id}
             initial={{ opacity: 0, y: 20 }}
@@ -76,8 +83,27 @@ const Certificates: React.FC = () => {
           </motion.div>
         ))}
       </div>
+
+      {/* Show More Button */}
+      {CERTIFICATES.length > 6 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.3 }}
+          viewport={{ once: true, amount: 0.3 }}
+          className="text-center"
+        >
+          <MagneticButton
+            onClick={() => navigate('/certificates')}
+            className="text-base px-8 py-4 bg-transparent hover:border-neon-purple/60"
+          >
+            <span>Show More Certificates</span>
+            <span className="ml-2">→</span>
+          </MagneticButton>
+        </motion.div>
+      )}
     </section>
   );
 };
 
-export default Certificates
+export default Certificates;
