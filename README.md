@@ -53,4 +53,3 @@ To run this project locally, follow these steps:
 ## License
 
 This work is licensed under the Creative Commons Attribution-NoDerivatives 4.0 International License.
-You can share, copy, and redistribute the material in any medium, provided the original work is properly attributed, but no derivative works or adaptations are allowed.
