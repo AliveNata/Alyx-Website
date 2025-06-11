@@ -50,6 +50,10 @@ To run this project locally, follow these steps:
 
 5. **Open your browser** and go to `http://localhost:3000` to view the project.
 
+## Contributing
+
+Feel free to fork the repository, make changes, and submit pull requests for any improvements or bug fixes. Please ensure to follow the project's code style and include tests where applicable.
+
 ## License
 
 This work is licensed under the Creative Commons Attribution-NoDerivatives 4.0 International License.
