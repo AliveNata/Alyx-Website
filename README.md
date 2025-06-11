@@ -57,4 +57,4 @@ Feel free to fork the repository, make changes, and submit pull requests for any
 
 ## License
 
-This work is licensed under the Creative Commons Attribution-NoDerivatives 4.0 International License.
+This project is licensed under the MIT License.
