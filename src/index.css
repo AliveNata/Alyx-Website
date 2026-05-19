@@ -1,0 +1,337 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #0a0f1c;
+  color: #e2e8f0;
+  font-family: 'Inter', system-ui, sans-serif;
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ===== THEME: DARK (slate / modern dashboard look) ===== */
+body.theme-dark { background-color: #1e293b; }
+body.theme-dark [class*="bg-primary"]      { background-color: #1e293b !important; }
+body.theme-dark [class*="bg-surface-dark"] { background-color: #273449 !important; }
+body.theme-dark [class*="bg-surface-card"] { background-color: #334155 !important; }
+body.theme-dark [class*="border-surface-border"] { border-color: #475569 !important; }
+body.theme-dark .terminal-header {
+  background: #475569;
+  border-bottom-color: #64748b;
+}
+body.theme-dark .terminal-dot { opacity: 0.6; }
+body.theme-dark .grid-bg {
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+}
+body.theme-dark .glow-text,
+body.theme-dark .glow-text-green,
+body.theme-dark .glow-text-purple { text-shadow: none; }
+body.theme-dark ::-webkit-scrollbar-track { background: #1e293b; }
+body.theme-dark ::-webkit-scrollbar-thumb { background: #475569; }
+
+/* ===== THEME: LIGHT ===== */
+body.theme-light {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+body.theme-light ::-webkit-scrollbar-track { background: #e2e8f0; }
+body.theme-light ::-webkit-scrollbar-thumb { background: #94a3b8; }
+body.theme-light ::-webkit-scrollbar-thumb:hover { background: #0891b2; }
+
+/* Backgrounds */
+body.theme-light [class*="bg-primary"]      { background-color: #ffffff !important; }
+body.theme-light [class*="bg-surface-dark"] { background-color: #f1f5f9 !important; }
+body.theme-light [class*="bg-surface-card"] { background-color: #ffffff !important; }
+body.theme-light [class*="border-surface-border"] { border-color: #e2e8f0 !important; }
+
+/* Card soft shadow in light theme */
+body.theme-light .bg-surface-card { box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04); }
+
+/* Text */
+body.theme-light .text-white        { color: #0f172a !important; }
+body.theme-light .text-gray-200,
+body.theme-light .text-gray-300,
+body.theme-light .text-gray-400     { color: #475569 !important; }
+body.theme-light .text-gray-500,
+body.theme-light .text-gray-600,
+body.theme-light .text-gray-700     { color: #64748b !important; }
+body.theme-light .placeholder-gray-600::placeholder { color: #94a3b8 !important; }
+
+/* Accent colors — darken for readability on white */
+body.theme-light .text-accent-cyan   { color: #0891b2 !important; }
+body.theme-light .text-accent-purple { color: #7c3aed !important; }
+body.theme-light .text-accent-green  { color: #15803d !important; }
+body.theme-light .text-accent-blue   { color: #1d4ed8 !important; }
+body.theme-light .text-yellow-300    { color: #b45309 !important; }
+body.theme-light .text-orange-400    { color: #c2410c !important; }
+body.theme-light .text-red-400       { color: #dc2626 !important; }
+
+/* Terminal chrome */
+body.theme-light .terminal-header {
+  background: #f1f5f9;
+  border-bottom-color: #e2e8f0;
+}
+
+/* Grid + glow neutralize */
+body.theme-light .grid-bg {
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+}
+body.theme-light .glow-text,
+body.theme-light .glow-text-green,
+body.theme-light .glow-text-purple { text-shadow: none; }
+
+/* Gradient bg-clip-text on Hero name — force visible in light */
+body.theme-light .bg-clip-text.text-transparent {
+  color: transparent !important;
+}
+
+/* ===== HERO PHOTO GRADIENTS — theme-aware ===== */
+/* Default / code theme (#0a0f1c) */
+.hero-fade-side {
+  background: linear-gradient(to right, #0a0f1c 0%, rgba(10,15,28,0.7) 55%, transparent 100%);
+}
+.hero-fade-bottom {
+  background: linear-gradient(to top, rgba(10,15,28,0.5) 0%, transparent 100%);
+}
+/* Dark theme (#1e293b) */
+body.theme-dark .hero-fade-side {
+  background: linear-gradient(to right, #1e293b 0%, rgba(30,41,59,0.7) 55%, transparent 100%);
+}
+body.theme-dark .hero-fade-bottom {
+  background: linear-gradient(to top, rgba(30,41,59,0.5) 0%, transparent 100%);
+}
+/* Light theme (#f8fafc) */
+body.theme-light .hero-fade-side {
+  background: linear-gradient(to right, #f8fafc 0%, rgba(248,250,252,0.82) 50%, rgba(248,250,252,0.3) 75%, transparent 100%);
+}
+body.theme-light .hero-fade-bottom {
+  background: linear-gradient(to top, rgba(248,250,252,0.6) 0%, transparent 100%);
+}
+/* Light theme hero — force dark text + white outline for readability over photo */
+body.theme-light #home .text-gray-400,
+body.theme-light #home .text-gray-500 {
+  color: #475569 !important;
+}
+body.theme-light #home .text-accent-green\/80 {
+  color: #15803d !important;
+}
+body.theme-light #home h1 span,
+body.theme-light #home p,
+body.theme-light #home .text-white,
+body.theme-light #home .text-gray-300,
+body.theme-light #home .text-gray-400,
+body.theme-light #home .font-mono {
+  text-shadow:
+    0 0 8px rgba(255,255,255,1),
+    0 0 16px rgba(255,255,255,0.95),
+    0 0 30px rgba(255,255,255,0.8),
+    0 0 50px rgba(255,255,255,0.5);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0f1c;
+}
+::-webkit-scrollbar-thumb {
+  background: #21262d;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00d4ff;
+}
+
+/* Glitter transition animations */
+@keyframes glitter-in {
+  0%   { opacity: 0; transform: scale(0.2) rotate(-20deg); filter: drop-shadow(0 0 10px #00d4ff) brightness(4); }
+  45%  { opacity: 1; transform: scale(1.25) rotate(6deg);  filter: drop-shadow(0 0 14px #00d4ff) brightness(2.5); }
+  70%  {             transform: scale(0.92) rotate(-3deg); filter: drop-shadow(0 0 6px #00d4ff)  brightness(1.5); }
+  100% { opacity: 1; transform: scale(1)    rotate(0deg);  filter: none; }
+}
+@keyframes glitter-out {
+  0%   { opacity: 1; transform: scale(1);    filter: none; }
+  35%  { opacity: 1; transform: scale(1.2);  filter: drop-shadow(0 0 12px #00d4ff) brightness(3); }
+  100% { opacity: 0; transform: scale(0.2) rotate(20deg);  filter: drop-shadow(0 0 4px #00d4ff); }
+}
+.glitter-in  { animation: glitter-in  0.45s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.glitter-out { animation: glitter-out 0.35s ease-in forwards; pointer-events: none; }
+
+/* Neon pulse for Ask Alyx AI button */
+@keyframes neon-pulse {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(0,212,255,0.15), 0 0 8px rgba(0,212,255,0.08);
+    border-color: rgba(0,212,255,0.2);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(0,212,255,0.7), 0 0 20px rgba(0,212,255,0.35), 0 0 35px rgba(0,212,255,0.15);
+    border-color: rgba(0,212,255,0.75);
+  }
+}
+.neon-pulse {
+  animation: neon-pulse 2.4s ease-in-out infinite;
+}
+
+/* Terminal cursor blink */
+@keyframes blink-caret {
+  from, to { border-color: transparent; }
+  50% { border-color: #00d4ff; }
+}
+
+/* Grid background pattern */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+/* Data flow line animation */
+.data-line {
+  position: absolute;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 212, 255, 0.4) 50%,
+    transparent 100%
+  );
+  animation: dataFlow 3s linear infinite;
+}
+
+/* Glow text effect */
+.glow-text {
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.5), 0 0 40px rgba(0, 212, 255, 0.2);
+}
+
+.glow-text-green {
+  text-shadow: 0 0 10px rgba(0, 255, 136, 0.5), 0 0 40px rgba(0, 255, 136, 0.2);
+}
+
+.glow-text-purple {
+  text-shadow: 0 0 10px rgba(168, 85, 247, 0.5), 0 0 40px rgba(168, 85, 247, 0.2);
+}
+
+/* Card hover glow */
+.card-glow {
+  transition: all 0.3s ease;
+}
+.card-glow:hover {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.15), 0 0 40px rgba(0, 212, 255, 0.05);
+  border-color: rgba(0, 212, 255, 0.3);
+}
+
+/* Terminal style */
+.terminal-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #161b22;
+  border-bottom: 1px solid #21262d;
+  border-radius: 8px 8px 0 0;
+}
+.terminal-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* Gradient border */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, #00d4ff, #a855f7);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Pipeline connector */
+.pipeline-node::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -24px;
+  width: 2px;
+  height: 24px;
+  background: linear-gradient(to bottom, #00d4ff, transparent);
+}
+
+/* Typing animation for chat */
+.typing-dots span {
+  animation: typingBounce 1.4s infinite ease-in-out both;
+}
+.typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+.typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* npm install spinner (braille dots) */
+@keyframes npmSpinner {
+  0%    { content: "⠋"; }
+  10%   { content: "⠙"; }
+  20%   { content: "⠹"; }
+  30%   { content: "⠸"; }
+  40%   { content: "⠼"; }
+  50%   { content: "⠴"; }
+  60%   { content: "⠦"; }
+  70%   { content: "⠧"; }
+  80%   { content: "⠇"; }
+  90%   { content: "⠏"; }
+  100%  { content: "⠋"; }
+}
+.npm-spinner::before {
+  content: "⠋";
+  animation: npmSpinner 1s steps(10) infinite;
+}
+
+/* progress bar shimmer */
+@keyframes npmProgress {
+  0%   { width: 0%; }
+  100% { width: 100%; }
+}
+.npm-progress {
+  animation: npmProgress 3.2s ease-out forwards;
+}
+
+/* Section fade in on scroll */
+.section-animate {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+.section-animate.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
