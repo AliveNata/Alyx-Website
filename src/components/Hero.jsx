@@ -82,7 +82,6 @@ export default function Hero() {
 
           {/* Name */}
           <div className="space-y-0">
-            <p className="text-sm font-mono text-gray-500 mb-2 tracking-widest uppercase">Data Engineer</p>
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-none">
               <span className="text-white">{personalInfo.name.split(' ')[0]}</span>
               <br />
