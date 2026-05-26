@@ -85,8 +85,8 @@ STYLE:
 // ============================================================
 const VOICE_PRESETS = {
   gender: [
-    { id: 'female', label: 'Female', match: ['female', 'woman', 'girl', 'nova', 'shimmer', 'ava', 'emma', 'jenny', 'aria', 'michelle', 'zira', 'samantha', 'victoria', 'karen', 'moira', 'tessa', 'eva', 'susan', 'sonia', 'libby', 'clara', 'natasha', 'joanna', 'kendra', 'kimberly', 'ivy', 'nicole', 'amy', 'jessica', 'sara', 'luna', 'serena', 'jane', 'ashley', 'amber', 'cora', 'elizabeth', 'monica', 'nancy', 'ana', 'phoebe', 'carly', 'freya', 'joanne', 'kim', 'elsie', 'tina', 'maisie', 'bella', 'olivia', 'hollie', 'leah', 'rosa', 'imani', 'molly', 'asilia', 'ezinne', 'aashi', 'ananya', 'kavya', 'neerja'] },
-    { id: 'male',   label: 'Male',   match: ['male', 'man', 'boy', 'onyx', 'alloy', 'fable', 'echo', 'brian', 'andrew', 'ryan', 'guy', 'david', 'mark', 'alex', 'daniel', 'fred', 'george', 'tony', 'thomas', 'oliver', 'liam', 'noah', 'jason', 'eric', 'roger', 'jacob', 'brandon', 'steffan', 'christopher', 'derek', 'dustin', 'lewis', 'samuel', 'adam', 'william', 'darren', 'duncan', 'neil', 'tim', 'ken', 'elliot', 'ethan', 'alfie', 'yan', 'sam', 'connor', 'luke', 'mitchell', 'wayne', 'james', 'arjun', 'prabhat', 'kunal', 'rehaan', 'abeo', 'chilemba', 'elimu'] },
+    { id: 'female', label: 'Female', pitchShift:  0.18, match: ['female', 'woman', 'girl', 'nova', 'shimmer', 'ava', 'emma', 'jenny', 'aria', 'michelle', 'zira', 'samantha', 'victoria', 'karen', 'moira', 'tessa', 'eva', 'susan', 'sonia', 'libby', 'clara', 'natasha', 'joanna', 'kendra', 'kimberly', 'ivy', 'nicole', 'amy', 'jessica', 'sara', 'luna', 'serena', 'jane', 'ashley', 'amber', 'cora', 'elizabeth', 'monica', 'nancy', 'ana', 'phoebe', 'carly', 'freya', 'joanne', 'kim', 'elsie', 'tina', 'maisie', 'bella', 'olivia', 'hollie', 'leah', 'rosa', 'imani', 'molly', 'asilia', 'ezinne', 'aashi', 'ananya', 'kavya', 'neerja'] },
+    { id: 'male',   label: 'Male',   pitchShift: -0.12, match: ['male', 'man', 'boy', 'onyx', 'alloy', 'fable', 'echo', 'brian', 'andrew', 'ryan', 'guy', 'david', 'mark', 'alex', 'daniel', 'fred', 'george', 'tony', 'thomas', 'oliver', 'liam', 'noah', 'jason', 'eric', 'roger', 'jacob', 'brandon', 'steffan', 'christopher', 'derek', 'dustin', 'lewis', 'samuel', 'adam', 'william', 'darren', 'duncan', 'neil', 'tim', 'ken', 'elliot', 'ethan', 'alfie', 'yan', 'sam', 'connor', 'luke', 'mitchell', 'wayne', 'james', 'arjun', 'prabhat', 'kunal', 'rehaan', 'abeo', 'chilemba', 'elimu'] },
   ],
   // Natural baselines. "Human" is tuned to sound as real as possible (pitch ~1.0, rate ~1.0).
   tone: [
@@ -447,9 +447,10 @@ useEffect(() => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return
     window.speechSynthesis.cancel()
 
-    const tone = VOICE_PRESETS.tone.find(t => t.id === voicePreset.tone)
-    const age = VOICE_PRESETS.age.find(a => a.id === voicePreset.age)
-    const basePitch = Math.max(0, Math.min(2, tone.pitch + age.pitchShift))
+    const tone   = VOICE_PRESETS.tone.find(t => t.id === voicePreset.tone)
+    const age    = VOICE_PRESETS.age.find(a => a.id === voicePreset.age)
+    const gender = VOICE_PRESETS.gender.find(g => g.id === voicePreset.gender)
+    const basePitch = Math.max(0, Math.min(2, tone.pitch + age.pitchShift + (gender?.pitchShift ?? 0)))
     const baseRate  = Math.max(0.1, Math.min(2, tone.rate + age.rateShift))
     const voice = pickVoice()
     const isTurbo = voice && /turbo|online.*natural/i.test(voice.name)
