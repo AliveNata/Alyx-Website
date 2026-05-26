@@ -472,13 +472,11 @@ const _fmtCerts = (list) => list
 export const chatbotKnowledge = {
   greeting: "Hi! I'm Alyx, Alief's AI Assistant. I can help you learn more about Alief Akbar.",
   topics: {
-    skills: `Alief specializes in Data Engineering, Data Analytics, and Business Intelligence. His core stack includes:
-• **Data Engineering**: Python, SQL, BigQuery, Apache Airflow, Spark, Hive, dbt, Kafka, Debezium CDC
-• **Data Modeling & Warehousing**: Staging → ODS → DWH → Data Mart layered pipelines, BigQuery, PostgreSQL, MySQL
-• **BI & Visualization**: Looker, Tableau, Power BI, Google Data Studio
-• **Data Analysis**: Pandas, SQL analytics, reporting automation
-• **DevOps & Cloud**: Git, Docker, GCP, Linux
-He has 7+ years of hands-on experience building scalable data pipelines and BI solutions. Note: Alief focuses on data engineering and analytics — he is not positioned as an AI/ML Engineer.`,
+    skills: `${personalInfo.name} specializes in Data Engineering, Data Analytics, and Business Intelligence. His tech stack:\n` +
+      Object.entries(skills).map(([cat, items]) =>
+        `• **${cat}**: ${items.map(s => s.name).join(', ')}`
+      ).join('\n') +
+      `\nHe has 7+ years of hands-on experience. Note: Alief focuses on data engineering and analytics — he is not positioned as an AI/ML Engineer.`,
 
     experience: `Alief has 7+ years of professional experience. His current job is **${experiencesIT[0]?.role} at ${experiencesIT[0]?.company}** (${experiencesIT[0]?.period}).
 
@@ -488,31 +486,17 @@ ${_fmtExp(experiencesFreelance, 'Freelance Experience')}
 
 ${_fmtExp(experiencesNonIT, 'Non-IT Experience')}`,
 
-    projects: `Some of Alief's notable projects:
-• **Automated Data Pipeline** — ETL pipeline processing 10M+ records daily using Airflow & BigQuery
-• **Sales Analysis Dashboard** — Interactive Looker dashboard for retail analytics
-• **Customer Segmentation Analysis** — SQL-driven customer clustering for marketing insights
-• **Alyx Scraper** — Real-time web scraping tool
-• **Email Automation Reporting** — Automated BI report generation and delivery
-Check out more on his GitHub: github.com/AliveNata`,
+    projects: `Some of ${personalInfo.name}'s notable projects:\n${_fmtProjects(projects)}\nCheck out more on his GitHub: ${personalInfo.github}`,
 
-    contact: `You can reach Alief through:
-• **Email**: alivenata@gmail.com
-• **LinkedIn**: linkedin.com/in/alvnts
-• **GitHub**: github.com/AliveNata
-He's open to freelance projects and full-time opportunities in Data Engineering and Business Intelligence!`,
+    contact: `You can reach ${personalInfo.name} through:\n• **Email**: ${personalInfo.email}\n• **LinkedIn**: ${personalInfo.linkedin}\n• **GitHub**: ${personalInfo.github}\nHe's open to freelance projects and full-time opportunities in Data Engineering and Business Intelligence!`,
 
-    availability: `Alief is currently open to:
-• Full-time Data Engineer / Data Analyst / BI Analyst positions
-• Freelance data pipeline, data modeling, and analytics projects
-• BI dashboarding and reporting automation engagements
-Feel free to reach out via email at alivenata@gmail.com`,
+    availability: `${personalInfo.name} is currently open to:\n• Full-time Data Engineer / Data Analyst / BI Analyst positions\n• Freelance data pipeline, data modeling, and analytics projects\n• BI dashboarding and reporting automation engagements\nFeel free to reach out via email at ${personalInfo.email}`,
 
     awards: `Alief's achievements and recognition:\n${_fmtAwards(awards)}`,
 
     certificates: `Alief's certifications:\n${_fmtCerts(certificates)}`,
 
-    about: `Alief Akbar (Aliv) is a data professional with 7+ years of experience turning complex data into actionable business strategies. He specializes in building scalable data pipelines, automating ETL processes, data modeling, and BI reporting. He's passionate about leveraging data to solve real-world business problems.`,
+    about: `${personalInfo.name} (${personalInfo.nickname}) is a ${personalInfo.title}. ${personalInfo.bio}`,
   },
   suggestedQuestions: [
     "What are Alief's main skills?",
