@@ -424,9 +424,12 @@ useEffect(() => {
       // Apple system voices
       if (/samantha|karen|daniel|aaron|kate/.test(name)) score += 60
       // Gender match (+100) / mismatch (-200) — mismatch penalty is decisive
+      // Use word-boundary regex to avoid "female".includes("male") false positive
       const oppositeGender = VOICE_PRESETS.gender.find(g => g.id !== voicePreset.gender)
-      if (genderPref.match.some(k => name.includes(k))) score += 100
-      else if (oppositeGender?.match.some(k => name.includes(k))) score -= 200
+      const hasGenderMatch = genderPref.match.some(k => new RegExp(`\\b${k}\\b`).test(name))
+      const hasGenderMismatch = oppositeGender?.match.some(k => new RegExp(`\\b${k}\\b`).test(name))
+      if (hasGenderMatch) score += 100
+      else if (hasGenderMismatch) score -= 200
       // Prefer en-US accent
       if (/en-us/i.test(v.lang)) score += 15
       // Penalize known robotic voices
