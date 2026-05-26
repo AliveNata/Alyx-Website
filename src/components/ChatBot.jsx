@@ -9,7 +9,7 @@ const LLM_CONFIG = {
   // Switch back to 'llama-3.3-70b-versatile' if you upgrade to paid tier.
   model: 'llama-3.1-8b-instant',
   temperature: 0.7,
-  maxTokens: 250,
+  maxTokens: 500,
 }
 
 const FALLBACK_MSG = "I'm not sure I understand your question, but I can help you learn more about Alief's background, skills, or availability. What would you like to ask about?"
