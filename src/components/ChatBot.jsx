@@ -102,7 +102,7 @@ const VOICE_PRESETS = {
 
 // ── Module-level pure helpers (no state/props) ──────────────────────────────
 
-const CACHE_KEY = 'alyx-llm-cache'
+const CACHE_KEY = 'alyx-llm-cache-v2'
 const loadCache = () => { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}') } catch { return {} } }
 const saveCache = (obj) => { try { localStorage.setItem(CACHE_KEY, JSON.stringify(obj)) } catch {} }
 
@@ -546,7 +546,9 @@ useEffect(() => {
 
     // 1b. Portfolio scraping — if query is about Alief or portfolio topics,
     //     answer from chatbotKnowledge.topics directly. NO LLM CALL → saves quota.
-    if (!node) {
+    // Skip scraping for AI/ML questions so LLM can handle the denial via system prompt.
+    const isAiMlQuery = /\b(ai|ml|machine\s*learn|deep\s*learn|neural|llm|gpt|artificial\s*intel|nlp|computer\s*vision|data\s*scien|tensorflow|pytorch|sklearn|scikit|ai\s*engineer|ml\s*engineer|build\s*model|train\s*model)\b/i.test(query)
+    if (!node && !isAiMlQuery) {
       let topic = findTopicByKeyword(query)
       // If the query clearly mentions Alief but no topic matched → default to `about`
       if (!topic && isAboutAlief(query)) topic = 'about'
