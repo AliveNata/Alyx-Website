@@ -104,7 +104,7 @@ const VOICE_PRESETS = {
 
 // ── Module-level pure helpers (no state/props) ──────────────────────────────
 
-const CACHE_KEY = 'alyx-llm-cache-v3'
+const CACHE_KEY = 'alyx-llm-cache-v4'
 const loadCache = () => { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}') } catch { return {} } }
 const saveCache = (obj) => { try { localStorage.setItem(CACHE_KEY, JSON.stringify(obj)) } catch {} }
 
