@@ -657,7 +657,9 @@ useEffect(() => {
         // Friendly message for 429 (rate limit) — otherwise fall through to generic fallback.
         if (String(err.message || '').includes('429')) {
           await new Promise(r => setTimeout(r, 300))
-          const msg = "I've hit today's free-tier AI quota, so I can't chat freely right now. But I can still answer questions about **Alief's skills, experience, projects, availability, or contact** — those come straight from the portfolio. Try one of the suggestions below."
+          const msg = isIndonesian
+            ? "Maaf, kuota AI saya untuk hari ini sudah habis. Tapi saya masih bisa menjawab pertanyaan tentang **skill, pengalaman, proyek, ketersediaan, atau kontak Alief** langsung dari portofolio. Coba salah satu pertanyaan di bawah ya!"
+            : "Apologies, my AI quota for today is used up. But I can still answer questions about **Alief's skills, experience, projects, availability, or contact** — straight from the portfolio. Try one of the suggestions below!"
           const newMessages = [...baseMessages, { role: 'assistant', content: msg }]
           setMessages(newMessages)
           setCurrentSuggestions(initialTree)
