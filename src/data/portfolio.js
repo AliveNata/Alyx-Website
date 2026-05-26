@@ -451,6 +451,23 @@ export const certificates = [
   },
 ];
 
+// ── Dynamic knowledge generators (single source of truth) ─────────────────
+const _fmtExp = (list, label) => list.length
+  ? `${label}:\n` + list.map(e => `• **${e.role} at ${e.company}** (${e.period}) — ${e.description.slice(0, 2).join(' ')}`).join('\n')
+  : ''
+
+const _fmtProjects = (list) => list
+  .map(p => `• **${p.title}** — ${p.description}`)
+  .join('\n')
+
+const _fmtAwards = (list) => list
+  .map(a => `• 🎖️ **${a.title}** — ${a.description} [${a.metrics.map(m => m.text).join(', ')}]`)
+  .join('\n')
+
+const _fmtCerts = (list) => list
+  .map(c => `• 📜 **${c.title}** (${c.issuer}, ${c.date}) — ${c.description}`)
+  .join('\n')
+
 // Chatbot knowledge base
 export const chatbotKnowledge = {
   greeting: "Hi! I'm Alyx, Alief's AI Assistant. I can help you learn more about Alief Akbar.",
@@ -463,22 +480,13 @@ export const chatbotKnowledge = {
 • **DevOps & Cloud**: Git, Docker, GCP, Linux
 He has 7+ years of hands-on experience building scalable data pipelines and BI solutions. Note: Alief focuses on data engineering and analytics — he is not positioned as an AI/ML Engineer.`,
 
-    experience: `Alief has 7+ years of professional experience. Here is his work history:
+    experience: `Alief has 7+ years of professional experience. His current job is **${experiencesIT[0]?.role} at ${experiencesIT[0]?.company}** (${experiencesIT[0]?.period}).
 
-IT Experience:
-• **Data Engineer Specialist at rata.id** (Mar 2026 - Present) — Designing end-to-end data architecture using Kafka, Debezium CDC, dbt, PostgreSQL, and BigQuery. Modeling multi-layer pipelines (Staging → ODS → DWH → Data Mart) across 6 business domains for a Clinic Management System on hybrid Linode + GCP infrastructure. Orchestrating daily pipelines via Apache Airflow.
-• **Data Engineer & Reporting Automation at Telkomsel Project** (Sep 2025 - Mar 2026) — Automating data pipelines using SQL, Python, and Hive. Building internal tools and real-time reporting systems.
-• **Senior Data Analyst at Telkomsel Project** (Jan 2023 - Sep 2025) — Developing BI strategies, managing data projects, delivering analytics solutions.
-• **Data Analyst & BI at Intrepid Group Asia** (2021 - 2023) — Building BI dashboards and analytics solutions.
-• **Data Analyst & BI at Fabelio Projects** (2019 - 2021) — Built dashboards with Looker, optimized SQL queries.
-• **Data Analyst at PT. Suzuki Finance Indonesia** (2017 - 2019) — Data analysis and reporting.
+${_fmtExp(experiencesIT, 'IT Experience')}
 
-Freelance Experience:
-• **Data Engineer & Analyst on Upwork** (2020 - Present) — Web scraping, data pipelines, and analytics projects.
-• **Full Stack Developer at BlueRock** — Developed car management system using React.js, Node.js, Prisma, and PostgreSQL.
-• **Web Developer at Kementrian Perhubungan** — Developed web application using React.js and Express.js.
+${_fmtExp(experiencesFreelance, 'Freelance Experience')}
 
-Alief is currently working at **rata.id** as a Data Engineer Specialist (Mar 2026 - Present).`,
+${_fmtExp(experiencesNonIT, 'Non-IT Experience')}`,
 
     projects: `Some of Alief's notable projects:
 • **Automated Data Pipeline** — ETL pipeline processing 10M+ records daily using Airflow & BigQuery
@@ -499,6 +507,10 @@ He's open to freelance projects and full-time opportunities in Data Engineering 
 • Freelance data pipeline, data modeling, and analytics projects
 • BI dashboarding and reporting automation engagements
 Feel free to reach out via email at alivenata@gmail.com`,
+
+    awards: `Alief's achievements and recognition:\n${_fmtAwards(awards)}`,
+
+    certificates: `Alief's certifications:\n${_fmtCerts(certificates)}`,
 
     about: `Alief Akbar (Aliv) is a data professional with 7+ years of experience turning complex data into actionable business strategies. He specializes in building scalable data pipelines, automating ETL processes, data modeling, and BI reporting. He's passionate about leveraging data to solve real-world business problems.`,
   },
