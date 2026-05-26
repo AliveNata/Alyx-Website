@@ -156,6 +156,8 @@ const TOPIC_KEYWORDS = {
   projects:     ['project', 'projects', 'built', 'build', 'building', 'portfolio', 'case study', 'case studies', 'pipeline', 'pipelines', 'dashboard', 'dashboards', 'scraper', 'alyx scraper', 'repo', 'repository', 'github project', 'proyek', 'showcase', 'demo', 'etl', 'automation'],
   contact:      ['contact', 'email', 'mail', 'reach', 'reach out', 'phone', 'number', 'linkedin', 'github', 'social', 'message', 'hubungi', 'kontak', 'get in touch', 'connect', 'alivenata', 'alvnts'],
   availability: ['available', 'availability', 'hire', 'hiring', 'hirable', 'freelance', 'freelancer', 'open to', 'opportunity', 'opportunities', 'looking for', 'tersedia', 'lowongan', 'recruit', 'remote', 'full time', 'full-time', 'part time', 'part-time', 'consult', 'consulting'],
+  awards:       ['award', 'awards', 'achievement', 'achievements', 'recognition', 'honor', 'honours', 'penghargaan', 'prestasi', 'top performer', 'winner', 'won', 'nominated'],
+  certificates: ['certificate', 'certificates', 'certification', 'certifications', 'certified', 'sertifikat', 'sertifikasi', 'credential', 'credentials', 'course', 'training', 'dqlab', 'glints'],
   about:        ['about', 'who is', "who's", 'bio', 'biography', 'profile', 'introduce', 'introduction', 'tell me about', 'siapa', 'siapa sih', 'alief', 'aliv', 'aliev', 'akbar'],
 }
 
