@@ -246,6 +246,7 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   const [isListening, setIsListening] = useState(false)
   const [interimTranscript, setInterimTranscript] = useState('')
   const [speechSupported, setSpeechSupported] = useState(false)
+  const [micLang, setMicLang] = useState('id-ID')
   const [rateLimit, setRateLimit] = useState(null) // { remainingRequests, limitRequests, remainingTokens, limitTokens, resetRequests, resetTokens }
   // Client-side usage tracker (fallback when CORS blocks rate-limit headers).
   // Persisted to localStorage with daily reset.
@@ -277,7 +278,6 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
     const rec = new SR()
     rec.continuous = false
     rec.interimResults = true
-    rec.lang = 'en-US'
 
     rec.onresult = (event) => {
       let finalText = ''
@@ -300,8 +300,20 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
     return () => { try { rec.abort() } catch {} }
   }, [])
 
+  const MIC_LANGS = [
+    { code: 'id-ID', flag: '🇮🇩', label: 'ID' },
+    { code: 'en-US', flag: '🇺🇸', label: 'EN' },
+    { code: 'ja-JP', flag: '🇯🇵', label: 'JA' },
+    { code: 'zh-CN', flag: '🇨🇳', label: 'ZH' },
+    { code: 'ko-KR', flag: '🇰🇷', label: 'KO' },
+    { code: 'fr-FR', flag: '🇫🇷', label: 'FR' },
+    { code: 'de-DE', flag: '🇩🇪', label: 'DE' },
+    { code: 'ar-SA', flag: '🇸🇦', label: 'AR' },
+  ]
+
   const startListening = () => {
     if (!recognitionRef.current || isListening) return
+    recognitionRef.current.lang = micLang
     try {
       stopSpeaking()
       setInterimTranscript('')
@@ -1004,7 +1016,7 @@ useEffect(() => {
             {speechSupported && (
               <div className="text-[10px] font-mono text-gray-500 mb-1.5 flex items-center gap-1.5">
                 <span className="text-accent-green">🎓</span>
-                <span>Tip: tap the mic to <span className="text-accent-cyan">practice english</span> — Alyx will reply in voice too.</span>
+                <span>Tip: tap {MIC_LANGS.find(l => l.code === micLang)?.flag} to change mic language, then tap the mic to speak — Alyx replies in voice too.</span>
               </div>
             )}
             {isListening && (
@@ -1031,20 +1043,35 @@ useEffect(() => {
                 disabled={isTyping || isListening}
               />
               {speechSupported && (
-                <button
-                  onClick={isListening ? stopListening : startListening}
-                  disabled={isTyping}
-                  className={`p-2.5 rounded-xl transition-all shrink-0 border ${
-                    isListening
-                      ? 'bg-red-500/20 text-red-400 border-red-500/40 animate-pulse'
-                      : 'bg-primary text-accent-green border-accent-green/30 hover:bg-accent-green/10'
-                  } disabled:opacity-30`}
-                  title={isListening ? 'Stop listening' : 'Speak to Alyx (English practice)'}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-14 0m7 7v4m-4 0h8M12 3a3 3 0 00-3 3v5a3 3 0 006 0V6a3 3 0 00-3-3z" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  {/* Language cycle button */}
+                  <button
+                    onClick={() => {
+                      const idx = MIC_LANGS.findIndex(l => l.code === micLang)
+                      setMicLang(MIC_LANGS[(idx + 1) % MIC_LANGS.length].code)
+                    }}
+                    disabled={isListening}
+                    className="px-1.5 py-1 rounded-lg bg-primary border border-surface-border text-[10px] font-mono text-gray-400 hover:text-accent-cyan hover:border-accent-cyan/40 transition-all disabled:opacity-30"
+                    title={`Mic language: ${MIC_LANGS.find(l => l.code === micLang)?.label} — click to change`}
+                  >
+                    {MIC_LANGS.find(l => l.code === micLang)?.flag}
+                  </button>
+                  {/* Mic button */}
+                  <button
+                    onClick={isListening ? stopListening : startListening}
+                    disabled={isTyping}
+                    className={`p-2.5 rounded-xl transition-all border ${
+                      isListening
+                        ? 'bg-red-500/20 text-red-400 border-red-500/40 animate-pulse'
+                        : 'bg-primary text-accent-green border-accent-green/30 hover:bg-accent-green/10'
+                    } disabled:opacity-30`}
+                    title={`${isListening ? 'Stop' : 'Speak'} — ${MIC_LANGS.find(l => l.code === micLang)?.label}`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-14 0m7 7v4m-4 0h8M12 3a3 3 0 00-3 3v5a3 3 0 006 0V6a3 3 0 00-3-3z" />
+                    </svg>
+                  </button>
+                </div>
               )}
               <button
                 onClick={handleSend}
