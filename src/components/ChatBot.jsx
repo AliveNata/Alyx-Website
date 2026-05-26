@@ -172,7 +172,7 @@ const findTopicByKeyword = (q) => {
   return bestScore >= 3 ? best : null
 }
 
-const isAboutAlief = (q) => /\b(alief|aliv|aliev|akbar|his|he|him|he's|she|her)\b/i.test(q)
+const isAboutAlief = (q) => /\b(alief|aliv|aliev|akbar)\b/i.test(q)
 
 const parseRateLimitHeaders = (headers, setRateLimit) => {
   const get = (...names) => { for (const n of names) { const v = headers.get(n); if (v) return v } return null }
