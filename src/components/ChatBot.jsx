@@ -610,7 +610,17 @@ useEffect(() => {
 
     if (llmMode) {
       try {
-        const reply = await sendToLLM(baseMessages)
+        // Inject language tag into the last user message so LLM is forced to reply
+        // in the correct language regardless of conversation history.
+        const langTag = isIndonesian
+          ? '\n[SYSTEM: Reply in Bahasa Indonesia. Keep technical terms in English: AI Engineer, ML Engineer, Data Engineering, Business Intelligence, ETL, SQL, Python, dbt, BigQuery, etc.]'
+          : '\n[SYSTEM: Reply in English only.]'
+        const messagesWithLang = baseMessages.map((m, i) =>
+          i === baseMessages.length - 1 && m.role === 'user'
+            ? { ...m, content: m.content + langTag }
+            : m
+        )
+        const reply = await sendToLLM(messagesWithLang)
         const c = loadCache()
         c[normKey] = reply
         const keys = Object.keys(c)
