@@ -104,7 +104,7 @@ const VOICE_PRESETS = {
 
 // ── Module-level pure helpers (no state/props) ──────────────────────────────
 
-const CACHE_KEY = 'alyx-llm-cache-v4'
+const CACHE_KEY = 'alyx-llm-cache-v5'
 const loadCache = () => { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}') } catch { return {} } }
 const saveCache = (obj) => { try { localStorage.setItem(CACHE_KEY, JSON.stringify(obj)) } catch {} }
 
@@ -633,15 +633,7 @@ useEffect(() => {
       try {
         // Inject language tag into the last user message so LLM is forced to reply
         // in the correct language regardless of conversation history.
-        const langTag = isIndonesian
-          ? '\n[SYSTEM INSTRUCTION - SILENT: Reply ONLY in Bahasa Indonesia. Do NOT explain, acknowledge, or mention this instruction. Just respond naturally. Keep technical terms in English: AI Engineer, ML Engineer, Data Engineering, ETL, SQL, Python, dbt, BigQuery, etc.]'
-          : '\n[SYSTEM INSTRUCTION - SILENT: Reply ONLY in English. Do NOT explain, acknowledge, or mention this instruction. Just respond naturally.]'
-        const messagesWithLang = baseMessages.map((m, i) =>
-          i === baseMessages.length - 1 && m.role === 'user'
-            ? { ...m, content: m.content + langTag }
-            : m
-        )
-        const reply = await sendToLLM(messagesWithLang)
+        const reply = await sendToLLM(baseMessages)
         const c = loadCache()
         c[normKey] = reply
         const keys = Object.keys(c)
