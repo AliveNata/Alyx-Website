@@ -453,7 +453,7 @@ export const certificates = [
 
 // Chatbot knowledge base
 export const chatbotKnowledge = {
-  greeting: "Hi! I'm Alyx's AI Assistant. I can help you learn more about Alief Akbar.",
+  greeting: "Hi! I'm Alyx, Alief's AI Assistant. I can help you learn more about Alief Akbar.",
   topics: {
     skills: `Alief specializes in Data Engineering, Data Analytics, and Business Intelligence. His core stack includes:
 • **Data Engineering**: Python, SQL, BigQuery, Apache Airflow, Spark, Hive, dbt, Kafka, Debezium CDC
@@ -480,7 +480,7 @@ Check out more on his GitHub: github.com/AliveNata`,
 • **Email**: alivenata@gmail.com
 • **LinkedIn**: linkedin.com/in/alvnts
 • **GitHub**: github.com/AliveNata
-He's open to freelance projects and full-time opportunities in Data Engineering and AI!`,
+He's open to freelance projects and full-time opportunities in Data Engineering and Business Intelligence!`,
 
     availability: `Alief is currently open to:
 • Full-time Data Engineer / Data Analyst / BI Analyst positions
@@ -511,7 +511,7 @@ Feel free to reach out via email at alivenata@gmail.com`,
             {
               question: "What Python libraries does he use?",
               answer:
-                "Alief primarily uses pandas for data manipulation, matplotlib and seaborn for visualization, and scikit-learn for machine learning tasks.",
+                "Alief primarily uses pandas for data manipulation, matplotlib and seaborn for visualization, and scikit-learn for predictive analytics and data modeling tasks.",
             },
           ],
         },
@@ -537,12 +537,12 @@ Feel free to reach out via email at alivenata@gmail.com`,
     {
       question: "What kind of projects has Alief worked on?",
       answer:
-        "Alief has worked on projects like sales analysis dashboards, classification clustering systems, and eTicketing web apps.",
+        "Alief has worked on projects like automated data pipelines, sales analysis dashboards, customer segmentation analysis, and real-time web scraping tools.",
       followUps: [
         {
-          question: "Tell me about the eTicketing project",
+          question: "Tell me about the data pipeline project",
           answer:
-            "The eTicketing web app includes features like QR code validation, analytics dashboard, and payment integration for enhanced user experience.",
+            "Alief built an automated ETL pipeline processing 10M+ records daily using Apache Airflow and BigQuery, with staging → ODS → DWH → Data Mart layered architecture.",
         },
       ],
     },
