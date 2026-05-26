@@ -463,10 +463,22 @@ export const chatbotKnowledge = {
 • **DevOps & Cloud**: Git, Docker, GCP, Linux
 He has 7+ years of hands-on experience building scalable data pipelines and BI solutions. Note: Alief focuses on data engineering and analytics — he is not positioned as an AI/ML Engineer.`,
 
-    experience: `Alief has 7+ years of professional experience:
-• **Data Engineer & Reporting Automation** (2020-Present) — Building scalable pipelines with SQL, Python, Hive. Automated ETL processes reducing manual work by 70%.
-• **BI Analyst at Fabelio** (2018-2020) — Built dashboards with Looker, optimized SQL queries improving performance by 60%.
-• **Project Coordinator at Telkomsel** (2017-2018) — Managed cross-functional teams and facilitated data-driven decisions.`,
+    experience: `Alief has 7+ years of professional experience. Here is his work history:
+
+IT Experience:
+• **Data Engineer Specialist at rata.id** (Mar 2026 - Present) — Designing end-to-end data architecture using Kafka, Debezium CDC, dbt, PostgreSQL, and BigQuery. Modeling multi-layer pipelines (Staging → ODS → DWH → Data Mart) across 6 business domains for a Clinic Management System on hybrid Linode + GCP infrastructure. Orchestrating daily pipelines via Apache Airflow.
+• **Data Engineer & Reporting Automation at Telkomsel Project** (Sep 2025 - Mar 2026) — Automating data pipelines using SQL, Python, and Hive. Building internal tools and real-time reporting systems.
+• **Senior Data Analyst at Telkomsel Project** (Jan 2023 - Sep 2025) — Developing BI strategies, managing data projects, delivering analytics solutions.
+• **Data Analyst & BI at Intrepid Group Asia** (2021 - 2023) — Building BI dashboards and analytics solutions.
+• **Data Analyst & BI at Fabelio Projects** (2019 - 2021) — Built dashboards with Looker, optimized SQL queries.
+• **Data Analyst at PT. Suzuki Finance Indonesia** (2017 - 2019) — Data analysis and reporting.
+
+Freelance Experience:
+• **Data Engineer & Analyst on Upwork** (2020 - Present) — Web scraping, data pipelines, and analytics projects.
+• **Full Stack Developer at BlueRock** — Developed car management system using React.js, Node.js, Prisma, and PostgreSQL.
+• **Web Developer at Kementrian Perhubungan** — Developed web application using React.js and Express.js.
+
+Alief is currently working at **rata.id** as a Data Engineer Specialist (Mar 2026 - Present).`,
 
     projects: `Some of Alief's notable projects:
 • **Automated Data Pipeline** — ETL pipeline processing 10M+ records daily using Airflow & BigQuery
