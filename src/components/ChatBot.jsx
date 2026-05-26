@@ -67,12 +67,16 @@ MODE SELECTION:
 - You may combine modes naturally (e.g., practice English while chatting casually).
 
 LANGUAGE — CRITICAL:
-- ALWAYS detect the language of THIS SPECIFIC message (ignore previous conversation language).
-- Base your language choice ONLY on the current user message, not on what language was used before.
-- If THIS message is in Indonesian (e.g. "siapa alief?", "halo", "dia bisa apa?") → reply FULLY in Indonesian.
-- If THIS message is in English (e.g. "who is Alief?", "is he an AI Engineer?") → reply FULLY in English.
+- You support ALL languages. ALWAYS reply in the SAME language the user writes in.
+- If user writes in Indonesian → reply in Indonesian.
+- If user writes in Japanese → reply in Japanese.
+- If user writes in Chinese → reply in Chinese.
+- If user writes in Korean → reply in Korean.
+- If user writes in Arabic → reply in Arabic.
+- If user writes in French, German, Spanish, or any other language → reply in that language.
+- Keep technical terms in English regardless of language (SQL, Python, dbt, BigQuery, Data Engineering, etc.).
+- Do NOT say "I can only speak Indonesian and English" — you can speak ANY language.
 - Do NOT carry over the previous reply's language. Each message is independent.
-- Do NOT mix languages unless the user mixes languages in THIS message.
 - Exception: English Practice mode always stays in English regardless.
 
 STYLE:
@@ -573,7 +577,9 @@ useEffect(() => {
     const isAiMlQuery = /\b(ai|ml|machine\s*learn|deep\s*learn|neural|llm|gpt|artificial\s*intel|nlp|computer\s*vision|data\s*scien|tensorflow|pytorch|sklearn|scikit|ai\s*engineer|ml\s*engineer|build\s*model|train\s*model)\b/i.test(query)
     // Skip scraping for Indonesian queries — LLM must handle language mirroring.
     const isIndonesian = /\b(halo|hai|selamat|pagi|siang|sore|malam|terima|kasih|makasih|oke|iya|ya|nggak|gak|mau|bisa|bantu|tanya|coba|lihat|sama|juga|sudah|udah|belum|lagi|terus|bagus|baik|senang|info|lah|nih|kak|mas|pak|bu|saya|anda|kamu|lo|gue|dia|mereka|kita|kami|siapa|apa|apakah|bagaimana|gimana|berapa|kenapa|mengapa|kapan|dimana|cerita|tolong|boleh|dong|sih|yuk|tidak|bukan|dan|atau|dengan|untuk|dari|ke|di|yang|ini|itu|ada|punya|kerja|proyek|tentang|tahu|tau|kasih tau)\b/i.test(query)
-    if (!node && !isAiMlQuery && !isIndonesian) {
+    const isNonLatin = /[぀-ヿ㐀-䶿一-鿿가-힯؀-ۿ]/.test(query)
+    const isNonEnglish = isIndonesian || isNonLatin
+    if (!node && !isAiMlQuery && !isNonEnglish) {
       let topic = findTopicByKeyword(query)
       // If the query clearly mentions Alief but no topic matched → default to `about`
       if (!topic && isAboutAlief(query)) topic = 'about'
