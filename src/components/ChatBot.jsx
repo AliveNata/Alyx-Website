@@ -548,7 +548,9 @@ useEffect(() => {
     //     answer from chatbotKnowledge.topics directly. NO LLM CALL → saves quota.
     // Skip scraping for AI/ML questions so LLM can handle the denial via system prompt.
     const isAiMlQuery = /\b(ai|ml|machine\s*learn|deep\s*learn|neural|llm|gpt|artificial\s*intel|nlp|computer\s*vision|data\s*scien|tensorflow|pytorch|sklearn|scikit|ai\s*engineer|ml\s*engineer|build\s*model|train\s*model)\b/i.test(query)
-    if (!node && !isAiMlQuery) {
+    // Skip scraping for Indonesian queries — LLM must handle language mirroring.
+    const isIndonesian = /\b(siapa|apa|apakah|bagaimana|gimana|berapa|kenapa|mengapa|kapan|dimana|di mana|cerita|tolong|boleh|bisa|dong|sih|ya|yuk|gak|nggak|tidak|bukan|dan|atau|dengan|untuk|dari|ke|di|yang|ini|itu|ada|punya|kerja|proyek|skill|tentang|kasih tau|kasih|tau|tahu)\b/i.test(query)
+    if (!node && !isAiMlQuery && !isIndonesian) {
       let topic = findTopicByKeyword(query)
       // If the query clearly mentions Alief but no topic matched → default to `about`
       if (!topic && isAboutAlief(query)) topic = 'about'
