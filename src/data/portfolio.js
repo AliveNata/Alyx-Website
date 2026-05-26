@@ -453,7 +453,7 @@ export const certificates = [
 
 // ── Dynamic knowledge generators (single source of truth) ─────────────────
 const _fmtExp = (list, label) => list.length
-  ? `${label}:\n` + list.map(e => `• **${e.role} at ${e.company}** (${e.period}) — ${e.description.slice(0, 2).join(' ')}`).join('\n')
+  ? `${label}:\n` + list.map((e, i) => `${i + 1}. ${e.role} | ${e.company} | Period: ${e.period} | ${e.description[0]}`).join('\n')
   : ''
 
 const _fmtProjects = (list) => list
