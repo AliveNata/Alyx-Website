@@ -396,48 +396,51 @@ useEffect(() => {
   // ============================================================
   // VOICE: pick best matching voice + speak
   // ============================================================
-  const pickVoice = useCallback(() => {
+  // Detect spoken language from text content (used for voice selection)
+  const detectLang = (text) => {
+    if (/[぀-ヿ一-鿿]/.test(text)) return /[぀-ヿ]/.test(text) ? 'ja' : 'zh'
+    if (/[가-힣]/.test(text)) return 'ko'
+    if (/[؀-ۿ]/.test(text)) return 'ar'
+    if (/\b(saya|anda|adalah|dengan|untuk|tidak|yang|dalam|ini|itu|dan|atau|dari|ke|di|pada|juga|sudah|bisa|akan|apa|bagaimana|karena|lebih|seperti|mereka|kita|kami)\b/i.test(text)) return 'id'
+    return 'en'
+  }
+
+  const pickVoice = useCallback((lang = 'en') => {
     if (!availableVoices.length) return null
     const genderPref = VOICE_PRESETS.gender.find(g => g.id === voicePreset.gender)
-    const pool = availableVoices.filter(v => /en(-|_)?/i.test(v.lang))
-    const voices = pool.length ? pool : availableVoices
-    const scored = voices.map((v) => {
+
+    // Try to find voices for the requested language, fallback to English
+    const langPool = availableVoices.filter(v => v.lang.toLowerCase().startsWith(lang))
+    const enPool   = availableVoices.filter(v => /^en/i.test(v.lang))
+    const pool     = langPool.length ? langPool : (enPool.length ? enPool : availableVoices)
+
+    const scoreVoice = (v) => {
       let score = 0
       const name = v.name.toLowerCase()
-      // Online/cloud voices sound far more natural than local ones
       if (!v.localService) score += 80
-      // ── OpenAI Turbo voices via Azure Edge (best quality available) ──
       if (/turbo.*multilingual.*online|turbo.*online/.test(name)) score += 220
       if (/turbo/.test(name)) score += 200
-      // Prefer specific OpenAI Turbo voices: Nova (warm/friendly) and Shimmer (clear/natural)
       if (/nova.*turbo|shimmer.*turbo/.test(name)) score += 50
-      // ── Microsoft Multilingual Online Natural (second tier) ──
       if (/multilingual.*online.*natural|online.*natural.*multilingual/.test(name)) score += 140
-      // ── Microsoft Online Natural (third tier) ──
       if (/online.*natural|natural.*online/.test(name)) score += 120
-      // ── Other neural/premium voices ──
       if (/natural|neural|premium|enhanced/.test(name)) score += 80
       if (/microsoft.*online/.test(name)) score += 60
-      // Google online voices (good quality on Chrome/Edge)
       if (/google.*english|google.*us|google.*uk/.test(name)) score += 80
       if (name.startsWith('google')) score += 40
-      // Apple system voices
       if (/samantha|karen|daniel|aaron|kate/.test(name)) score += 60
-      // Gender match (+100) / mismatch (-200) — mismatch penalty is decisive
-      // Use word-boundary regex to avoid "female".includes("male") false positive
+      // Gender match (+100) / mismatch (-200)
       const oppositeGender = VOICE_PRESETS.gender.find(g => g.id !== voicePreset.gender)
-      const hasGenderMatch = genderPref.match.some(k => new RegExp(`\\b${k}\\b`).test(name))
+      const hasGenderMatch    = genderPref.match.some(k => new RegExp(`\\b${k}\\b`).test(name))
       const hasGenderMismatch = oppositeGender?.match.some(k => new RegExp(`\\b${k}\\b`).test(name))
       if (hasGenderMatch) score += 100
       else if (hasGenderMismatch) score -= 200
-      // Prefer en-US accent
       if (/en-us/i.test(v.lang)) score += 15
-      // Penalize known robotic voices
       if (/espeak|festival|compact|robot|zira desktop|david desktop|hazel desktop/.test(name)) score -= 100
       return { voice: v, score }
-    })
-    scored.sort((a, b) => b.score - a.score)
-    return scored[0]?.voice || voices[0]
+    }
+
+    const scored = pool.map(scoreVoice).sort((a, b) => b.score - a.score)
+    return scored[0]?.voice || pool[0]
   }, [availableVoices, voicePreset.gender])
 
   // Compute fresh on every render — pickVoice is a useCallback so it's cheap
@@ -452,11 +455,10 @@ useEffect(() => {
     const gender = VOICE_PRESETS.gender.find(g => g.id === voicePreset.gender)
     const basePitch = Math.max(0, Math.min(2, tone.pitch + age.pitchShift + (gender?.pitchShift ?? 0)))
     const baseRate  = Math.max(0.1, Math.min(2, tone.rate + age.rateShift))
-    const voice = pickVoice()
-    const isTurbo = voice && /turbo|online.*natural/i.test(voice.name)
-
-    // Split into sentences for more natural cadence
     const clean = stripMarkdown(text)
+    const lang  = detectLang(clean)
+    const voice = pickVoice(lang)
+    const isTurbo = voice && /turbo|online.*natural/i.test(voice.name)
     const chunks = clean
       .split(/(?<=[.!?,;])\s+/)
       .map(s => s.trim())
@@ -477,6 +479,7 @@ useEffect(() => {
       utter.rate   = Math.max(0.1, Math.min(2, baseRate + rateJitter))
       utter.volume = 0.93
       if (voice) utter.voice = voice
+      utter.lang = voice?.lang || (lang === 'en' ? 'en-US' : lang)
       return utter
     }
 
