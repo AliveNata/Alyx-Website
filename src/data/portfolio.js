@@ -157,7 +157,7 @@ export const projects = [
     link: "",
   },
   {
-    title: "Web Scraping — Alyx Scraper",
+    title: "Web Scraping: Alyx Scraper",
     description: "A realtime web scraping tool that gathers data from news sites, social media, and forums based on user-defined keywords and locations. Fast, automated, and mobile-friendly.",
     tech: ["Python", "Flask", "BeautifulSoup", "Pandas", "JavaScript", "Bootstrap"],
     category: "Data Engineering",
