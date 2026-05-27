@@ -3,6 +3,110 @@ import { chatbotKnowledge, personalInfo } from '../data/portfolio'
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 
+// ─── Site Actions ────────────────────────────────────────────────────────────
+// Pattern-matched commands that control the portfolio UI directly.
+// Checked BEFORE LLM — zero quota cost, instant response.
+const SITE_ACTIONS = [
+  // ── Scroll to sections ──
+  {
+    patterns: [/\b(home|hero|beranda|awal|halaman\s*awal|paling\s*atas|top)\b/i],
+    action: () => document.getElementById('home')?.scrollIntoView({ behavior: 'smooth' }),
+    reply: { id: 'Oke! Scroll ke bagian Home. 🏠', en: 'Sure! Scrolling to Home. 🏠' },
+  },
+  {
+    patterns: [/\b(about|tentang|profil|bio|deskripsi\s*diri)\b/i],
+    action: () => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' }),
+    reply: { id: 'Oke! Scroll ke bagian About. 👤', en: 'Sure! Scrolling to About. 👤' },
+  },
+  {
+    patterns: [/\b(skill|keahlian|kemampuan|teknologi|tech\s*stack)\b/i],
+    action: () => document.getElementById('skills')?.scrollIntoView({ behavior: 'smooth' }),
+    reply: { id: 'Oke! Scroll ke bagian Skills. 🛠️', en: 'Sure! Scrolling to Skills. 🛠️' },
+  },
+  {
+    patterns: [/\b(project|proyek|portofolio|portfolio|karya)\b/i],
+    action: () => document.getElementById('projects')?.scrollIntoView({ behavior: 'smooth' }),
+    reply: { id: 'Oke! Scroll ke bagian Projects. 🚀', en: 'Sure! Scrolling to Projects. 🚀' },
+  },
+  {
+    patterns: [/\b(experience|pengalaman|karir|riwayat\s*kerja|kerja|pekerjaan)\b/i],
+    action: () => document.getElementById('experience')?.scrollIntoView({ behavior: 'smooth' }),
+    reply: { id: 'Oke! Scroll ke bagian Experience. 💼', en: 'Sure! Scrolling to Experience. 💼' },
+  },
+  {
+    patterns: [/\b(contact|kontak|hubungi|reach\s*out|email|form)\b/i],
+    action: () => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' }),
+    reply: { id: 'Oke! Scroll ke bagian Contact. 📬', en: 'Sure! Scrolling to Contact. 📬' },
+  },
+  // ── Open links ──
+  {
+    patterns: [/\b(linkedin|linked\s*in)\b/i],
+    action: () => window.open(personalInfo.linkedin, '_blank'),
+    reply: { id: 'Membuka LinkedIn Alief di tab baru! 🔗', en: "Opening Alief's LinkedIn in a new tab! 🔗" },
+  },
+  {
+    patterns: [/\b(github|git\s*hub|repo|repository)\b/i],
+    action: () => window.open(personalInfo.github, '_blank'),
+    reply: { id: 'Membuka GitHub Alief di tab baru! 🐙', en: "Opening Alief's GitHub in a new tab! 🐙" },
+  },
+  {
+    patterns: [/\b(cv|resume|curriculum\s*vitae|unduh\s*cv|download\s*cv)\b/i],
+    action: () => {
+      const a = document.createElement('a')
+      a.href = '/Curriculum%20Vitae%20-%20Alief%20Akbar.pdf'
+      a.download = 'Curriculum Vitae - Alief Akbar.pdf'
+      a.click()
+    },
+    reply: { id: 'Mendownload CV Alief... 📄', en: "Downloading Alief's CV... 📄" },
+  },
+  {
+    patterns: [/\b(copy|salin|kopas)\b.*\b(email)\b|\bemail\b.*\b(copy|salin|kopas)\b/i],
+    action: () => navigator.clipboard?.writeText(personalInfo.email),
+    reply: { id: `Email ${personalInfo.email} sudah disalin ke clipboard! 📋`, en: `Email ${personalInfo.email} copied to clipboard! 📋` },
+  },
+  // ── Change theme ──
+  {
+    patterns: [/\b(dark|gelap|malam|dark\s*mode|tema\s*gelap)\b/i],
+    action: () => {
+      document.body.classList.remove('theme-code', 'theme-dark', 'theme-light')
+      document.body.classList.add('theme-dark')
+      localStorage.setItem('alivyx-theme', 'dark')
+    },
+    reply: { id: 'Theme diganti ke Dark mode! 🌙', en: 'Switched to Dark theme! 🌙' },
+  },
+  {
+    patterns: [/\b(light|terang|siang|light\s*mode|tema\s*terang|putih)\b/i],
+    action: () => {
+      document.body.classList.remove('theme-code', 'theme-dark', 'theme-light')
+      document.body.classList.add('theme-light')
+      localStorage.setItem('alivyx-theme', 'light')
+    },
+    reply: { id: 'Theme diganti ke Light mode! ☀️', en: 'Switched to Light theme! ☀️' },
+  },
+  {
+    patterns: [/\b(code|default|terminal|original|hijau|cyan|dark\s*code)\b/i],
+    action: () => {
+      document.body.classList.remove('theme-code', 'theme-dark', 'theme-light')
+      document.body.classList.add('theme-code')
+      localStorage.setItem('alivyx-theme', 'code')
+    },
+    reply: { id: 'Theme diganti ke Code (default)! 💻', en: 'Switched to Code theme (default)! 💻' },
+  },
+]
+
+// Returns matched action or null. Only triggers on navigation/action intent keywords.
+const NAV_TRIGGER = /\b(scroll|pergi|bawa|tampil|show|lihat|ke|to|go|open|buka|ganti|switch|change|download|unduh|copy|salin)\b/i
+
+function detectSiteAction(query, isIndonesian) {
+  // Must contain a navigation/action verb to avoid false positives on general questions
+  if (!NAV_TRIGGER.test(query) &&
+      !/\b(linkedin|github|cv|resume|dark\s*mode|light\s*mode|dark\s*theme|light\s*theme)\b/i.test(query)) return null
+  for (const sa of SITE_ACTIONS) {
+    if (sa.patterns.some(p => p.test(query))) return sa
+  }
+  return null
+}
+
 const LLM_CONFIG = {
   apiKey: import.meta.env.VITE_GROQ_API_KEY || '',
   // llama-3.1-8b-instant is smaller/faster and has much looser daily quotas than 70b.
@@ -697,11 +801,24 @@ useEffect(() => {
 
   const handleSend = async () => {
     if (!input.trim() || isTyping) return
-    const userMessage = { role: 'user', content: input.trim() }
+    const query = input.trim()
+    const userMessage = { role: 'user', content: query }
     const newMessages = [...messages, userMessage]
     setMessages(newMessages)
-    const query = input.trim()
     setInput('')
+
+    // Check for site action first — zero quota, instant
+    const isId = /\b(halo|hai|oke|ya|ke|buka|ganti|scroll|pergi|lihat|tampil|salin|unduh)\b/i.test(query)
+    const siteAction = detectSiteAction(query, isId)
+    if (siteAction) {
+      try { siteAction.action() } catch (e) { console.warn('[Alyx] Action failed:', e) }
+      const reply = isId ? siteAction.reply.id : siteAction.reply.en
+      const updated = [...newMessages, { role: 'assistant', content: reply }]
+      setMessages(updated)
+      speak(reply, updated.length - 1)
+      return
+    }
+
     await respondToQuery(query, newMessages)
   }
 
