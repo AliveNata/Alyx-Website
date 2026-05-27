@@ -57,7 +57,7 @@ export default function Hero() {
     <section id="home" className="min-h-screen flex items-center relative overflow-hidden">
 
       {/* Photo — right side, clearly visible */}
-      <div className="absolute inset-y-0 right-0 w-[48%] lg:w-[42%]">
+      <div className="absolute inset-y-0 right-0 left-[48%] lg:left-[58%]">
         <img
           src="/profile.jpg"
           alt="Alief Akbar"
