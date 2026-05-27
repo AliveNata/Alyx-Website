@@ -54,10 +54,10 @@ export default function Hero() {
   }, [text, phase, roleIndex])
 
   return (
-    <section id="home" className="min-h-screen flex items-center relative overflow-hidden">
+    <section id="home" className="min-h-screen flex items-center relative overflow-hidden" style={{ width: '100vw' }}>
 
       {/* Photo — right side, clearly visible */}
-      <div className="absolute inset-y-0 right-0 left-[48%] lg:left-[58%]">
+      <div className="absolute inset-y-0 right-0 left-[44%] lg:left-[58%] z-0">
         <img
           src="/profile.jpg"
           alt="Alief Akbar"
