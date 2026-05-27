@@ -212,7 +212,7 @@ const VOICE_PRESETS = {
 
 // ── Module-level pure helpers (no state/props) ──────────────────────────────
 
-const CACHE_KEY = 'alyx-llm-cache-v5'
+const CACHE_KEY = 'alyx-llm-cache-v6'
 const loadCache = () => { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}') } catch { return {} } }
 const saveCache = (obj) => { try { localStorage.setItem(CACHE_KEY, JSON.stringify(obj)) } catch {} }
 
@@ -453,6 +453,19 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
     const userMessage = { role: 'user', content: transcript }
     const newMessages = [...messagesRef.current, userMessage]
     setMessages(newMessages)
+
+    // Same site-action check as handleSend
+    const isId = /\b(halo|hai|oke|ya|ke|buka|ganti|scroll|pergi|lihat|tampil|salin|unduh)\b/i.test(transcript)
+    const siteAction = detectSiteAction(transcript, isId)
+    if (siteAction) {
+      try { siteAction.action() } catch (e) { console.warn('[Alyx] Action failed:', e) }
+      const reply = isId ? siteAction.reply.id : siteAction.reply.en
+      const updated = [...newMessages, { role: 'assistant', content: reply }]
+      setMessages(updated)
+      speak(reply, updated.length - 1)
+      return
+    }
+
     await respondToQueryRef.current?.(transcript, newMessages, true)
   }
 
