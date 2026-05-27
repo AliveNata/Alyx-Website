@@ -252,7 +252,7 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   const [isListening, setIsListening] = useState(false)
   const [interimTranscript, setInterimTranscript] = useState('')
   const [speechSupported, setSpeechSupported] = useState(false)
-  const [micLang, setMicLang] = useState('id-ID')
+  const [micLang, setMicLang] = useState('en-US')
   const [rateLimit, setRateLimit] = useState(null) // { remainingRequests, limitRequests, remainingTokens, limitTokens, resetRequests, resetTokens }
   // Client-side usage tracker (fallback when CORS blocks rate-limit headers).
   // Persisted to localStorage with daily reset.
@@ -667,8 +667,8 @@ useEffect(() => {
         if (String(err.message || '').includes('429')) {
           await new Promise(r => setTimeout(r, 300))
           const msg = isIndonesian
-            ? "Maaf, kuota AI saya untuk hari ini sudah habis. Tapi saya masih bisa menjawab pertanyaan tentang **skill, pengalaman, proyek, ketersediaan, atau kontak Alief** langsung dari portofolio. Coba salah satu pertanyaan di bawah ya!"
-            : "Apologies, my AI quota for today is used up. But I can still answer questions about **Alief's skills, experience, projects, availability, or contact** — straight from the portfolio. Try one of the suggestions below!"
+            ? "Koneksi AI lagi sibuk, mohon tunggu sebentar lalu coba lagi. Sementara itu saya masih bisa menjawab pertanyaan tentang **skill, pengalaman, proyek, ketersediaan, atau kontak Alief** langsung dari portofolio!"
+            : "AI is a bit busy right now — please wait a moment and try again. Meanwhile I can still answer questions about **Alief's skills, experience, projects, availability, or contact** from the portfolio!"
           const newMessages = [...baseMessages, { role: 'assistant', content: msg }]
           setMessages(newMessages)
           setCurrentSuggestions(initialTree)
@@ -923,7 +923,7 @@ useEffect(() => {
             </div>
           ))}
           <button
-            onClick={() => speak("Hello! I'm Alyx, Alief's AI assistant. This is how I sound with your current voice preset.", -1)}
+            onClick={() => speak("Halo! Saya Alyx, AI Assistant Alief. Begini suara saya dengan preset yang dipilih.", -1)}
             className="w-full mt-1 py-1.5 text-[10px] font-mono rounded bg-accent-green/10 text-accent-green border border-accent-green/30 hover:bg-accent-green/20 transition-all"
           >
             ▶ Preview voice
