@@ -923,7 +923,7 @@ useEffect(() => {
             </div>
           ))}
           <button
-            onClick={() => speak("Halo! Saya Alyx, AI Assistant Alief. Begini suara saya dengan preset yang dipilih.", -1)}
+            onClick={() => speak("Hello! I'm Alyx, Alief's AI assistant. This is how I sound with your current voice preset.", -1)}
             className="w-full mt-1 py-1.5 text-[10px] font-mono rounded bg-accent-green/10 text-accent-green border border-accent-green/30 hover:bg-accent-green/20 transition-all"
           >
             ▶ Preview voice

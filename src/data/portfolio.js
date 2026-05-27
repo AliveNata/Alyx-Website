@@ -470,7 +470,7 @@ const _fmtCerts = (list) => list
 
 // Chatbot knowledge base
 export const chatbotKnowledge = {
-  greeting: "Halo! Saya Alyx, AI Assistant Alief Akbar. Ada yang bisa saya bantu?",
+  greeting: "Hi! I'm Alyx, Alief's AI Assistant. I can help you learn more about Alief Akbar.",
   topics: {
     skills: `${personalInfo.name} specializes in Data Engineering, Data Analytics, and Business Intelligence. His tech stack:\n` +
       Object.entries(skills).map(([cat, items]) =>
