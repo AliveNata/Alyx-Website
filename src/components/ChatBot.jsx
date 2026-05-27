@@ -667,8 +667,8 @@ useEffect(() => {
         if (String(err.message || '').includes('429')) {
           await new Promise(r => setTimeout(r, 300))
           const msg = isIndonesian
-            ? "Koneksi AI lagi sibuk, mohon tunggu sebentar lalu coba lagi. Sementara itu saya masih bisa menjawab pertanyaan tentang **skill, pengalaman, proyek, ketersediaan, atau kontak Alief** langsung dari portofolio!"
-            : "AI is a bit busy right now — please wait a moment and try again. Meanwhile I can still answer questions about **Alief's skills, experience, projects, availability, or contact** from the portfolio!"
+            ? "Koneksi AI lagi sibuk, mohon tunggu sebentar lalu coba lagi. Sementara itu saya masih bisa menjawab pertanyaan tentang **skill, pengalaman, proyek, ketersediaan, atau kontak Alief** langsung dari portofolio."
+            : "AI is a bit busy right now. Please wait a moment and try again. Meanwhile I can still answer questions about **Alief's skills, experience, projects, availability, or contact** from the portfolio!"
           const newMessages = [...baseMessages, { role: 'assistant', content: msg }]
           setMessages(newMessages)
           setCurrentSuggestions(initialTree)
@@ -1029,7 +1029,7 @@ useEffect(() => {
             {speechSupported && (
               <div className="text-[10px] font-mono text-gray-500 mb-1.5 flex items-center gap-1.5">
                 <span className="text-accent-green">🎓</span>
-                <span>Tip: tap the flag to change mic language, then tap the mic to speak — Alyx replies in voice too.</span>
+                <span>Tip: tap the flag to change mic language, then tap the mic to speak. Alyx replies in voice too.</span>
               </div>
             )}
             {isListening && (
@@ -1065,7 +1065,7 @@ useEffect(() => {
                     }}
                     disabled={isListening}
                     className="px-1.5 py-1 rounded-lg bg-primary border border-surface-border text-[10px] font-mono text-gray-400 hover:text-accent-cyan hover:border-accent-cyan/40 transition-all disabled:opacity-30"
-                    title={`Mic language: ${MIC_LANGS.find(l => l.code === micLang)?.label} — click to change`}
+                    title={`Mic language: ${MIC_LANGS.find(l => l.code === micLang)?.label} · click to change`}
                   >
                     {(() => { const l = MIC_LANGS.find(x => x.code === micLang); return l ? <FlagImg cc={l.cc} label={l.label} /> : null })()}
                   </button>
@@ -1078,7 +1078,7 @@ useEffect(() => {
                         ? 'bg-red-500/20 text-red-400 border-red-500/40 animate-pulse'
                         : 'bg-primary text-accent-green border-accent-green/30 hover:bg-accent-green/10'
                     } disabled:opacity-30`}
-                    title={`${isListening ? 'Stop' : 'Speak'} — ${MIC_LANGS.find(l => l.code === micLang)?.label}`}
+                    title={`${isListening ? 'Stop' : 'Speak'} · ${MIC_LANGS.find(l => l.code === micLang)?.label}`}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-14 0m7 7v4m-4 0h8M12 3a3 3 0 00-3 3v5a3 3 0 006 0V6a3 3 0 00-3-3z" />
