@@ -212,7 +212,7 @@ const VOICE_PRESETS = {
 
 // ── Module-level pure helpers (no state/props) ──────────────────────────────
 
-const CACHE_KEY = 'alyx-llm-cache-v6'
+const CACHE_KEY = 'alyx-llm-cache-v7'
 const loadCache = () => { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}') } catch { return {} } }
 const saveCache = (obj) => { try { localStorage.setItem(CACHE_KEY, JSON.stringify(obj)) } catch {} }
 
@@ -765,9 +765,21 @@ useEffect(() => {
 
     if (llmMode) {
       try {
-        // Inject language tag into the last user message so LLM is forced to reply
-        // in the correct language regardless of conversation history.
-        const reply = await sendToLLM(baseMessages)
+        // Detect current message language and inject a mandatory tag into the last
+        // user message so the LLM replies in the correct language regardless of
+        // what language earlier messages in the conversation were written in.
+        let replyLang = 'English'
+        if (/[぀-ヿ]/.test(query)) replyLang = 'Japanese'
+        else if (/[一-鿿㐀-䶿]/.test(query)) replyLang = 'Chinese'
+        else if (/[가-힯]/.test(query)) replyLang = 'Korean'
+        else if (/[؀-ۿ]/.test(query)) replyLang = 'Arabic'
+        else if (isIndonesian) replyLang = 'Indonesian'
+        const messagesForLLM = baseMessages.map((m, idx) =>
+          idx === baseMessages.length - 1 && m.role === 'user'
+            ? { ...m, content: `${m.content}\n\n[MANDATORY: Reply in ${replyLang} only. Ignore previous messages' language.]` }
+            : m
+        )
+        const reply = await sendToLLM(messagesForLLM)
         const c = loadCache()
         c[normKey] = reply
         const keys = Object.keys(c)
