@@ -336,14 +336,3 @@ body.theme-light #home .font-mono {
   opacity: 1;
   transform: translateY(0);
 }
-
-/* Experience card entrance animation */
-.exp-card.exp-visible { opacity: 1 !important; transform: none !important; }
-
-/* Pipeline data packet flow animation */
-@keyframes flowRight {
-  0% { left: 0; opacity: 0; }
-  20% { opacity: 1; }
-  80% { opacity: 1; }
-  100% { left: 100%; opacity: 0; }
-}
