@@ -120,7 +120,7 @@ function ExperienceCard({ exp, i, total, variant }) {
       </div>
 
       {/* Content */}
-      <div className="pb-8 flex-1">
+      <div className="pb-8 flex-1 min-w-0">
         <div className="bg-surface-card border border-surface-border rounded-xl p-5 card-glow">
           {/* Period + Work Type badges */}
           <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -227,39 +227,39 @@ export default function Experience() {
           {/* Experience section */}
           <div className="lg:col-span-2">
             {/* IT / Non-IT tabs */}
-            <div className="section-animate flex gap-2 mb-6">
+            <div className="section-animate flex flex-wrap gap-2 mb-6">
               <button
                 onClick={() => { setExpTab('IT'); setShowAllIT(false) }}
-                className={`px-4 py-2 rounded-lg font-mono text-sm transition-all ${
+                className={`px-3 py-2 rounded-lg font-mono text-xs sm:text-sm transition-all ${
                   expTab === 'IT'
                     ? 'bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/30'
                     : 'bg-surface-card border border-surface-border text-gray-400 hover:text-white'
                 }`}
               >
                 💻 IT Experience
-                <span className="ml-2 text-xs opacity-60">({experiencesIT.length})</span>
+                <span className="ml-1.5 text-xs opacity-60">({experiencesIT.length})</span>
               </button>
               <button
                 onClick={() => { setExpTab('Freelance'); setShowAllFreelance(false) }}
-                className={`px-4 py-2 rounded-lg font-mono text-sm transition-all ${
+                className={`px-3 py-2 rounded-lg font-mono text-xs sm:text-sm transition-all ${
                   expTab === 'Freelance'
                     ? 'bg-accent-green/10 text-accent-green border border-accent-green/30'
                     : 'bg-surface-card border border-surface-border text-gray-400 hover:text-white'
                 }`}
               >
                 💼 Freelance
-                <span className="ml-2 text-xs opacity-60">({experiencesFreelance.length})</span>
+                <span className="ml-1.5 text-xs opacity-60">({experiencesFreelance.length})</span>
               </button>
               <button
                 onClick={() => { setExpTab('Non-IT'); setShowAllNonIT(false) }}
-                className={`px-4 py-2 rounded-lg font-mono text-sm transition-all ${
+                className={`px-3 py-2 rounded-lg font-mono text-xs sm:text-sm transition-all ${
                   expTab === 'Non-IT'
                     ? 'bg-accent-purple/10 text-accent-purple border border-accent-purple/30'
                     : 'bg-surface-card border border-surface-border text-gray-400 hover:text-white'
                 }`}
               >
                 🏢 Non-IT Experience
-                <span className="ml-2 text-xs opacity-60">({experiencesNonIT.length})</span>
+                <span className="ml-1.5 text-xs opacity-60">({experiencesNonIT.length})</span>
               </button>
             </div>
 

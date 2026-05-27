@@ -307,15 +307,26 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   }, [])
 
   const MIC_LANGS = [
-    { code: 'id-ID', flag: '🇮🇩', label: 'ID' },
-    { code: 'en-US', flag: '🇺🇸', label: 'EN' },
-    { code: 'ja-JP', flag: '🇯🇵', label: 'JA' },
-    { code: 'zh-CN', flag: '🇨🇳', label: 'ZH' },
-    { code: 'ko-KR', flag: '🇰🇷', label: 'KO' },
-    { code: 'fr-FR', flag: '🇫🇷', label: 'FR' },
-    { code: 'de-DE', flag: '🇩🇪', label: 'DE' },
-    { code: 'ar-SA', flag: '🇸🇦', label: 'AR' },
+    { code: 'id-ID', cc: 'id', label: 'ID' },
+    { code: 'en-US', cc: 'us', label: 'EN' },
+    { code: 'ja-JP', cc: 'jp', label: 'JA' },
+    { code: 'zh-CN', cc: 'cn', label: 'ZH' },
+    { code: 'ko-KR', cc: 'kr', label: 'KO' },
+    { code: 'fr-FR', cc: 'fr', label: 'FR' },
+    { code: 'de-DE', cc: 'de', label: 'DE' },
+    { code: 'ar-SA', cc: 'sa', label: 'AR' },
   ]
+
+  const FlagImg = ({ cc, label }) => (
+    <img
+      src={`https://flagcdn.com/w20/${cc}.png`}
+      srcSet={`https://flagcdn.com/w40/${cc}.png 2x`}
+      width="20"
+      alt={label}
+      className="rounded-sm object-cover"
+      style={{ height: '14px', width: '20px' }}
+    />
+  )
 
   const startListening = () => {
     if (!recognitionRef.current || isListening) return
@@ -1018,7 +1029,7 @@ useEffect(() => {
             {speechSupported && (
               <div className="text-[10px] font-mono text-gray-500 mb-1.5 flex items-center gap-1.5">
                 <span className="text-accent-green">🎓</span>
-                <span>Tip: tap {MIC_LANGS.find(l => l.code === micLang)?.flag} to change mic language, then tap the mic to speak — Alyx replies in voice too.</span>
+                <span>Tip: tap the flag to change mic language, then tap the mic to speak — Alyx replies in voice too.</span>
               </div>
             )}
             {isListening && (
@@ -1056,7 +1067,7 @@ useEffect(() => {
                     className="px-1.5 py-1 rounded-lg bg-primary border border-surface-border text-[10px] font-mono text-gray-400 hover:text-accent-cyan hover:border-accent-cyan/40 transition-all disabled:opacity-30"
                     title={`Mic language: ${MIC_LANGS.find(l => l.code === micLang)?.label} — click to change`}
                   >
-                    {MIC_LANGS.find(l => l.code === micLang)?.flag}
+                    {(() => { const l = MIC_LANGS.find(x => x.code === micLang); return l ? <FlagImg cc={l.cc} label={l.label} /> : null })()}
                   </button>
                   {/* Mic button */}
                   <button
