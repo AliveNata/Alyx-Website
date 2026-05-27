@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { experiencesIT, experiencesNonIT, experiencesFreelance, awards, certificates } from '../data/portfolio'
 
 const workTypeColors = {
@@ -110,10 +110,7 @@ function ExperienceCard({ exp, i, total, variant }) {
     : 'border-accent-purple bg-accent-purple/20'
 
   return (
-    <div
-      className="exp-card relative flex gap-6"
-      style={{ opacity: 0, transform: 'translateX(-16px)', transition: 'opacity 0.45s ease, transform 0.45s ease', transitionDelay: `${i * 0.08}s` }}
-    >
+    <div className="relative flex gap-6">
       {/* Timeline line */}
       <div className="flex flex-col items-center">
         <div className={`w-4 h-4 rounded-full border-2 shrink-0 z-10 ${dotColor}`} />
@@ -214,24 +211,6 @@ export default function Experience() {
   }
 
   const currentExperiences = showAll ? allExperiences : allExperiences.slice(0, PREVIEW_COUNT)
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('exp-visible')
-            observer.unobserve(entry.target)
-          }
-        })
-      },
-      { threshold: 0.15 }
-    )
-    document.querySelectorAll('.exp-card').forEach((el) => {
-      observer.observe(el)
-    })
-    return () => observer.disconnect()
-  }, [currentExperiences])
 
   return (
     <section id="experience" className="py-24 relative">

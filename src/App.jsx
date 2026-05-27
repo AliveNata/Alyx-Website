@@ -8,8 +8,6 @@ import Experience from './components/Experience'
 import Contact from './components/Contact'
 import ChatBot from './components/ChatBot'
 import Footer from './components/Footer'
-import DataPipeline from './components/DataPipeline'
-import SQLPlayground from './components/SQLPlayground'
 
 function App() {
   const [showChat, setShowChat] = useState(false)
@@ -71,8 +69,6 @@ function App() {
       <Hero />
       <About />
       <Skills />
-      <SQLPlayground />
-      <DataPipeline />
       <Projects />
       <Experience />
       <Contact />
