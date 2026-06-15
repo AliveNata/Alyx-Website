@@ -80,19 +80,6 @@ export default function Preloader({ onDone }) {
   const [progress,     setProgress]     = useState(0)
   const [exiting,      setExiting]      = useState(false)
   const [unmounted,    setUnmounted]    = useState(false)
-  const [tilt,         setTilt]         = useState({ x: 0, y: 0 })
-
-  // Mouse parallax tilt on center card
-  useEffect(() => {
-    const onMove = (e) => {
-      setTilt({
-        x:  (e.clientX / window.innerWidth  - 0.5) * 14,
-        y: -(e.clientY / window.innerHeight - 0.5) * 14,
-      })
-    }
-    window.addEventListener('mousemove', onMove)
-    return () => window.removeEventListener('mousemove', onMove)
-  }, [])
 
   // Boot sequence + finish logic
   useEffect(() => {
@@ -152,14 +139,8 @@ export default function Preloader({ onDone }) {
         }}
       />
 
-      {/* Center card — 3D parallax tilt */}
-      <div
-        className="relative z-10 flex flex-col items-center gap-6 px-6"
-        style={{
-          transform: `perspective(1100px) rotateX(${tilt.y}deg) rotateY(${tilt.x}deg)`,
-          transition: 'transform 0.12s ease-out',
-        }}
-      >
+      {/* Center card */}
+      <div className="relative z-10 flex flex-col items-center gap-6 px-6">
         {/* Logo + pulse rings */}
         <div className="relative flex items-center justify-center">
           {/* Pulse rings */}
