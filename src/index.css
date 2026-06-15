@@ -332,6 +332,48 @@ body.theme-light #home .font-mono {
   to   { opacity: 1; transform: translateX(0); }
 }
 
+/* Preloader: scan line sweeps top → bottom */
+@keyframes preloaderScan {
+  0%   { top: -2px; }
+  100% { top: 100%; }
+}
+
+/* Preloader: expanding pulse rings */
+@keyframes preloaderPulse {
+  0%   { transform: scale(1);   opacity: 0.55; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+
+/* Preloader: glitch on name */
+@keyframes preloaderGlitch {
+  0%, 82%, 100% {
+    text-shadow: none;
+    transform: none;
+  }
+  84% {
+    text-shadow: 3px 0 #ff0040, -3px 0 #00d4ff;
+    transform: translateX(-3px);
+  }
+  86% {
+    text-shadow: -3px 0 #ff0040, 3px 0 #00d4ff;
+    transform: translateX(3px);
+  }
+  88% {
+    text-shadow: 2px 0 #ff0040, -2px 0 #00d4ff;
+    transform: translateX(-1px);
+  }
+  90% {
+    text-shadow: none;
+    transform: none;
+  }
+}
+
+/* Preloader: progress bar shimmer */
+@keyframes preloaderShimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
 /* Section fade in on scroll */
 .section-animate {
   opacity: 0;
