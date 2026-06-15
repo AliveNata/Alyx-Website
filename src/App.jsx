@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import Preloader from './components/Preloader'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
 import About from './components/About'
@@ -10,6 +11,7 @@ import ChatBot from './components/ChatBot'
 import Footer from './components/Footer'
 
 function App() {
+  const [preloaderDone, setPreloaderDone] = useState(false)
   const [showChat, setShowChat] = useState(false)
   const [footerVisible, setFooterVisible] = useState(false)
   const [footerHeight, setFooterHeight] = useState(80)
@@ -63,7 +65,15 @@ function App() {
   const showClosePill = showChat && !footerVisible
 
   return (
-    <div className="min-h-screen bg-primary relative">
+    <>
+    <Preloader onDone={() => setPreloaderDone(true)} />
+    <div
+      className="min-h-screen bg-primary relative"
+      style={{
+        opacity: preloaderDone ? 1 : 0,
+        transition: 'opacity 0.5s ease',
+      }}
+    >
 
       <Navbar />
       <Hero />
@@ -103,6 +113,7 @@ function App() {
         />
       )}
     </div>
+    </>
   )
 }
 
