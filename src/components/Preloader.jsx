@@ -145,7 +145,7 @@ export default function Preloader({ onDone }) {
 
       {/* Sweeping scan line */}
       <div
-        className="absolute left-0 right-0 h-px pointer-events-none"
+        className="absolute top-0 left-0 right-0 h-px pointer-events-none"
         style={{
           background: 'linear-gradient(90deg, transparent 0%, rgba(0,212,255,0.45) 50%, transparent 100%)',
           animation: 'preloaderScan 4s linear infinite',

@@ -332,10 +332,10 @@ body.theme-light #home .font-mono {
   to   { opacity: 1; transform: translateX(0); }
 }
 
-/* Preloader: scan line sweeps top → bottom */
+/* Preloader: scan line sweeps top → bottom (transform-based for GPU acceleration) */
 @keyframes preloaderScan {
-  0%   { top: -2px; }
-  100% { top: 100%; }
+  from { transform: translateY(0); }
+  to   { transform: translateY(100vh); }
 }
 
 /* Preloader: expanding pulse rings */
