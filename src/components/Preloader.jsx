@@ -10,17 +10,6 @@ const BOOT_LINES = [
 
 const MIN_MS = 2000
 
-const TECH_BADGES = [
-  { label: 'Python',   color: '#3b82f6' },
-  { label: 'SQL',      color: '#00d4ff' },
-  { label: 'BigQuery', color: '#a855f7' },
-  { label: 'dbt',      color: '#00ff88' },
-  { label: 'Airflow',  color: '#f59e0b' },
-  { label: 'Kafka',    color: '#ef4444' },
-]
-
-const ORBIT_R    = 90  // px from center
-const ORBIT_MS   = 10000 // one full rotation
 
 // ── Canvas particle network ─────────────────────────────────────────────────
 function ParticleCanvas() {
@@ -84,52 +73,6 @@ function ParticleCanvas() {
   return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
 }
 
-// ── JS-driven orbit (labels stay upright) ───────────────────────────────────
-function OrbitingBadges() {
-  const refs = useRef([])
-
-  useEffect(() => {
-    let raf
-    const tick = (t) => {
-      refs.current.forEach((el, i) => {
-        if (!el) return
-        const phase = ((t / ORBIT_MS + i / TECH_BADGES.length) % 1) * Math.PI * 2
-        const x = ORBIT_R * Math.cos(phase)
-        const y = ORBIT_R * Math.sin(phase)
-        // combine centering offset + circular orbit in one transform (no rotation → labels upright)
-        el.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`
-      })
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [])
-
-  return (
-    <>
-      {TECH_BADGES.map((badge, i) => (
-        <div
-          key={badge.label}
-          ref={el => { refs.current[i] = el }}
-          className="absolute pointer-events-none"
-          style={{ top: '50%', left: '50%', willChange: 'transform' }}
-        >
-          <span
-            className="px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold border whitespace-nowrap select-none"
-            style={{
-              color:           badge.color,
-              borderColor:     badge.color + '55',
-              backgroundColor: badge.color + '18',
-              boxShadow:       `0 0 6px ${badge.color}30`,
-            }}
-          >
-            {badge.label}
-          </span>
-        </div>
-      ))}
-    </>
-  )
-}
 
 // ── Main Preloader ──────────────────────────────────────────────────────────
 export default function Preloader({ onDone }) {
@@ -218,11 +161,8 @@ export default function Preloader({ onDone }) {
           transition: 'transform 0.12s ease-out',
         }}
       >
-        {/* Logo + orbit + pulse rings */}
-        <div
-          className="relative flex items-center justify-center"
-          style={{ width: 210, height: 210 }}
-        >
+        {/* Logo + pulse rings */}
+        <div className="relative flex items-center justify-center">
           {/* Pulse rings */}
           {[0, 1, 2].map(i => (
             <div
@@ -235,9 +175,6 @@ export default function Preloader({ onDone }) {
               }}
             />
           ))}
-
-          {/* Orbiting tech badges (JS-driven, labels always upright) */}
-          <OrbitingBadges />
 
           {/* Logo */}
           <div className="relative z-10 w-20 h-20">
@@ -267,7 +204,7 @@ export default function Preloader({ onDone }) {
         </div>
 
         {/* Name + subtitle */}
-        <div className="text-center space-y-1" style={{ marginTop: -16 }}>
+        <div className="text-center space-y-1">
           <p className="text-[10px] font-mono tracking-[0.5em] text-accent-cyan/50 uppercase">Portfolio</p>
           <h1
             className="text-2xl font-black tracking-tight text-white"
