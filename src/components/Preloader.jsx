@@ -133,8 +133,7 @@ export default function Preloader({ onDone }) {
       style={{
         background: '#0a0f1c',
         opacity:    exiting ? 0 : 1,
-        transform:  exiting ? 'scale(1.04)' : 'scale(1)',
-        transition: 'opacity 0.7s ease, transform 0.7s ease',
+        transition: 'opacity 0.7s ease',
         pointerEvents: exiting ? 'none' : 'all',
       }}
     >
