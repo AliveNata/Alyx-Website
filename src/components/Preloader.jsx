@@ -209,7 +209,7 @@ export default function Preloader({ onDone }) {
             <span className="terminal-dot bg-green-500" />
             <span className="ml-2 text-[10px] font-mono text-gray-500">alyx — boot sequence</span>
           </div>
-          <div className="px-4 py-3 space-y-1.5 min-h-[108px]">
+          <div className="px-4 py-3 space-y-1.5 min-h-[132px]">
             {BOOT_LINES.map((line, i) =>
               visibleLines.includes(i) && (
                 <div
