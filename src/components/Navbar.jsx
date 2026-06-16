@@ -17,6 +17,10 @@ const THEME_ICONS = {
   light: <i className="bi bi-sun-fill text-sm leading-none" />,
 }
 
+const notifyDownload = () => {
+  fetch('/.netlify/functions/cv-notify', { method: 'POST' }).catch(() => {})
+}
+
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -79,15 +83,6 @@ export default function Navbar() {
               })}
             </div>
 
-            {/* Hire Me CTA */}
-            <a
-              href="/Curriculum%20Vitae%20-%20Alief%20Akbar.pdf"
-              download="Curriculum Vitae - Alief Akbar.pdf"
-              className="hidden md:inline-block px-3 py-1.5 text-xs font-mono font-medium rounded bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/30 hover:bg-accent-cyan/20 transition-all shrink-0 ml-1"
-            >
-              $ hire_me
-            </a>
-
             {/* Theme toggle */}
             <button
               onClick={() => setTheme(THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length])}
@@ -96,6 +91,16 @@ export default function Navbar() {
             >
               {THEME_ICONS[theme]}
             </button>
+
+            {/* Hire Me CTA — desktop only */}
+            <a
+              href="/Curriculum%20Vitae%20-%20Alief%20Akbar.pdf"
+              download="Curriculum Vitae - Alief Akbar.pdf"
+              onClick={notifyDownload}
+              className="hidden md:inline-block px-3 py-1.5 text-xs font-mono font-medium rounded bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/30 hover:bg-accent-cyan/20 transition-all shrink-0"
+            >
+              $ get_cv
+            </a>
 
             {/* Mobile menu */}
             <button
@@ -111,6 +116,19 @@ export default function Navbar() {
       {/* Mobile menu */}
       {mobileOpen && (
         <div className="md:hidden bg-surface-dark/95 backdrop-blur-lg border-b border-surface-border">
+          {/* Featured CTA */}
+          <div className="px-3 pt-3 pb-2">
+            <a
+              href="/Curriculum%20Vitae%20-%20Alief%20Akbar.pdf"
+              download="Curriculum Vitae - Alief Akbar.pdf"
+              onClick={() => { notifyDownload(); setMobileOpen(false) }}
+              className="flex items-center justify-center gap-2 w-full px-4 py-2.5 text-sm font-mono font-semibold rounded-lg bg-gradient-to-r from-accent-cyan to-accent-blue text-primary hover:opacity-90 transition-all"
+            >
+              $ get_cv
+              <i className="bi bi-download text-xs leading-none" />
+            </a>
+          </div>
+          <div className="mx-3 h-px bg-surface-border mb-1" />
           <div className="px-2 py-2 space-y-0.5">
             {navLinks.map((link) => {
               const isActive = activeSection === link.href.slice(1)
