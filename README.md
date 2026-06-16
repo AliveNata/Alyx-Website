@@ -3,7 +3,7 @@
 > Personal portfolio website for **Alief Akbar**, Data Engineer & BI Analyst.  
 > Built with React 18 + Vite + Tailwind CSS, featuring an AI-powered chatbot assistant named **Alyx**.
 
-🌐 **Live:** [alyx-website.netlify.app](https://alyx-website.netlify.app) *(update with your actual URL)*
+🌐 **Live:** [alyxdev.netlify.app](https://alyxdev.netlify.app)
 
 ---
 
@@ -30,6 +30,10 @@
 - **Experience** - Timeline with IT / Freelance / Non-IT tabs, show more/less per tab
 - **Contact** - JWT-style token verification form, social links, availability status
 
+### CV Download & Notifications
+- **$ get_cv button** - Available in navbar (desktop) and hamburger menu (mobile) as a featured CTA
+- **Telegram notifications** - Real-time alert sent to owner via Telegram bot on every CV download, including timestamp, city/country, IP, browser, and OS
+
 ### Alyx AI Chatbot
 - **Groq LLM** (LLaMA 3.1-8b) with portfolio grounding - answers questions about Alief's skills, experience, and projects
 - **Suggestion tree** - Clickable quick questions organized by topic
@@ -44,10 +48,12 @@
 
 ### UI / UX
 - **3 themes** - Code (default dark), Dark (slate), Light
+- **Preloader** - Boot sequence terminal animation with particle network canvas before portfolio loads
 - **Neon pulse button** - "Ask Alyx AI" pill with cyan glow animation
 - **Smart positioning** - Chat button automatically rises above footer when scrolling to bottom
 - **Glitter animation** - Close pill ↔ Header X transition with scale + glow effect
 - **Scroll-triggered animations** - Section fade-in via IntersectionObserver
+- **Language-aware chatbot** - Auto-detects Japanese, Chinese, Korean, Arabic, Indonesian and forces reply in matched language
 
 ---
 
@@ -56,7 +62,8 @@
 ```
 src/
 ├── components/
-│   ├── Navbar.jsx        # Navigation + theme switcher
+│   ├── Navbar.jsx        # Navigation + theme switcher + $ get_cv button
+│   ├── Preloader.jsx     # Boot sequence preloader with particle canvas
 │   ├── Hero.jsx          # Landing section with photo
 │   ├── About.jsx         # Bio section
 │   ├── Skills.jsx        # Tech stack grid with SkillIcon component
@@ -70,6 +77,10 @@ src/
 ├── App.jsx               # Root layout + chat toggle logic
 ├── main.jsx              # Entry point + CSS imports
 └── index.css             # Global styles, theme overrides, animations
+
+netlify/
+└── functions/
+    └── cv-notify.js      # Telegram notification on CV download
 
 public/
 └── icons/                # Custom SVGs: dbt, Looker, Tableau, Power BI, Hive
@@ -100,6 +111,15 @@ VITE_GROQ_API_KEY=your_groq_api_key_here
 ```
 
 > Get a free API key at [console.groq.com](https://console.groq.com)
+
+For the Telegram CV notification (Netlify environment variables):
+
+```env
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+TELEGRAM_CHAT_ID=your_telegram_chat_id
+```
+
+> Create a bot via [@BotFather](https://t.me/BotFather) on Telegram, then get your chat ID via `getUpdates`
 
 ### Development
 
@@ -159,6 +179,12 @@ Voice output leverages **Microsoft Azure Neural voices** available in Edge/Chrom
 ---
 
 ## Changelog
+
+### v2.1.0
+- Preloader with boot sequence terminal, particle network canvas, pulse rings, and glitch animation
+- Language-aware chatbot: auto-detects script (Japanese/Chinese/Korean/Arabic/Indonesian) and forces reply in matched language
+- `$ get_cv` button in navbar (desktop) and featured CTA in mobile hamburger menu
+- Telegram bot notification on every CV download (IP, geo location, browser, OS, timestamp)
 
 ### v2.0.0
 - Full UI overhaul with Bootstrap Icons, Devicons, and Simple Icons
