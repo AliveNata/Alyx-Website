@@ -68,7 +68,7 @@ export default function Skills() {
 
         {/* Featured + logo grid */}
         <div className="grid lg:grid-cols-[1fr_1.7fr] gap-8 lg:gap-16 items-start">
-          <div className="section-animate border border-surface-border rounded-[3px] p-6 bg-gradient-to-br from-surface-dark to-primary">
+          <div className="section-animate border border-surface-border rounded-[3px] p-6 bg-surface-card">
             <div className="w-[52px] h-[52px] mb-4 flex items-center"><SkillIcon icon={top.icon} name={top.name} size={48} /></div>
             <div className="font-mono text-[11px] text-accent-cyan tracking-widest">most_used</div>
             <div className="font-black tracking-[-0.03em] tabular-nums mt-1.5 text-white" style={{ fontSize: 'clamp(34px,4.5vw,50px)' }}>
