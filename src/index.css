@@ -123,7 +123,7 @@ body.theme-light .hero-fade-side {
 body.theme-light .hero-fade-bottom {
   background: linear-gradient(to top, #f8fafc 0%, transparent 100%);
 }
-/* Light theme hero — force dark text + white outline for readability over photo */
+/* Light theme hero — editorial layout: text sits on the page, not over the photo */
 body.theme-light #home .text-gray-400,
 body.theme-light #home .text-gray-500 {
   color: #475569 !important;
@@ -131,17 +131,12 @@ body.theme-light #home .text-gray-500 {
 body.theme-light #home .text-accent-green\/80 {
   color: #15803d !important;
 }
-body.theme-light #home h1 span,
-body.theme-light #home p,
-body.theme-light #home .text-white,
-body.theme-light #home .text-gray-300,
-body.theme-light #home .text-gray-400,
-body.theme-light #home .font-mono {
-  text-shadow:
-    0 0 8px rgba(255,255,255,1),
-    0 0 16px rgba(255,255,255,0.95),
-    0 0 30px rgba(255,255,255,0.8),
-    0 0 50px rgba(255,255,255,0.5);
+/* Darken the gradient last-name so it reads on a white background */
+body.theme-light #home .hero-lastname {
+  --tw-gradient-from: #0891b2 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: #15803d var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+  filter: none !important;
 }
 
 /* Custom scrollbar */

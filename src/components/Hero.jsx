@@ -24,7 +24,7 @@ export default function Hero() {
         >
           {personalInfo.name.split(' ')[0]}
           <span
-            className="block bg-gradient-to-r from-accent-cyan to-accent-green bg-clip-text text-transparent"
+            className="hero-lastname block bg-gradient-to-r from-accent-cyan to-accent-green bg-clip-text text-transparent"
             style={{ paddingBottom: '.08em', filter: 'drop-shadow(0 0 40px rgba(0,212,255,0.22))' }}
           >
             {personalInfo.name.split(' ')[1]}.
