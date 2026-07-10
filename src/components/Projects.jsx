@@ -3,28 +3,21 @@ import { projects } from '../data/portfolio'
 
 const categoryFilters = ['All', 'Data Engineering', 'BI & Analytics', 'Automation', 'Data Analysis', 'Other']
 
-const categoryBadgeColors = {
-  'Data Engineering': 'bg-accent-cyan/10 text-accent-cyan border-accent-cyan/20',
-  'BI & Analytics': 'bg-accent-green/10 text-accent-green border-accent-green/20',
-  'Automation': 'bg-accent-blue/10 text-accent-blue border-accent-blue/20',
-  'Data Analysis': 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-  'Other': 'bg-accent-purple/10 text-accent-purple border-accent-purple/20',
-}
-
-// Image-based cover with overlay
-function ProjectCover({ project }) {
+function ProjectLinks({ project }) {
   return (
-    <div className="absolute inset-0 bg-surface-dark">
-      {project.image && (
-        <img
-          src={project.image}
-          alt={project.title}
-          loading="lazy"
-          className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
-        />
+    <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
+      {project.github && (
+        <a href={project.github} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+          className="p-2 bg-black/50 backdrop-blur-md rounded-full text-white/80 hover:text-white hover:bg-black/70 transition-all inline-flex" aria-label="GitHub">
+          <i className="bi bi-github text-sm leading-none" />
+        </a>
       )}
-      {/* Gradient scrim for readability */}
-      <div className="absolute inset-0 bg-gradient-to-t from-surface-card via-surface-card/60 to-transparent" />
+      {project.link && (
+        <a href={project.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+          className="p-2 bg-accent-cyan/80 backdrop-blur-md rounded-full text-white hover:bg-accent-cyan transition-all inline-flex" aria-label="Live site">
+          <i className="bi bi-box-arrow-up-right text-sm leading-none" />
+        </a>
+      )}
     </div>
   )
 }
@@ -33,30 +26,27 @@ export default function Projects() {
   const [filter, setFilter] = useState('All')
   const [showAll, setShowAll] = useState(false)
 
-  const filtered = filter === 'All' ? projects : projects.filter(p => p.category === filter)
-  const displayed = showAll ? filtered : filtered.slice(0, 6)
+  const filtered = filter === 'All' ? projects : projects.filter((p) => p.category === filter)
+  const displayed = showAll ? filtered : filtered.slice(0, 7)
 
   return (
-    <section id="projects" className="py-24 relative">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="section-animate mb-12">
-          <div className="flex items-center gap-3">
-            <span className="text-accent-cyan font-mono text-sm">03.</span>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white">Projects</h2>
-            <div className="hidden sm:block flex-1 h-px bg-surface-border ml-4" />
-          </div>
+    <section id="projects" className="py-24 sm:py-28 border-t border-surface-border">
+      <div className="max-w-[1160px] mx-auto px-6 sm:px-10 lg:px-16">
+        {/* Header */}
+        <div className="section-animate grid grid-cols-[auto_1fr] gap-6 items-baseline mb-5">
+          <span className="font-mono text-[13px] text-accent-cyan pt-2">04</span>
+          <h2 className="font-extrabold tracking-[-0.03em] text-white leading-tight" style={{ fontSize: 'clamp(28px,4.2vw,50px)' }}>Selected work</h2>
         </div>
+        <p className="section-animate font-mono text-[12.5px] text-gray-600 ml-[39px] mb-11">// pipelines, dashboards, automation &amp; full-stack builds</p>
 
         {/* Filter tabs */}
-        <div className="section-animate flex flex-wrap gap-2 mb-10">
+        <div className="section-animate flex flex-wrap gap-1 mb-8">
           {categoryFilters.map((cat) => (
             <button
               key={cat}
-              onClick={() => { setFilter(cat); setShowAll(false); }}
-              className={`px-3 py-1.5 rounded-lg font-mono text-xs transition-all ${
-                filter === cat
-                  ? 'bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/30'
-                  : 'bg-surface-card border border-surface-border text-gray-400 hover:text-white'
+              onClick={() => { setFilter(cat); setShowAll(false) }}
+              className={`font-mono text-xs px-3.5 py-2 rounded-lg border transition-all ${
+                filter === cat ? 'text-accent-cyan border-accent-cyan/40 bg-accent-cyan/10' : 'text-gray-400 border-surface-border hover:text-white'
               }`}
             >
               {cat}
@@ -64,85 +54,45 @@ export default function Projects() {
           ))}
         </div>
 
-        {/* Projects grid */}
-        <div className="grid md:grid-cols-2 gap-6">
-          {displayed.map((project) => (
-            <div
-              key={project.title}
-              className="relative bg-surface-card border border-surface-border rounded-xl overflow-hidden card-glow group h-full"
-            >
-              {/* Image cover with action buttons */}
-              <div className="relative h-48 overflow-hidden">
-                <ProjectCover project={project} />
-                <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-                  {project.github && (
-                    <a
-                      href={project.github}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 bg-black/50 backdrop-blur-md rounded-full text-white/80 hover:text-white hover:bg-black/70 transition-all inline-flex"
-                      aria-label="View on GitHub"
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <i className="bi bi-github text-sm leading-none" />
-                    </a>
-                  )}
-                  {project.link && (
-                    <a
-                      href={project.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 bg-accent-cyan/80 backdrop-blur-md rounded-full text-white hover:bg-accent-cyan transition-all inline-flex"
-                      aria-label="Open live site"
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <i className="bi bi-box-arrow-up-right text-sm leading-none" />
-                    </a>
+        {/* Varied grid */}
+        <div className="grid md:grid-cols-2 gap-4.5" style={{ gap: 18 }}>
+          {displayed.map((project, i) => {
+            const hero = i === 0
+            return (
+              <article
+                key={project.title}
+                className={`group border border-surface-border rounded-[3px] overflow-hidden bg-surface-card hover:border-accent-cyan/30 hover:-translate-y-0.5 transition-all flex ${
+                  hero ? 'md:col-span-2 flex-col md:flex-row' : 'flex-col'
+                }`}
+              >
+                <div className={`relative overflow-hidden bg-surface-dark ${hero ? 'md:w-[52%] aspect-[16/10] md:aspect-auto' : 'aspect-[16/10]'}`}>
+                  <span className="absolute top-3 left-3 z-10 font-mono text-[10px] px-[9px] py-1 bg-primary/80 backdrop-blur-sm border border-surface-border rounded-[5px] text-accent-cyan">{project.category}</span>
+                  <ProjectLinks project={project} />
+                  {project.image && (
+                    <img src={project.image} alt={project.title} loading="lazy" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-[1.03] transition-all duration-500" />
                   )}
                 </div>
-              </div>
-
-              {/* Card body */}
-              <div className="p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-lg font-semibold text-white group-hover:text-accent-cyan transition-colors">
-                    {project.title}
-                  </h3>
+                <div className={`flex-1 flex flex-col ${hero ? 'p-8 justify-center' : 'p-5'}`}>
+                  <h3 className={`font-bold tracking-tight text-white ${hero ? 'text-2xl sm:text-3xl mb-2.5' : 'text-lg mb-2'}`}>{project.title}</h3>
+                  <p className="text-gray-400 text-[13.5px] leading-relaxed">{project.description}</p>
+                  <div className="flex flex-wrap gap-1.5 mt-auto pt-4">
+                    {project.tech.map((t) => (
+                      <span key={t} className="font-mono text-[10px] px-2 py-[3px] border border-surface-border rounded text-gray-400">{t}</span>
+                    ))}
+                  </div>
                 </div>
-                <span className={`inline-block text-xs font-mono px-2 py-0.5 rounded-full border ${categoryBadgeColors[project.category] || 'bg-gray-500/10 text-gray-400 border-gray-500/20'} mb-3`}>
-                  {project.category}
-                </span>
-
-                <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                  {project.description}
-                </p>
-
-                {/* Tech stack */}
-                <div className="flex flex-wrap gap-2">
-                  {project.tech.map((t) => (
-                    <span
-                      key={t}
-                      className="px-2 py-1 bg-primary/50 border border-surface-border rounded text-xs font-mono text-gray-400"
-                    >
-                      {t}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
+              </article>
+            )
+          })}
         </div>
 
-        {/* Show more */}
-        {filtered.length > 6 && !showAll && (
-          <div className="text-center mt-8">
-            <button
-              onClick={() => setShowAll(true)}
-              className="px-6 py-2 border border-accent-cyan/30 text-accent-cyan font-mono text-sm rounded-lg hover:bg-accent-cyan/10 transition-all"
-            >
-              Show More Projects
-            </button>
-          </div>
+        {filtered.length > 7 && (
+          <button
+            onClick={() => setShowAll(!showAll)}
+            className="section-animate mt-6 w-full font-mono text-[12.5px] text-accent-cyan border border-dashed border-accent-cyan/35 rounded-lg py-3 hover:bg-accent-cyan/5 transition-all"
+          >
+            {showAll ? '$ show_less()' : `$ show_more() // +${filtered.length - 7}`}
+          </button>
         )}
       </div>
     </section>

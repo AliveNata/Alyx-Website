@@ -445,7 +445,7 @@ export const certificates = [
     title: "Python Fundamental for Data Science",
     description: "Professional certification in Python for Data Science",
     issuer: "DQLab",
-    date: "2025",
+    date: "2021",
     icon: "📜",
     link: "https://academy.dqlab.id/",
   },

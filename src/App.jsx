@@ -6,6 +6,7 @@ import About from './components/About'
 import Skills from './components/Skills'
 import Projects from './components/Projects'
 import Experience from './components/Experience'
+import Recognition from './components/Recognition'
 import Contact from './components/Contact'
 import ChatBot from './components/ChatBot'
 import Footer from './components/Footer'
@@ -79,8 +80,9 @@ function App() {
       <Hero />
       <About />
       <Skills />
-      <Projects />
       <Experience />
+      <Projects />
+      <Recognition />
       <Contact />
       <Footer />
 

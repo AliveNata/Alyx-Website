@@ -4,8 +4,9 @@ const navLinks = [
   { name: 'home', href: '#home', ext: '.sql' },
   { name: 'about', href: '#about', ext: '.md' },
   { name: 'skills', href: '#skills', ext: '.json' },
-  { name: 'projects', href: '#projects', ext: '.py' },
   { name: 'experience', href: '#experience', ext: '.log' },
+  { name: 'projects', href: '#projects', ext: '.py' },
+  { name: 'recognition', href: '#recognition', ext: '.md' },
   { name: 'contact', href: '#contact', ext: '.sh' },
 ]
 
@@ -75,9 +76,7 @@ export default function Navbar() {
                         : 'text-gray-500 hover:text-gray-200 hover:bg-white/5 border-t border-t-transparent'
                     }`}
                   >
-                    <i className={`bi bi-file-earmark-code text-xs leading-none ${isActive ? 'text-accent-cyan' : 'text-gray-600'}`} />
                     <span>{link.name}</span>
-                    <span className="text-gray-700">{link.ext}</span>
                   </a>
                 )
               })}
@@ -143,9 +142,7 @@ export default function Navbar() {
                       : 'text-gray-400 hover:text-accent-cyan border-l-2 border-transparent'
                   }`}
                 >
-                  <i className="bi bi-file-earmark-code text-xs leading-none" />
                   <span>{link.name}</span>
-                  <span className="text-xs text-gray-600">{link.ext}</span>
                 </a>
               )
             })}
