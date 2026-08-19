@@ -22,14 +22,14 @@ export const skills = {
     { name: "Kafka",         icon: "devicon-apachekafka-plain colored",                level: 70 },
     { name: "Pandas",        icon: "devicon-pandas-plain colored",                     level: 90 },
     { name: "Scikit-learn",  icon: "devicon-scikitlearn-plain colored",                level: 80 },
-    { name: "OpenAI API",    icon: "💡",                                       level: 75 },
+    { name: "OpenAI API",    icon: "/icons/openai.svg",                        level: 75 },
   ],
   "BI & Visualization": [
     { name: "Looker",        icon: "/icons/looker.svg",                                level: 90 },
     { name: "Tableau",       icon: "/icons/tableau.svg",                               level: 85 },
     { name: "Power BI",      icon: "/icons/powerbi.svg",                               level: 80 },
     { name: "Matplotlib",    icon: "devicon-matplotlib-plain colored",        level: 85 },
-    { name: "Seaborn",       icon: "🎨",                                       level: 80 },
+    { name: "Seaborn",       icon: "/icons/seaborn.svg",                       level: 80 },
   ],
   "Web Development": [
     { name: "React",         icon: "devicon-react-original colored",          level: 80 },

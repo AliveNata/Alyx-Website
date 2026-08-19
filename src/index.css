@@ -123,6 +123,11 @@ body.theme-light .hero-fade-side {
 body.theme-light .hero-fade-bottom {
   background: linear-gradient(to top, #f8fafc 0%, transparent 100%);
 }
+/* OpenAI mark is white for dark themes; invert to dark on the light theme */
+body.theme-light img[alt="OpenAI API"] {
+  filter: invert(1);
+}
+
 /* Light theme hero — editorial layout: text sits on the page, not over the photo */
 body.theme-light #home .text-gray-400,
 body.theme-light #home .text-gray-500 {
