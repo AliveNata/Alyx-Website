@@ -1,12 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { pipelineSteps } from '../data/portfolio'
-
-const colorMap = {
-  cyan: { bg: 'bg-accent-cyan/10', text: 'text-accent-cyan', border: 'border-accent-cyan/30' },
-  purple: { bg: 'bg-accent-purple/10', text: 'text-accent-purple', border: 'border-accent-purple/30' },
-  green: { bg: 'bg-accent-green/10', text: 'text-accent-green', border: 'border-accent-green/30' },
-  blue: { bg: 'bg-accent-blue/10', text: 'text-accent-blue', border: 'border-accent-blue/30' },
-}
 
 const facts = [
   { label: 'Location', value: 'Jakarta' },
@@ -15,8 +8,100 @@ const facts = [
   { label: 'Status', value: 'Open to Work', accent: true },
 ]
 
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v))
+
+// Log action verbs matching pipelineSteps order (Extract, Transform, Load, Visualize)
+const STEP_ACTIONS = ['reading raw sources', 'cleaning & modeling', 'writing to warehouse', 'rendering dashboards']
+
 export default function About() {
-  const [activeStep, setActiveStep] = useState(null)
+  const scrollRef = useRef(null)
+  const barRef = useRef(null)
+  const barFillRef = useRef(null)
+  const barPctRef = useRef(null)
+  const barEmptyRef = useRef(null)
+  const widthRef = useRef(48)
+  const lastStageRef = useRef(-1)
+  const [stage, setStage] = useState(0) // 0 = idle, 1..N
+  const [reduce, setReduce] = useState(false)
+
+  useEffect(() => {
+    setReduce(matchMedia('(prefers-reduced-motion: reduce)').matches)
+  }, [])
+
+  useEffect(() => {
+    if (reduce) return
+    const el = scrollRef.current
+    if (!el) return
+    const N = pipelineSteps.length
+    let raf = null
+
+    const update = () => {
+      raf = null
+      // Non-pinned, tightly-timed scroll link (no dead gap to the next section):
+      // p=0 when the block's top sits mid-viewport (pipeline just prominent),
+      // p=1 when the block's top has risen near the top of the viewport.
+      const vh = window.innerHeight
+      const startTop = 0.70 * vh   // begin: pipeline header ~70% down the viewport
+      const endTop = 0.08 * vh     // finish: header near the top (next section arriving)
+      const rectTop = el.getBoundingClientRect().top
+      const p = clamp((startTop - rectTop) / (startTop - endTop), 0, 1)
+
+      // CLI progress bar - the bracket AND % ride the head: [====>] 45% .......
+      const label = ` ${String(Math.round(p * 100)).padStart(3, ' ')}% ` // 6 chars, travels
+      const inner = Math.max(1, widthRef.current - 8) // fill + trailing dots
+      const filled = clamp(Math.round(p * inner), 0, inner)
+      if (barFillRef.current) {
+        barFillRef.current.textContent =
+          filled <= 0 ? '' : filled >= inner ? '='.repeat(inner) : '='.repeat(filled - 1) + '>'
+      }
+      if (barPctRef.current) barPctRef.current.textContent = label
+      if (barEmptyRef.current) barEmptyRef.current.textContent = '.'.repeat(Math.max(0, inner - filled))
+
+      let active = 0
+      for (let i = 0; i < N; i++) {
+        const cp = clamp((p - i * (1 / N)) / ((1 / N) * 0.85), 0, 1)
+        if (cp > 0.55) active = i
+      }
+
+      const s = p <= 0.01 ? 0 : active + 1
+      if (s !== lastStageRef.current) {
+        lastStageRef.current = s
+        setStage(s)
+      }
+    }
+
+    // Measure how many mono chars fit the bar container (for a full-width bar)
+    const measure = () => {
+      const b = barRef.current
+      if (!b) return
+      const cs = getComputedStyle(b)
+      const probe = document.createElement('span')
+      probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;top:-9999px;left:-9999px'
+      probe.style.fontFamily = cs.fontFamily
+      probe.style.fontSize = cs.fontSize
+      probe.style.letterSpacing = cs.letterSpacing
+      probe.textContent = '='.repeat(100)
+      b.appendChild(probe)
+      const cw = probe.getBoundingClientRect().width / 100
+      b.removeChild(probe)
+      if (cw > 0) widthRef.current = Math.max(24, Math.floor(b.clientWidth / cw) - 3) // reserve for [ ]
+    }
+
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update) }
+    const onResize = () => { measure(); onScroll() }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onResize)
+    measure()
+    update()
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onResize)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [reduce])
+
+  const activeIdx = Math.max(0, stage - 1)
+  const detail = pipelineSteps[activeIdx]
 
   return (
     <section id="about" className="py-24 sm:py-28 border-t border-surface-border">
@@ -30,7 +115,7 @@ export default function About() {
         </div>
 
         {/* Pull quote + body + facts */}
-        <div className="grid lg:grid-cols-[5fr_7fr] gap-8 lg:gap-20 items-start mb-20">
+        <div className="grid lg:grid-cols-[5fr_7fr] gap-8 lg:gap-20 items-start">
           <p className="section-animate font-bold tracking-[-0.02em] text-white leading-snug" style={{ fontSize: 'clamp(22px,2.9vw,32px)' }}>
             Seven years turning <span className="text-accent-cyan">complex, messy data</span> into systems people actually <span className="text-accent-green">run on</span>, daily and at the strategy table.
           </p>
@@ -49,51 +134,88 @@ export default function About() {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Interactive how_i_work pipeline */}
-        <div className="section-animate">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-base font-mono text-accent-cyan flex items-center gap-2">
-              <span className="text-accent-green">$</span> how_i_work.sh
-            </h3>
-            <span className="text-xs font-mono text-gray-600">click to expand ↕</span>
+      {/* ── how_i_work.sh — scroll-driven pipeline ── */}
+      {reduce ? (
+        // Reduced-motion: static completed log, no scroll choreography
+        <div className="max-w-[1160px] mx-auto px-6 sm:px-10 lg:px-16 mt-20">
+          <div className="flex items-baseline gap-3 font-mono text-sm mb-6">
+            <span><span className="text-accent-green">$</span> how_i_work.sh</span>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {pipelineSteps.map((step, i) => {
-              const isActive = activeStep === i
-              const colors = colorMap[step.color]
-              return (
-                <div key={step.label} className={isActive ? 'sm:col-span-2 lg:col-span-4' : ''}>
-                  <button
-                    onClick={() => setActiveStep(isActive ? null : i)}
-                    className={`w-full text-left border rounded-xl p-5 transition-all duration-300 ${
-                      isActive ? `${colors.bg} ${colors.border}` : 'bg-surface-card border-surface-border hover:border-gray-600'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xl">{step.icon}</span>
-                      <span className="font-mono text-[10px] text-gray-600">// step_{i + 1}</span>
-                    </div>
-                    <div className={`text-lg font-extrabold tracking-tight mt-3 ${isActive ? colors.text : 'text-white'}`}>{step.label}</div>
-                    <div className="font-mono text-[11px] text-accent-cyan mt-1">{step.desc}</div>
-                    {isActive && (
-                      <div className="mt-4 animate-fade-in">
-                        <p className="text-sm text-gray-300 leading-relaxed mb-3">{step.details}</p>
-                        <div className="flex flex-wrap gap-1.5 mb-3">
-                          {step.tools.map((t) => (
-                            <span key={t} className={`px-2 py-0.5 ${colors.bg} ${colors.text} text-[10px] font-mono rounded border ${colors.border}`}>{t}</span>
-                          ))}
-                        </div>
-                        <pre className="bg-surface-dark p-3 rounded text-xs font-mono text-gray-300 overflow-x-auto border border-surface-border"><code>{step.example}</code></pre>
-                      </div>
-                    )}
-                  </button>
+          <div className="border border-surface-border rounded-xl bg-surface-dark overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-surface-border font-mono text-xs text-gray-400">
+              <span className="w-2 h-2 rounded-full bg-accent-green" style={{ boxShadow: '0 0 8px #00ff88' }} />
+              pipeline.log
+            </div>
+            <div className="p-4 font-mono text-[12.5px] leading-[1.9]">
+              <div className="text-gray-500">$ ./how_i_work.sh --run</div>
+              {pipelineSteps.map((s, i) => (
+                <div key={i}>
+                  <span className="text-gray-600">[{i + 1}/{pipelineSteps.length}]</span>{' '}
+                  <span className="inline-block w-[76px] text-white">{s.label.toLowerCase()}</span>
+                  <span className="text-gray-600">: </span>
+                  <span className="text-accent-green">{STEP_ACTIONS[i]} [OK]</span>
                 </div>
-              )
-            })}
+              ))}
+              <div className="text-accent-green mt-1">pipeline complete <span className="text-gray-600">·</span> 0 errors <span className="text-gray-600">·</span> ~1.2M rows/run</div>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div ref={scrollRef} className="max-w-[1160px] mx-auto px-6 sm:px-10 lg:px-16 mt-20">
+          <div>
+            <div className="w-full">
+              {/* Head */}
+              <div className="flex items-baseline justify-between font-mono text-sm mb-8">
+                <span><span className="text-accent-green">$</span> how_i_work.sh</span>
+                <span className="text-gray-600 text-xs">stage <span className="text-accent-cyan">{stage}</span>/{pipelineSteps.length} · {stage === 0 ? 'idle' : detail.label.toLowerCase()}</span>
+              </div>
+
+              {/* CLI-style ASCII progress bar (full width, % rides the head) */}
+              <div ref={barRef} className="font-mono text-[13px] sm:text-sm mb-8 whitespace-pre overflow-hidden">
+                <span className="text-gray-600">[</span><span ref={barFillRef} className="bg-gradient-to-r from-accent-cyan to-accent-purple bg-clip-text text-transparent"></span><span className="text-gray-600">]</span><span ref={barPctRef} className="text-accent-cyan tabular-nums"></span><span ref={barEmptyRef} className="text-gray-700"></span>
+              </div>
+
+              {/* Live terminal log — appends a line per stage, reversible with scroll */}
+              <div className="mt-7 border border-surface-border rounded-xl bg-surface-dark overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b border-surface-border font-mono text-xs text-gray-400">
+                  <span className="w-2 h-2 rounded-full bg-accent-green" style={{ boxShadow: '0 0 8px #00ff88' }} />
+                  pipeline.log
+                </div>
+                <div className="p-4 grid md:grid-cols-[1.35fr_1fr] gap-6">
+                  {/* running log */}
+                  <div className="font-mono text-[12.5px] leading-[1.85] min-h-[132px]">
+                    <div className="text-gray-500">$ ./how_i_work.sh --run</div>
+                    {pipelineSteps.map((s, i) => {
+                      const done = i < stage - 1 || stage === pipelineSteps.length
+                      const running = i === stage - 1 && stage !== pipelineSteps.length
+                      if (!done && !running) return null
+                      return (
+                        <div key={i}>
+                          <span className="text-gray-600">[{i + 1}/{pipelineSteps.length}]</span>{' '}
+                          <span className="inline-block w-[76px] text-white">{s.label.toLowerCase()}</span>
+                          <span className="text-gray-600">: </span>
+                          {done ? (
+                            <span className="text-accent-green">{STEP_ACTIONS[i]} <span className="text-accent-green">[OK]</span></span>
+                          ) : (
+                            <span className="text-accent-cyan">{STEP_ACTIONS[i]}...<span className="inline-block w-1.5 h-3.5 bg-accent-cyan ml-1 align-middle animate-pulse" /></span>
+                          )}
+                        </div>
+                      )
+                    })}
+                    {stage === pipelineSteps.length && (
+                      <div className="text-accent-green mt-1">pipeline complete <span className="text-gray-600">·</span> 0 errors <span className="text-gray-600">·</span> ~1.2M rows/run</div>
+                    )}
+                  </div>
+                  {/* active stage code */}
+                  <pre key={activeIdx} className="animate-fade-in bg-primary border border-surface-border rounded-lg p-3 font-mono text-[11.5px] text-gray-300 overflow-x-auto leading-relaxed"><code>{detail.example}</code></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
