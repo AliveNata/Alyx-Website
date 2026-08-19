@@ -144,9 +144,11 @@ export default function Contact() {
               </div>
               <div className="bg-primary border border-surface-border rounded-lg p-3 mb-3">
                 <div className="flex items-center justify-between mb-2 font-mono text-[11px] text-gray-500">
-                  <span>🔐 Your Access Token</span>
+                  <span className="flex items-center gap-1.5"><i className="bi bi-shield-lock-fill leading-none" /> Your Access Token</span>
                   <div className="flex gap-1.5 items-center">
-                    <button type="button" onClick={copyToken} className="text-accent-cyan hover:bg-accent-cyan/10 rounded px-1.5 py-0.5">{copied ? '✓ Copied' : '📋 Copy'}</button>
+                    <button type="button" onClick={copyToken} className="text-accent-cyan hover:bg-accent-cyan/10 rounded px-1.5 py-0.5 inline-flex items-center gap-1">
+                      <i className={`bi ${copied ? 'bi-check2' : 'bi-clipboard'} leading-none`} />{copied ? 'Copied' : 'Copy'}
+                    </button>
                     <span className="text-accent-purple border border-surface-border rounded px-1.5 py-0.5 flex items-center gap-1">
                       <i className={`bi bi-arrow-repeat leading-none ${countdown <= 5 ? 'animate-spin' : ''}`} />
                       <span className={countdown <= 5 ? 'text-red-400' : ''}>{countdown}s</span>
@@ -173,7 +175,7 @@ export default function Contact() {
               {status === 'sending' ? '$ sending...'
                 : status === 'sent' ? '✓ Message Sent!'
                 : status === 'error' ? '✗ Failed, try again'
-                : !isFormValid ? '🔒 $ send_message() [DISABLED]'
+                : !isFormValid ? '$ send_message() [DISABLED]'
                 : '$ send_message()'}
             </button>
           </div>
@@ -181,9 +183,9 @@ export default function Contact() {
 
         {/* Socials */}
         <div className="section-animate flex flex-wrap gap-6 justify-center mt-8 font-mono text-[13px]">
-          <a href={`mailto:${personalInfo.email}`} className="text-gray-400 hover:text-accent-cyan transition-colors">✉ {personalInfo.email}</a>
-          <a href={personalInfo.github} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-accent-cyan transition-colors">↗ GitHub / AliveNata</a>
-          <a href={personalInfo.linkedin} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-accent-cyan transition-colors">↗ LinkedIn / Alief Akbar</a>
+          <a href={`mailto:${personalInfo.email}`} className="inline-flex items-center gap-2 text-gray-400 hover:text-accent-cyan transition-colors"><i className="bi bi-envelope-fill leading-none" /> {personalInfo.email}</a>
+          <a href={personalInfo.github} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-gray-400 hover:text-accent-cyan transition-colors"><i className="bi bi-github leading-none" /> GitHub / AliveNata</a>
+          <a href={personalInfo.linkedin} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-gray-400 hover:text-accent-cyan transition-colors"><i className="bi bi-linkedin leading-none" /> LinkedIn / Alief Akbar</a>
         </div>
       </div>
     </section>

@@ -18,7 +18,7 @@ export default function Recognition() {
             <h4 className="font-mono text-xs text-gray-600 tracking-widest uppercase mb-5">Awards</h4>
             {awards.map((a) => (
               <div key={a.id} className="flex gap-3.5 py-4.5 border-t border-surface-border first:border-t-0" style={{ paddingTop: 18, paddingBottom: 18 }}>
-                <span className="text-xl shrink-0">{a.icon}</span>
+                <i className="bi bi-award-fill text-lg text-accent-cyan leading-none shrink-0 mt-0.5" />
                 <div>
                   <div className="text-[15.5px] font-semibold text-white">{a.title}</div>
                   <div className="text-gray-400 text-[13px] mt-1 leading-relaxed">{a.description}</div>
