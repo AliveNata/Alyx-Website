@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { chatbotKnowledge, personalInfo } from '../data/portfolio'
 
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
+// LLM calls go through a server-side Netlify Function so the API key is never
+// shipped to the browser. (Direct Groq URL kept for reference only.)
+const LLM_PROXY_URL = '/.netlify/functions/groq-chat'
 
 // ─── Site Actions ────────────────────────────────────────────────────────────
 // Pattern-matched commands that control the portfolio UI directly.
@@ -108,12 +110,12 @@ function detectSiteAction(query, isIndonesian) {
 }
 
 const LLM_CONFIG = {
-  apiKey: import.meta.env.VITE_GROQ_API_KEY || '',
-  // llama-3.1-8b-instant is smaller/faster and has much looser daily quotas than 70b.
-  // Switch back to 'llama-3.3-70b-versatile' if you upgrade to paid tier.
-  model: 'llama-3.1-8b-instant',
+  // gpt-oss-20b is a fast, low-quota reasoning model on Groq. reasoning_effort
+  // 'low' keeps thinking tokens minimal so replies stay quick and cheap.
+  model: 'openai/gpt-oss-20b',
+  reasoningEffort: 'low',
   temperature: 0.7,
-  maxTokens: 500,
+  maxTokens: 700,
 }
 
 const FALLBACK_MSG = "I'm not sure I understand your question, but I can help you learn more about Alief's background, skills, or availability. What would you like to ask about?"
@@ -377,7 +379,8 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   const messagesRef = useRef(messages)
   const respondToQueryRef = useRef(null)
 
-  const llmMode = !!LLM_CONFIG.apiKey
+  // LLM is served via the Netlify Function proxy, always available in production.
+  const llmMode = true
 
   // Setup SpeechRecognition (voice input)
   useEffect(() => {
@@ -654,14 +657,12 @@ useEffect(() => {
   }
 
   const sendToLLM = async (conversationHistory) => {
-    const response = await fetch(GROQ_API_URL, {
+    const response = await fetch(LLM_PROXY_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${LLM_CONFIG.apiKey}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: LLM_CONFIG.model,
+        reasoning_effort: LLM_CONFIG.reasoningEffort,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           ...conversationHistory.map(m => ({ role: m.role, content: m.content }))
@@ -808,7 +809,7 @@ useEffect(() => {
         // fall through to generic fallback
       }
     } else {
-      console.warn('[Alyx] LLM disabled — VITE_GROQ_API_KEY not set at build time.')
+      console.warn('[Alyx] LLM disabled.')
     }
 
     // 3. Fallback
