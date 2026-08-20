@@ -120,6 +120,99 @@ const LLM_CONFIG = {
 
 const FALLBACK_MSG = "I'm not sure I understand your question, but I can help you learn more about Alief's background, skills, or availability. What would you like to ask about?"
 
+// Full-name of each mic-flag language, used to force the LLM reply language.
+const LANG_NAMES = { en: 'English', id: 'Indonesian', ja: 'Japanese', zh: 'Chinese', ko: 'Korean', fr: 'French', de: 'German', ar: 'Arabic' }
+
+// BCP-47 tag per detected TTS language. Forcing utter.lang to this makes
+// multilingual/turbo voices switch accent (e.g. read Arabic in Arabic, not English).
+const LANG_BCP = { en: 'en-US', id: 'id-ID', ja: 'ja-JP', zh: 'zh-CN', ko: 'ko-KR', fr: 'fr-FR', de: 'de-DE', ar: 'ar-SA' }
+
+// Localized chatbox UI + starter suggestions, keyed by the short code of the
+// selected mic flag (micLang.split('-')[0]). Picking a flag switches the whole
+// chatbox surface to that language and drives the reply language.
+const UI_TEXT = {
+  en: {
+    greeting: chatbotKnowledge.greeting,
+    suggestedLabel: 'Suggested:',
+    tip: 'Tip: tap the flag to change mic language, then tap the mic to speak. Alyx replies in voice too.',
+    placeholder: 'Ask me anything...',
+    listening: 'Speak now...',
+    fallback: FALLBACK_MSG,
+    aiBusy: "AI is a bit busy right now. Please wait a moment and try again. Meanwhile I can still answer questions about **Alief's skills, experience, projects, availability, or contact** from the portfolio!",
+    suggestions: ["What are Alief's key skills?", 'Tell me about his experience', 'What projects has he built?', 'How can I contact him?'],
+  },
+  id: {
+    greeting: 'Hai! Aku Alyx, Asisten AI Alief. Aku bisa bantu kamu kenal lebih jauh soal Alief Akbar.',
+    suggestedLabel: 'Saran:',
+    tip: 'Tip: ketuk bendera untuk ganti bahasa mic, lalu ketuk mic untuk bicara. Alyx menjawab dengan suara juga.',
+    placeholder: 'Tanya apa saja...',
+    listening: 'Bicara sekarang...',
+    fallback: 'Maaf, aku kurang paham pertanyaannya, tapi aku bisa bantu soal latar belakang, skill, atau ketersediaan Alief. Mau tanya apa?',
+    aiBusy: 'Koneksi AI lagi sibuk, mohon tunggu sebentar lalu coba lagi. Sementara itu aku masih bisa menjawab soal **skill, pengalaman, proyek, ketersediaan, atau kontak Alief** dari portofolio.',
+    suggestions: ['Apa skill utama Alief?', 'Ceritakan pengalamannya', 'Proyek apa yang pernah dibuat?', 'Bagaimana cara menghubunginya?'],
+  },
+  ja: {
+    greeting: 'こんにちは！アリフのAIアシスタント、Alyxです。アリフ・アクバルについてお答えします。',
+    suggestedLabel: '候補:',
+    tip: 'ヒント：旗をタップして音声言語を変更し、マイクをタップして話してください。Alyxは音声でも返答します。',
+    placeholder: '何でも聞いてください...',
+    listening: '今話してください...',
+    fallback: 'うまく理解できませんでしたが、アリフの経歴・スキル・空き状況についてお答えできます。何が知りたいですか？',
+    aiBusy: 'AIが少し混み合っています。少し待ってからもう一度お試しください。その間も、アリフの**スキル・経験・プロジェクト・空き状況・連絡先**についてお答えできます。',
+    suggestions: ['アリフの主なスキルは？', '経験について教えて', 'どんなプロジェクトを作った？', '連絡方法は？'],
+  },
+  zh: {
+    greeting: '你好！我是 Alyx，Alief 的 AI 助手。我可以帮你了解 Alief Akbar。',
+    suggestedLabel: '建议:',
+    tip: '提示：点击旗帜切换语音语言，然后点击麦克风说话。Alyx 也会用语音回复。',
+    placeholder: '问我任何问题...',
+    listening: '请说话...',
+    fallback: '抱歉，我不太明白你的问题，但我可以介绍 Alief 的背景、技能或空档情况。你想了解什么？',
+    aiBusy: 'AI 有点繁忙，请稍后再试。同时我仍可以从作品集回答关于 Alief 的**技能、经验、项目、空档或联系方式**的问题。',
+    suggestions: ['Alief 的核心技能是什么？', '介绍一下他的经历', '他做过哪些项目？', '如何联系他？'],
+  },
+  ko: {
+    greeting: '안녕하세요! 저는 Alief의 AI 어시스턴트 Alyx입니다. Alief Akbar에 대해 알려드릴게요.',
+    suggestedLabel: '추천:',
+    tip: '팁: 깃발을 눌러 음성 언어를 바꾸고, 마이크를 눌러 말하세요. Alyx는 음성으로도 답합니다.',
+    placeholder: '무엇이든 물어보세요...',
+    listening: '지금 말하세요...',
+    fallback: '질문을 잘 이해하지 못했지만, Alief의 배경, 기술, 가능 여부에 대해 알려드릴 수 있어요. 무엇이 궁금하세요?',
+    aiBusy: 'AI가 잠시 바쁩니다. 잠시 후 다시 시도해 주세요. 그동안에도 Alief의 **기술, 경력, 프로젝트, 가능 여부, 연락처**에 대해 답할 수 있어요.',
+    suggestions: ['Alief의 핵심 기술은?', '경력을 알려줘', '어떤 프로젝트를 했나요?', '어떻게 연락하나요?'],
+  },
+  fr: {
+    greeting: "Bonjour ! Je suis Alyx, l'assistant IA d'Alief. Je peux vous en dire plus sur Alief Akbar.",
+    suggestedLabel: 'Suggestions :',
+    tip: 'Astuce : touchez le drapeau pour changer la langue du micro, puis touchez le micro pour parler. Alyx répond aussi en voix.',
+    placeholder: 'Posez-moi une question...',
+    listening: 'Parlez maintenant...',
+    fallback: "Je n'ai pas bien compris, mais je peux vous renseigner sur le parcours, les compétences ou la disponibilité d'Alief. Que voulez-vous savoir ?",
+    aiBusy: "L'IA est un peu occupée. Veuillez réessayer dans un instant. En attendant, je peux répondre sur les **compétences, l'expérience, les projets, la disponibilité ou le contact** d'Alief.",
+    suggestions: ["Quelles sont les compétences clés d'Alief ?", 'Parlez-moi de son expérience', 'Quels projets a-t-il réalisés ?', 'Comment le contacter ?'],
+  },
+  de: {
+    greeting: 'Hallo! Ich bin Alyx, Aliefs KI-Assistent. Ich kann dir mehr über Alief Akbar erzählen.',
+    suggestedLabel: 'Vorschläge:',
+    tip: 'Tipp: Tippe auf die Flagge, um die Mikrofonsprache zu ändern, dann aufs Mikrofon zum Sprechen. Alyx antwortet auch per Stimme.',
+    placeholder: 'Frag mich etwas...',
+    listening: 'Sprich jetzt...',
+    fallback: 'Ich habe die Frage nicht ganz verstanden, aber ich kann dir über Aliefs Hintergrund, Fähigkeiten oder Verfügbarkeit helfen. Was möchtest du wissen?',
+    aiBusy: 'Die KI ist gerade etwas ausgelastet. Bitte versuche es gleich noch einmal. In der Zwischenzeit kann ich Fragen zu Aliefs **Fähigkeiten, Erfahrung, Projekten, Verfügbarkeit oder Kontakt** beantworten.',
+    suggestions: ['Was sind Aliefs Kernkompetenzen?', 'Erzähl von seiner Erfahrung', 'Welche Projekte hat er gebaut?', 'Wie kann ich ihn kontaktieren?'],
+  },
+  ar: {
+    greeting: 'مرحباً! أنا Alyx، مساعد Alief الذكي. يمكنني إخبارك المزيد عن Alief Akbar.',
+    suggestedLabel: 'اقتراحات:',
+    tip: 'نصيحة: اضغط على العلم لتغيير لغة الميكروفون، ثم اضغط على الميكروفون للتحدث. يردّ Alyx بالصوت أيضاً.',
+    placeholder: 'اسألني أي شيء...',
+    listening: 'تحدث الآن...',
+    fallback: 'لم أفهم سؤالك تماماً، لكن يمكنني مساعدتك بخصوص خلفية Alief ومهاراته أو توفره. ماذا تريد أن تعرف؟',
+    aiBusy: 'الذكاء الاصطناعي مشغول قليلاً الآن. يرجى المحاولة بعد لحظات. في هذه الأثناء يمكنني الإجابة عن **مهارات Alief وخبرته ومشاريعه وتوفره وطريقة التواصل**.',
+    suggestions: ['ما أهم مهارات Alief؟', 'حدثني عن خبرته', 'ما المشاريع التي أنجزها؟', 'كيف أتواصل معه؟'],
+  },
+}
+
 // Build grounding context from the portfolio data itself (single source of truth).
 const PORTFOLIO_CONTEXT = Object.entries(chatbotKnowledge.topics || {})
   .map(([k, v]) => `## ${k.toUpperCase()}\n${v}`)
@@ -424,6 +517,21 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
     { code: 'ar-SA', cc: 'sa', label: 'AR' },
   ]
 
+  // Short language code of the selected flag (id/en/ja/zh/ko/fr/de/ar) and its
+  // localized UI strings. Drives the whole chatbox surface + reply language.
+  const uiLang = UI_TEXT[micLang.split('-')[0]] ? micLang.split('-')[0] : 'en'
+  const T = UI_TEXT[uiLang]
+
+  // When the flag changes on a fresh conversation (only the greeting shown),
+  // swap the greeting + starter suggestions to the selected language.
+  useEffect(() => {
+    if (messages.length === 1 && messages[0].role === 'assistant') {
+      setMessages([{ role: 'assistant', content: T.greeting }])
+      setCurrentSuggestions(uiLang === 'en' ? initialTree : T.suggestions.map(q => ({ question: q })))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uiLang])
+
   const FlagImg = ({ cc, label }) => (
     <img
       src={`https://flagcdn.com/w20/${cc}.png`}
@@ -558,10 +666,15 @@ useEffect(() => {
     if (!availableVoices.length) return null
     const genderPref = VOICE_PRESETS.gender.find(g => g.id === voicePreset.gender)
 
-    // Try to find voices for the requested language, fallback to English
-    const langPool = availableVoices.filter(v => v.lang.toLowerCase().startsWith(lang))
-    const enPool   = availableVoices.filter(v => /^en/i.test(v.lang))
-    const pool     = langPool.length ? langPool : (enPool.length ? enPool : availableVoices)
+    // Try native voices for the requested language first. If none exist,
+    // prefer a multilingual/turbo voice (it can pronounce the target language
+    // once utter.lang is set) before falling back to an English-only voice.
+    const langPool  = availableVoices.filter(v => v.lang.toLowerCase().startsWith(lang))
+    const multiPool = availableVoices.filter(v => /multilingual|turbo/i.test(v.name))
+    const enPool    = availableVoices.filter(v => /^en/i.test(v.lang))
+    const pool = langPool.length ? langPool
+      : (lang !== 'en' && multiPool.length ? multiPool
+      : (enPool.length ? enPool : availableVoices))
 
     const scoreVoice = (v) => {
       let score = 0
@@ -605,7 +718,10 @@ useEffect(() => {
     const basePitch = Math.max(0, Math.min(2, tone.pitch + age.pitchShift + (gender?.pitchShift ?? 0)))
     const baseRate  = Math.max(0.1, Math.min(2, tone.rate + age.rateShift))
     const clean = stripMarkdown(text)
-    const lang  = detectLang(clean)
+    // A non-English flag authoritatively sets the language (the reply is forced
+    // to it), which is more reliable than sniffing the text — and covers French
+    // and German, which detectLang can't tell apart from English.
+    const lang  = uiLang !== 'en' ? uiLang : detectLang(clean)
     const voice = pickVoice(lang)
     const isTurbo = voice && /turbo|online.*natural/i.test(voice.name)
     const chunks = clean
@@ -628,7 +744,11 @@ useEffect(() => {
       utter.rate   = Math.max(0.1, Math.min(2, baseRate + rateJitter))
       utter.volume = 0.93
       if (voice) utter.voice = voice
-      utter.lang = voice?.lang || (lang === 'en' ? 'en-US' : lang)
+      // Keep a native-matching voice's own tag; otherwise force the target
+      // language so multilingual voices pronounce it correctly (e.g. Arabic).
+      utter.lang = (voice && voice.lang.toLowerCase().startsWith(lang))
+        ? voice.lang
+        : (LANG_BCP[lang] || 'en-US')
       return utter
     }
 
@@ -708,7 +828,9 @@ useEffect(() => {
     const isIndonesian = /\b(halo|hai|selamat|pagi|siang|sore|malam|terima|kasih|makasih|oke|iya|ya|nggak|gak|mau|bisa|bantu|tanya|coba|lihat|sama|juga|sudah|udah|belum|lagi|terus|bagus|baik|senang|info|lah|nih|kak|mas|pak|bu|saya|anda|kamu|lo|gue|dia|mereka|kita|kami|siapa|apa|apakah|bagaimana|gimana|berapa|kenapa|mengapa|kapan|dimana|cerita|tolong|boleh|dong|sih|yuk|tidak|bukan|dan|atau|dengan|untuk|dari|ke|di|yang|ini|itu|ada|punya|kerja|proyek|tentang|tahu|tau|kasih tau)\b/i.test(query)
     const isNonLatin = /[぀-ヿ㐀-䶿一-鿿가-힯؀-ۿ]/.test(query)
     const isNonEnglish = isIndonesian || isNonLatin
-    if (!node && !isAiMlQuery && !isNonEnglish) {
+    // Skip English portfolio scraping when a non-English flag is selected — the
+    // LLM must answer in the flag's language instead of returning English text.
+    if (!node && !isAiMlQuery && !isNonEnglish && uiLang === 'en') {
       let topic = findTopicByKeyword(query)
       // If the query clearly mentions Alief but no topic matched → default to `about`
       if (!topic && isAboutAlief(query)) topic = 'about'
@@ -752,7 +874,7 @@ useEffect(() => {
     }
 
     // 2. Try Groq LLM — with localStorage cache to avoid re-burning quota on repeats.
-    const normKey = query.toLowerCase().trim().replace(/\s+/g, ' ').replace(/[?!.,]/g, '')
+    const normKey = uiLang + '|' + query.toLowerCase().trim().replace(/\s+/g, ' ').replace(/[?!.,]/g, '')
     const cache = loadCache()
     if (cache[normKey]) {
       await new Promise(r => setTimeout(r, 300))
@@ -766,18 +888,29 @@ useEffect(() => {
 
     if (llmMode) {
       try {
-        // Detect current message language and inject a mandatory tag into the last
-        // user message so the LLM replies in the correct language regardless of
-        // what language earlier messages in the conversation were written in.
-        let replyLang = 'English'
-        if (/[぀-ヿ]/.test(query)) replyLang = 'Japanese'
-        else if (/[一-鿿㐀-䶿]/.test(query)) replyLang = 'Chinese'
-        else if (/[가-힯]/.test(query)) replyLang = 'Korean'
-        else if (/[؀-ۿ]/.test(query)) replyLang = 'Arabic'
-        else if (isIndonesian) replyLang = 'Indonesian'
+        // Pick the reply language. A non-English flag forces its language; the
+        // default English flag falls back to detecting the language of the query
+        // itself, so typing Indonesian still gets an Indonesian reply.
+        let replyLang
+        if (uiLang !== 'en') {
+          replyLang = LANG_NAMES[uiLang]
+        } else {
+          replyLang = 'English'
+          if (/[぀-ヿ]/.test(query)) replyLang = 'Japanese'
+          else if (/[一-鿿㐀-䶿]/.test(query)) replyLang = 'Chinese'
+          else if (/[가-힯]/.test(query)) replyLang = 'Korean'
+          else if (/[؀-ۿ]/.test(query)) replyLang = 'Arabic'
+          else if (isIndonesian) replyLang = 'Indonesian'
+        }
+        // Inject the user's local time so time-of-day greetings are correct
+        // (e.g. konbanwa at night, not konnichiwa).
+        const now = new Date()
+        const hr = now.getHours()
+        const period = hr < 5 ? 'late night' : hr < 11 ? 'morning' : hr < 15 ? 'midday' : hr < 18 ? 'afternoon' : hr < 22 ? 'evening' : 'night'
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         const messagesForLLM = baseMessages.map((m, idx) =>
           idx === baseMessages.length - 1 && m.role === 'user'
-            ? { ...m, content: `${m.content}\n\n[MANDATORY: Reply in ${replyLang} only. Ignore previous messages' language.]` }
+            ? { ...m, content: `${m.content}\n\n[MANDATORY: Reply in ${replyLang} only. Ignore previous messages' language. User's local time is ${timeStr} (${period}); if you greet, use a greeting that fits this time of day.]` }
             : m
         )
         const reply = await sendToLLM(messagesForLLM)
@@ -796,12 +929,10 @@ useEffect(() => {
         // Friendly message for 429 (rate limit) — otherwise fall through to generic fallback.
         if (String(err.message || '').includes('429')) {
           await new Promise(r => setTimeout(r, 300))
-          const msg = isIndonesian
-            ? "Koneksi AI lagi sibuk, mohon tunggu sebentar lalu coba lagi. Sementara itu saya masih bisa menjawab pertanyaan tentang **skill, pengalaman, proyek, ketersediaan, atau kontak Alief** langsung dari portofolio."
-            : "AI is a bit busy right now. Please wait a moment and try again. Meanwhile I can still answer questions about **Alief's skills, experience, projects, availability, or contact** from the portfolio!"
+          const msg = T.aiBusy
           const newMessages = [...baseMessages, { role: 'assistant', content: msg }]
           setMessages(newMessages)
-          setCurrentSuggestions(initialTree)
+          setCurrentSuggestions(uiLang === 'en' ? initialTree : T.suggestions.map(q => ({ question: q })))
           setIsTyping(false)
           autoSpeakIfEnabled(msg, newMessages.length - 1, shouldSpeak)
           return
@@ -814,11 +945,11 @@ useEffect(() => {
 
     // 3. Fallback
     await new Promise(r => setTimeout(r, 400))
-    const newMessages = [...baseMessages, { role: 'assistant', content: FALLBACK_MSG }]
+    const newMessages = [...baseMessages, { role: 'assistant', content: T.fallback }]
     setMessages(newMessages)
-    setCurrentSuggestions(initialTree)
+    setCurrentSuggestions(uiLang === 'en' ? initialTree : T.suggestions.map(q => ({ question: q })))
     setIsTyping(false)
-    autoSpeakIfEnabled(FALLBACK_MSG, newMessages.length - 1, shouldSpeak)
+    autoSpeakIfEnabled(T.fallback, newMessages.length - 1, shouldSpeak)
   }
 
   // Keep refs fresh for speech recognition handler
@@ -1085,10 +1216,10 @@ useEffect(() => {
                   msg.role === 'user'
                     ? 'bg-accent-purple/20 text-white rounded-br-md border border-accent-purple/30'
                     : 'bg-surface-card text-gray-200 rounded-bl-md border border-surface-border'
-                }`}>
+                }`} dir="auto">
                   {msg.role === 'assistant' ? (
                     <>
-                      <div dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+                      <div dir="auto" dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
                       <button
                         onClick={() => speakingIndex === i ? stopSpeaking() : speak(msg.content, i)}
                         className={`mt-1.5 inline-flex items-center gap-1 text-[10px] font-mono transition-all ${
@@ -1143,19 +1274,20 @@ useEffect(() => {
           {/* Suggestions (tree-based) */}
           {currentSuggestions.length > 0 && (
             <div className="px-4 pb-2 pt-2 shrink-0 bg-primary/40 border-t border-surface-border">
-              <div className="text-[10px] font-mono text-gray-500 mb-1.5">Suggested:</div>
+              <div dir="auto" className="text-[10px] font-mono text-gray-500 mb-1.5">{T.suggestedLabel}</div>
               <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto scrollbar-hide">
                 {currentSuggestions.map((node, idx) => (
                   <button
                     key={`${idx}-${node.question}`}
                     onClick={() => handleSuggestion(node)}
                     disabled={isTyping}
+                    dir="auto"
                     className="px-2.5 py-1 bg-surface-card border border-surface-border rounded-full text-xs text-gray-400 hover:text-accent-cyan hover:border-accent-cyan/40 transition-all disabled:opacity-40"
                   >
                     {node.question}
                   </button>
                 ))}
-                {currentSuggestions !== initialTree && (
+                {uiLang === 'en' && currentSuggestions !== initialTree && (
                   <button
                     onClick={() => setCurrentSuggestions(initialTree)}
                     className="px-2.5 py-1 text-xs text-accent-purple hover:text-accent-cyan transition-all"
@@ -1170,9 +1302,9 @@ useEffect(() => {
           {/* Input */}
           <div className="border-t border-surface-border px-3 py-3 shrink-0 bg-surface-card">
             {speechSupported && (
-              <div className="text-[10px] font-mono text-gray-500 mb-1.5 flex items-center gap-1.5">
-                <span className="text-accent-green">🎓</span>
-                <span>Tip: tap the flag to change mic language, then tap the mic to speak. Alyx replies in voice too.</span>
+              <div dir="auto" className="text-[10px] font-mono text-gray-500 mb-1.5 flex items-center gap-1.5">
+                <i className="bi bi-info-circle-fill text-accent-green leading-none" />
+                <span>{T.tip}</span>
               </div>
             )}
             {isListening && (
@@ -1194,7 +1326,8 @@ useEffect(() => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={isListening ? 'Speak now...' : 'Ask me anything...'}
+                dir="auto"
+                placeholder={isListening ? T.listening : T.placeholder}
                 className="flex-1 px-4 py-2.5 bg-primary border border-surface-border rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-accent-purple/50 focus:ring-1 focus:ring-accent-purple/20 transition-all"
                 disabled={isTyping || isListening}
               />
