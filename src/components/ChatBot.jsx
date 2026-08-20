@@ -127,12 +127,33 @@ const LANG_NAMES = { en: 'English', id: 'Indonesian', ja: 'Japanese', zh: 'Chine
 // multilingual/turbo voices switch accent (e.g. read Arabic in Arabic, not English).
 const LANG_BCP = { en: 'en-US', id: 'id-ID', ja: 'ja-JP', zh: 'zh-CN', ko: 'ko-KR', fr: 'fr-FR', de: 'de-DE', ar: 'ar-SA' }
 
+// Time-of-day bucket from the local hour. Four buckets so Indonesian keeps its
+// pagi/siang/sore/malam distinction; other languages collapse duplicates.
+const greetPeriod = (h) => h < 5 ? 'night' : h < 11 ? 'morning' : h < 15 ? 'afternoon' : h < 18 ? 'evening' : 'night'
+
+// Time-aware greeting per language: a salutation that fits the local hour +
+// the fixed intro. Fixes the greeting always saying konnichiwa / konnichiwa
+// regardless of time (now konbanwa at night, ohayou in the morning, etc.).
+const GREET = {
+  en: { morning: 'Good morning', afternoon: 'Good afternoon', evening: 'Good afternoon', night: 'Good evening', body: "! I'm Alyx, Alief's AI Assistant. I can help you learn more about Alief Akbar." },
+  id: { morning: 'Selamat pagi', afternoon: 'Selamat siang', evening: 'Selamat sore', night: 'Selamat malam', body: '! Aku Alyx, Asisten AI Alief. Aku bisa bantu kamu kenal lebih jauh soal Alief Akbar.' },
+  ja: { morning: 'おはようございます', afternoon: 'こんにちは', evening: 'こんにちは', night: 'こんばんは', body: '！アリフのAIアシスタント、Alyxです。アリフ・アクバルについてお答えします。' },
+  zh: { morning: '早上好', afternoon: '下午好', evening: '下午好', night: '晚上好', body: '！我是 Alyx，Alief 的 AI 助手。我可以帮你了解 Alief Akbar。' },
+  ko: { morning: '좋은 아침이에요', afternoon: '안녕하세요', evening: '안녕하세요', night: '좋은 저녁이에요', body: '! 저는 Alief의 AI 어시스턴트 Alyx입니다. Alief Akbar에 대해 알려드릴게요.' },
+  fr: { morning: 'Bonjour', afternoon: 'Bonjour', evening: 'Bonjour', night: 'Bonsoir', body: " ! Je suis Alyx, l'assistant IA d'Alief. Je peux vous en dire plus sur Alief Akbar." },
+  de: { morning: 'Guten Morgen', afternoon: 'Guten Tag', evening: 'Guten Tag', night: 'Guten Abend', body: '! Ich bin Alyx, Aliefs KI-Assistent. Ich kann dir mehr über Alief Akbar erzählen.' },
+  ar: { morning: 'صباح الخير', afternoon: 'مساء الخير', evening: 'مساء الخير', night: 'مساء الخير', body: '! أنا Alyx، مساعد Alief الذكي. يمكنني إخبارك المزيد عن Alief Akbar.' },
+}
+const buildGreeting = (lang) => {
+  const g = GREET[lang] || GREET.en
+  return g[greetPeriod(new Date().getHours())] + g.body
+}
+
 // Localized chatbox UI + starter suggestions, keyed by the short code of the
 // selected mic flag (micLang.split('-')[0]). Picking a flag switches the whole
 // chatbox surface to that language and drives the reply language.
 const UI_TEXT = {
   en: {
-    greeting: chatbotKnowledge.greeting,
     suggestedLabel: 'Suggested:',
     tip: 'Tip: tap the flag to change mic language, then tap the mic to speak. Alyx replies in voice too.',
     placeholder: 'Ask me anything...',
@@ -142,7 +163,6 @@ const UI_TEXT = {
     suggestions: ["What are Alief's key skills?", 'Tell me about his experience', 'What projects has he built?', 'How can I contact him?'],
   },
   id: {
-    greeting: 'Hai! Aku Alyx, Asisten AI Alief. Aku bisa bantu kamu kenal lebih jauh soal Alief Akbar.',
     suggestedLabel: 'Saran:',
     tip: 'Tip: ketuk bendera untuk ganti bahasa mic, lalu ketuk mic untuk bicara. Alyx menjawab dengan suara juga.',
     placeholder: 'Tanya apa saja...',
@@ -152,7 +172,6 @@ const UI_TEXT = {
     suggestions: ['Apa skill utama Alief?', 'Ceritakan pengalamannya', 'Proyek apa yang pernah dibuat?', 'Bagaimana cara menghubunginya?'],
   },
   ja: {
-    greeting: 'こんにちは！アリフのAIアシスタント、Alyxです。アリフ・アクバルについてお答えします。',
     suggestedLabel: '候補:',
     tip: 'ヒント：旗をタップして音声言語を変更し、マイクをタップして話してください。Alyxは音声でも返答します。',
     placeholder: '何でも聞いてください...',
@@ -162,7 +181,6 @@ const UI_TEXT = {
     suggestions: ['アリフの主なスキルは？', '経験について教えて', 'どんなプロジェクトを作った？', '連絡方法は？'],
   },
   zh: {
-    greeting: '你好！我是 Alyx，Alief 的 AI 助手。我可以帮你了解 Alief Akbar。',
     suggestedLabel: '建议:',
     tip: '提示：点击旗帜切换语音语言，然后点击麦克风说话。Alyx 也会用语音回复。',
     placeholder: '问我任何问题...',
@@ -172,7 +190,6 @@ const UI_TEXT = {
     suggestions: ['Alief 的核心技能是什么？', '介绍一下他的经历', '他做过哪些项目？', '如何联系他？'],
   },
   ko: {
-    greeting: '안녕하세요! 저는 Alief의 AI 어시스턴트 Alyx입니다. Alief Akbar에 대해 알려드릴게요.',
     suggestedLabel: '추천:',
     tip: '팁: 깃발을 눌러 음성 언어를 바꾸고, 마이크를 눌러 말하세요. Alyx는 음성으로도 답합니다.',
     placeholder: '무엇이든 물어보세요...',
@@ -182,7 +199,6 @@ const UI_TEXT = {
     suggestions: ['Alief의 핵심 기술은?', '경력을 알려줘', '어떤 프로젝트를 했나요?', '어떻게 연락하나요?'],
   },
   fr: {
-    greeting: "Bonjour ! Je suis Alyx, l'assistant IA d'Alief. Je peux vous en dire plus sur Alief Akbar.",
     suggestedLabel: 'Suggestions :',
     tip: 'Astuce : touchez le drapeau pour changer la langue du micro, puis touchez le micro pour parler. Alyx répond aussi en voix.',
     placeholder: 'Posez-moi une question...',
@@ -192,7 +208,6 @@ const UI_TEXT = {
     suggestions: ["Quelles sont les compétences clés d'Alief ?", 'Parlez-moi de son expérience', 'Quels projets a-t-il réalisés ?', 'Comment le contacter ?'],
   },
   de: {
-    greeting: 'Hallo! Ich bin Alyx, Aliefs KI-Assistent. Ich kann dir mehr über Alief Akbar erzählen.',
     suggestedLabel: 'Vorschläge:',
     tip: 'Tipp: Tippe auf die Flagge, um die Mikrofonsprache zu ändern, dann aufs Mikrofon zum Sprechen. Alyx antwortet auch per Stimme.',
     placeholder: 'Frag mich etwas...',
@@ -202,7 +217,6 @@ const UI_TEXT = {
     suggestions: ['Was sind Aliefs Kernkompetenzen?', 'Erzähl von seiner Erfahrung', 'Welche Projekte hat er gebaut?', 'Wie kann ich ihn kontaktieren?'],
   },
   ar: {
-    greeting: 'مرحباً! أنا Alyx، مساعد Alief الذكي. يمكنني إخبارك المزيد عن Alief Akbar.',
     suggestedLabel: 'اقتراحات:',
     tip: 'نصيحة: اضغط على العلم لتغيير لغة الميكروفون، ثم اضغط على الميكروفون للتحدث. يردّ Alyx بالصوت أيضاً.',
     placeholder: 'اسألني أي شيء...',
@@ -424,7 +438,7 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   const initialTree = chatbotKnowledge.suggestedQuestionsTree || []
 
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: chatbotKnowledge.greeting }
+    { role: 'assistant', content: buildGreeting('en') }
   ])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
@@ -526,7 +540,7 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   // swap the greeting + starter suggestions to the selected language.
   useEffect(() => {
     if (messages.length === 1 && messages[0].role === 'assistant') {
-      setMessages([{ role: 'assistant', content: T.greeting }])
+      setMessages([{ role: 'assistant', content: buildGreeting(uiLang) }])
       setCurrentSuggestions(uiLang === 'en' ? initialTree : T.suggestions.map(q => ({ question: q })))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
