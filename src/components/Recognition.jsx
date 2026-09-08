@@ -1,8 +1,8 @@
-import { awards, certificates } from '../data/portfolio'
-
-const sortedCertificates = [...certificates].sort((a, b) => Number(a.date) - Number(b.date))
+import { usePortfolio } from '../lib/PortfolioContext'
 
 export default function Recognition() {
+  const { awards, certificates } = usePortfolio()
+  const sortedCertificates = [...certificates].sort((a, b) => Number(a.date) - Number(b.date))
   return (
     <section id="recognition" className="py-24 sm:py-28 border-t border-surface-border">
       <div className="max-w-[1160px] mx-auto px-6 sm:px-10 lg:px-16">

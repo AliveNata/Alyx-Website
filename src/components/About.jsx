@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { pipelineSteps } from '../data/portfolio'
+import { yearsExp, yearsExpWord } from '../lib/experience'
 
 const facts = [
   { label: 'Location', value: 'Jakarta' },
   { label: 'Focus', value: 'Data Engineer · BI' },
-  { label: 'Experience', value: '7+ Years' },
+  { label: 'Experience', value: `${yearsExp()}+ Years` },
   { label: 'Status', value: 'Open to Work', accent: true },
 ]
 
@@ -117,7 +118,7 @@ export default function About() {
         {/* Pull quote + body + facts */}
         <div className="grid lg:grid-cols-[5fr_7fr] gap-8 lg:gap-20 items-start">
           <p className="section-animate font-bold tracking-[-0.02em] text-white leading-snug" style={{ fontSize: 'clamp(22px,2.9vw,32px)' }}>
-            Seven years turning <span className="text-accent-cyan">complex, messy data</span> into systems people actually <span className="text-accent-green">run on</span>, daily and at the strategy table.
+            {yearsExpWord()} years turning <span className="text-accent-cyan">complex, messy data</span> into systems people actually <span className="text-accent-green">run on</span>, daily and at the strategy table.
           </p>
           <div>
             <div className="section-animate text-gray-400 leading-relaxed max-w-[54ch] space-y-4" style={{ fontSize: 15.5 }}>

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import * as simpleIcons from 'simple-icons'
-import { skills } from '../data/portfolio'
+import { usePortfolio } from '../lib/PortfolioContext'
 
-function SkillIcon({ icon, name, size = 20 }) {
+export function SkillIcon({ icon, name, size = 20 }) {
+  if (!icon) return null
   if (icon.startsWith('devicon-')) {
     return <i className={`${icon} leading-none shrink-0`} style={{ fontSize: size }} />
   }
@@ -14,12 +15,13 @@ function SkillIcon({ icon, name, size = 20 }) {
       return <svg role="img" viewBox="0 0 24 24" width={size} height={size} fill={fill} className="shrink-0" dangerouslySetInnerHTML={{ __html: si.path }} />
     }
   }
-  if (icon.startsWith('/icons/')) {
-    return <img src={icon} alt={name} width={size} height={size} className="shrink-0 object-contain" style={{ width: size, height: size }} />
-  }
   if (icon.startsWith('bi:')) {
     const [, biName, color] = icon.split(':')
     return <i className={`bi bi-${biName} leading-none shrink-0`} style={{ color, fontSize: size }} />
+  }
+  // Image path or URL: local /icons/*, uploaded /uploads/*, full http(s) URL, or any image file.
+  if (/^(https?:\/\/|\/)/.test(icon) || /\.(svg|png|jpe?g|gif|webp)$/i.test(icon)) {
+    return <img src={icon} alt={name} width={size} height={size} className="shrink-0 object-contain" style={{ width: size, height: size }} />
   }
   return <span className="shrink-0" style={{ fontSize: size * 0.9 }}>{icon}</span>
 }
@@ -38,6 +40,7 @@ const featCopy = {
 }
 
 export default function Skills() {
+  const { skills } = usePortfolio()
   const categories = Object.keys(skills)
   const [activeCategory, setActiveCategory] = useState(categories[0])
 

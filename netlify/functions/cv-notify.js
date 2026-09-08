@@ -18,9 +18,24 @@ function parseOS(ua) {
   return 'Unknown OS'
 }
 
+// The admin Settings panel can override the destination chat id (stored in the
+// API's DB). Fall back to the env value when it is unset or the API is down.
+async function resolveChatId() {
+  const envId = process.env.TELEGRAM_CHAT_ID || ''
+  try {
+    const base = (process.env.API_URL || 'https://api.alyxlabs.tech').replace(/\/$/, '')
+    const r = await fetch(`${base}/api/settings`)
+    if (r.ok) {
+      const s = await r.json()
+      if (s?.telegram_chat_id) return s.telegram_chat_id
+    }
+  } catch { /* fall back to env */ }
+  return envId
+}
+
 export const handler = async (event) => {
   const token  = process.env.TELEGRAM_BOT_TOKEN
-  const chatId = process.env.TELEGRAM_CHAT_ID
+  const chatId = await resolveChatId()
   if (!token || !chatId) return { statusCode: 500, body: 'Missing env vars' }
 
   const ip   = event.headers['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown'

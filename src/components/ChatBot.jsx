@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { chatbotKnowledge, personalInfo } from '../data/portfolio'
+import { API_BASE } from '../lib/apiBase'
 
 // LLM calls go through a server-side Netlify Function so the API key is never
 // shipped to the browser. (Direct Groq URL kept for reference only.)
@@ -440,6 +441,9 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   const [messages, setMessages] = useState([
     { role: 'assistant', content: buildGreeting('en') }
   ])
+  // Admin-configurable chatbot settings (model, prompt, toggles). Fetched once
+  // from the API; null until loaded, in which case hardcoded defaults are used.
+  const [settings, setSettings] = useState(null)
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [minimized, setMinimized] = useState(false)
@@ -536,11 +540,29 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   const uiLang = UI_TEXT[micLang.split('-')[0]] ? micLang.split('-')[0] : 'en'
   const T = UI_TEXT[uiLang]
 
+  // Admin greeting override wins; otherwise the time-aware localized greeting.
+  const greetingFor = (lang) => settings?.greeting?.trim() || buildGreeting(lang)
+  const voiceAllowed = settings?.enable_voice !== false
+
+  // Load admin chatbot settings once. On failure, hardcoded defaults stay in use.
+  useEffect(() => {
+    const url = `${API_BASE}/api/chatbot`
+    fetch(url).then((r) => r.ok ? r.json() : null).then((s) => { if (s && s.model) setSettings(s) }).catch(() => {})
+  }, [])
+
+  // Apply a greeting override to a fresh conversation once settings arrive.
+  useEffect(() => {
+    if (settings?.greeting?.trim() && messages.length === 1 && messages[0].role === 'assistant') {
+      setMessages([{ role: 'assistant', content: settings.greeting.trim() }])
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings])
+
   // When the flag changes on a fresh conversation (only the greeting shown),
   // swap the greeting + starter suggestions to the selected language.
   useEffect(() => {
     if (messages.length === 1 && messages[0].role === 'assistant') {
-      setMessages([{ role: 'assistant', content: buildGreeting(uiLang) }])
+      setMessages([{ role: 'assistant', content: greetingFor(uiLang) }])
       setCurrentSuggestions(uiLang === 'en' ? initialTree : T.suggestions.map(q => ({ question: q })))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -581,7 +603,7 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
 
     // Same site-action check as handleSend
     const isId = /\b(halo|hai|oke|ya|ke|buka|ganti|scroll|pergi|lihat|tampil|salin|unduh)\b/i.test(transcript)
-    const siteAction = detectSiteAction(transcript, isId)
+    const siteAction = settings?.enable_site_actions === false ? null : detectSiteAction(transcript, isId)
     if (siteAction) {
       try { siteAction.action() } catch (e) { console.warn('[Alyx] Action failed:', e) }
       const reply = isId ? siteAction.reply.id : siteAction.reply.en
@@ -790,20 +812,33 @@ useEffect(() => {
     setSpeakingIndex(null)
   }
 
+  // Build the system prompt + LLM params from admin settings, falling back to
+  // the hardcoded defaults when settings haven't loaded (or the API is down).
+  const buildLLMRequest = (conversationHistory) => {
+    let systemContent = SYSTEM_PROMPT
+    if (settings?.system_prompt?.trim()) {
+      systemContent = `${settings.system_prompt.trim()}\n\n=== PORTFOLIO KNOWLEDGE (primary source of truth) ===\n${PORTFOLIO_CONTEXT}\n=== END PORTFOLIO KNOWLEDGE ===`
+    }
+    if (settings?.enable_companion === false) {
+      systemContent += `\n\nIMPORTANT: Do NOT act as a companion, curhat buddy, or English tutor. Only answer questions about Alief's portfolio; politely decline unrelated requests.`
+    }
+    return {
+      model: settings?.model || LLM_CONFIG.model,
+      reasoning_effort: settings?.reasoning_effort || LLM_CONFIG.reasoningEffort,
+      messages: [
+        { role: 'system', content: systemContent },
+        ...conversationHistory.map(m => ({ role: m.role, content: m.content })),
+      ],
+      temperature: settings?.temperature != null ? Number(settings.temperature) : LLM_CONFIG.temperature,
+      max_tokens: settings?.max_tokens ? Number(settings.max_tokens) : LLM_CONFIG.maxTokens,
+    }
+  }
+
   const sendToLLM = async (conversationHistory) => {
     const response = await fetch(LLM_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: LLM_CONFIG.model,
-        reasoning_effort: LLM_CONFIG.reasoningEffort,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          ...conversationHistory.map(m => ({ role: m.role, content: m.content }))
-        ],
-        temperature: LLM_CONFIG.temperature,
-        max_tokens: LLM_CONFIG.maxTokens,
-      }),
+      body: JSON.stringify(buildLLMRequest(conversationHistory)),
     })
     parseRateLimitHeaders(response.headers, setRateLimit)
     if (!response.ok) {
@@ -821,6 +856,7 @@ useEffect(() => {
   }
 
   const autoSpeakIfEnabled = (text, newMessagesLength, forceSpeak = false) => {
+    if (!voiceAllowed) return // voice disabled by admin
     if (voiceEnabled || forceSpeak) {
       setTimeout(() => speak(text, newMessagesLength), 200)
     }
@@ -980,7 +1016,7 @@ useEffect(() => {
 
     // Check for site action first — zero quota, instant
     const isId = /\b(halo|hai|oke|ya|ke|buka|ganti|scroll|pergi|lihat|tampil|salin|unduh)\b/i.test(query)
-    const siteAction = detectSiteAction(query, isId)
+    const siteAction = settings?.enable_site_actions === false ? null : detectSiteAction(query, isId)
     if (siteAction) {
       try { siteAction.action() } catch (e) { console.warn('[Alyx] Action failed:', e) }
       const reply = isId ? siteAction.reply.id : siteAction.reply.en
@@ -1079,6 +1115,7 @@ useEffect(() => {
         </div>
 
         <div className="flex items-center gap-0.5 shrink-0">
+          {voiceAllowed && <>
           {/* Voice toggle */}
           <button
             onClick={() => { setVoiceEnabled(v => !v); if (voiceEnabled) stopSpeaking() }}
@@ -1110,6 +1147,7 @@ useEffect(() => {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </button>
+          </>}
           <button
             onClick={() => { setMinimized(!minimized); setMaximized(false); }}
             className="p-1.5 text-gray-500 hover:text-white hover:bg-white/5 rounded transition-all"
@@ -1150,7 +1188,7 @@ useEffect(() => {
       </div>
 
       {/* Voice Settings Panel */}
-      {showVoiceSettings && !minimized && (
+      {voiceAllowed && showVoiceSettings && !minimized && (
         <div className="border-b border-surface-border bg-surface-card/60 p-3 shrink-0 space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-mono text-accent-purple uppercase tracking-wider">🎙️ Voice Presets</span>
@@ -1234,7 +1272,7 @@ useEffect(() => {
                   {msg.role === 'assistant' ? (
                     <>
                       <div dir="auto" dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
-                      <button
+                      {voiceAllowed && <button
                         onClick={() => speakingIndex === i ? stopSpeaking() : speak(msg.content, i)}
                         className={`mt-1.5 inline-flex items-center gap-1 text-[10px] font-mono transition-all ${
                           speakingIndex === i
@@ -1254,7 +1292,7 @@ useEffect(() => {
                             Speak
                           </>
                         )}
-                      </button>
+                      </button>}
                     </>
                   ) : (
                     msg.content
@@ -1315,7 +1353,7 @@ useEffect(() => {
 
           {/* Input */}
           <div className="border-t border-surface-border px-3 py-3 shrink-0 bg-surface-card">
-            {speechSupported && (
+            {voiceAllowed && speechSupported && (
               <div dir="auto" className="text-[10px] font-mono text-gray-500 mb-1.5 flex items-center gap-1.5">
                 <i className="bi bi-info-circle-fill text-accent-green leading-none" />
                 <span>{T.tip}</span>
@@ -1345,7 +1383,7 @@ useEffect(() => {
                 className="flex-1 px-4 py-2.5 bg-primary border border-surface-border rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-accent-purple/50 focus:ring-1 focus:ring-accent-purple/20 transition-all"
                 disabled={isTyping || isListening}
               />
-              {speechSupported && (
+              {voiceAllowed && speechSupported && (
                 <div className="flex items-center gap-1 shrink-0">
                   {/* Language cycle button */}
                   <button

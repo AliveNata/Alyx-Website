@@ -1,6 +1,8 @@
-import { personalInfo } from '../data/portfolio'
+import { usePortfolio } from '../lib/PortfolioContext'
+import { yearsExp } from '../lib/experience'
 
 export default function Hero() {
+  const { personalInfo } = usePortfolio()
   return (
     <section
       id="home"
@@ -38,7 +40,7 @@ export default function Hero() {
             <b className="text-white font-semibold">Data Engineer &amp; BI Analyst.</b>{' '}
             Building scalable pipelines, automating ETL, and the dashboards teams decide on.
           </p>
-          <p className="font-mono text-xs text-gray-600 mt-3">7+ yrs · Jakarta</p>
+          <p className="font-mono text-xs text-gray-600 mt-3">{yearsExp()}+ yrs · Jakarta</p>
         </div>
       </div>
 

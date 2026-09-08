@@ -1,6 +1,7 @@
-import { personalInfo } from '../data/portfolio'
+import { usePortfolio } from '../lib/PortfolioContext'
 
 export default function Footer() {
+  const { personalInfo } = usePortfolio()
   return (
     <footer className="py-6 border-t border-surface-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

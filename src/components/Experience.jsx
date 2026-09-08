@@ -1,14 +1,17 @@
 import { useState } from 'react'
-import { experiencesIT, experiencesNonIT, experiencesFreelance } from '../data/portfolio'
+import { usePortfolio } from '../lib/PortfolioContext'
 
-const TABS = [
-  { key: 'IT', label: 'IT', data: experiencesIT, tone: 'text-accent-cyan border-accent-cyan/40 bg-accent-cyan/10' },
-  { key: 'Freelance', label: 'Freelance', data: experiencesFreelance, tone: 'text-accent-green border-accent-green/40 bg-accent-green/10' },
-  { key: 'Non-IT', label: 'Non-IT', data: experiencesNonIT, tone: 'text-accent-purple border-accent-purple/40 bg-accent-purple/10' },
+const TAB_META = [
+  { key: 'IT', label: 'IT', field: 'experiencesIT', tone: 'text-accent-cyan border-accent-cyan/40 bg-accent-cyan/10' },
+  { key: 'Freelance', label: 'Freelance', field: 'experiencesFreelance', tone: 'text-accent-green border-accent-green/40 bg-accent-green/10' },
+  { key: 'Non-IT', label: 'Non-IT', field: 'experiencesNonIT', tone: 'text-accent-purple border-accent-purple/40 bg-accent-purple/10' },
 ]
 const PREVIEW = 3
 
 export default function Experience() {
+  const portfolio = usePortfolio()
+  const TABS = TAB_META.map((t) => ({ ...t, data: portfolio[t.field] || [] }))
+  const totalRoles = TABS.reduce((n, t) => n + t.data.length, 0)
   const [tab, setTab] = useState('IT')
   const [expanded, setExpanded] = useState(false)
 
@@ -23,7 +26,7 @@ export default function Experience() {
           <span className="font-mono text-[13px] text-accent-cyan pt-2">03</span>
           <h2 className="font-extrabold tracking-[-0.03em] text-white leading-tight" style={{ fontSize: 'clamp(28px,4.2vw,50px)' }}>Experience</h2>
         </div>
-        <p className="section-animate font-mono text-[12.5px] text-gray-600 ml-[39px] mb-11">// 15 roles across IT, freelance &amp; earlier career</p>
+        <p className="section-animate font-mono text-[12.5px] text-gray-600 ml-[39px] mb-11">// {totalRoles} roles across IT, freelance &amp; earlier career</p>
 
         {/* Tabs */}
         <div className="section-animate flex flex-wrap gap-1 mb-8">

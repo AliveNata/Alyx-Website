@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { personalInfo } from '../data/portfolio'
+import { usePortfolio } from '../lib/PortfolioContext'
+import { API_BASE } from '../lib/apiBase'
 
 const b64url = (str) => btoa(str).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')
 
@@ -20,16 +21,26 @@ function generateToken() {
   return `${header}.${payload}.${signature}`
 }
 
-// Google Apps Script Web App endpoint that appends to the "Contact Me" sheet tab
-const SHEET_ENDPOINT = import.meta.env.VITE_CONTACT_SHEET_URL || ''
+// Google Apps Script Web App endpoint that appends to the "Contact Me" sheet tab.
+// Env value is the fallback; the admin Settings panel can override it at runtime.
+const ENV_SHEET_ENDPOINT = import.meta.env.VITE_CONTACT_SHEET_URL || ''
 
 export default function Contact() {
+  const { personalInfo } = usePortfolio()
   const [form, setForm] = useState({ name: '', email: '', message: '', token: '' })
   const [generatedToken, setGeneratedToken] = useState('')
   const [tokenStatus, setTokenStatus] = useState('idle')
   const [status, setStatus] = useState(null)
   const [copied, setCopied] = useState(false)
   const [countdown, setCountdown] = useState(15)
+  const [sheetEndpoint, setSheetEndpoint] = useState(ENV_SHEET_ENDPOINT)
+
+  // Prefer the admin-configured endpoint; keep the env value as fallback.
+  useEffect(() => {
+    fetch(`${API_BASE}/api/settings`).then((r) => r.ok ? r.json() : null)
+      .then((s) => { if (s?.contact_endpoint) setSheetEndpoint(s.contact_endpoint) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     setGeneratedToken(generateToken())
@@ -59,10 +70,10 @@ export default function Contact() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!isFormValid || status === 'sending') return
-    if (!SHEET_ENDPOINT) { setStatus('error'); setTimeout(() => setStatus(null), 4000); return }
+    if (!sheetEndpoint) { setStatus('error'); setTimeout(() => setStatus(null), 4000); return }
     setStatus('sending')
     try {
-      await fetch(SHEET_ENDPOINT, {
+      await fetch(sheetEndpoint, {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

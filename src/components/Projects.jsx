@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { projects } from '../data/portfolio'
+import { usePortfolio } from '../lib/PortfolioContext'
 
 const categoryFilters = ['All', 'Data Engineering', 'BI & Analytics', 'Automation', 'Data Analysis', 'Other']
 
@@ -23,6 +23,7 @@ function ProjectLinks({ project }) {
 }
 
 export default function Projects() {
+  const { projects } = usePortfolio()
   const [filter, setFilter] = useState('All')
   const [showAll, setShowAll] = useState(false)
 
