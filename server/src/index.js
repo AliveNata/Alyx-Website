@@ -9,6 +9,8 @@ import { portfolioRouter } from './portfolio.js'
 import { chatbotRouter } from './chatbot.js'
 import { githubRouter } from './github.js'
 import { settingsRouter } from './settings.js'
+import { groqRouter, RL_HEADERS } from './groq.js'
+import { cvNotifyRouter } from './cvnotify.js'
 import { uploadRouter, UPLOAD_DIR } from './upload.js'
 import { RESOURCES } from './resources.js'
 
@@ -22,6 +24,7 @@ app.use(cors({
     if (!origin || allowed.includes(origin)) return cb(null, true)
     cb(new Error(`Origin not allowed: ${origin}`))
   },
+  exposedHeaders: RL_HEADERS, // let the chatbot read Groq rate-limit headers cross-origin
 }))
 app.use(express.json({ limit: '1mb' }))
 
@@ -36,6 +39,8 @@ app.use('/api/personal', personalRouter)
 app.use('/api/chatbot', chatbotRouter)
 app.use('/api/github', githubRouter)
 app.use('/api/settings', settingsRouter)
+app.use('/api/groq-chat', groqRouter)
+app.use('/api/cv-notify', cvNotifyRouter)
 app.use('/api/upload', uploadRouter)
 for (const [name, cfg] of Object.entries(RESOURCES)) {
   app.use(`/api/${name}`, crudRouter(cfg))

@@ -4,7 +4,7 @@ import { API_BASE } from '../lib/apiBase'
 
 // LLM calls go through a server-side Netlify Function so the API key is never
 // shipped to the browser. (Direct Groq URL kept for reference only.)
-const LLM_PROXY_URL = '/.netlify/functions/groq-chat'
+const LLM_PROXY_URL = `${API_BASE}/api/groq-chat`
 
 // ─── Site Actions ────────────────────────────────────────────────────────────
 // Pattern-matched commands that control the portfolio UI directly.

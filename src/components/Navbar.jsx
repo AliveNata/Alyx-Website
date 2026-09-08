@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { API_BASE } from '../lib/apiBase'
 
 const navLinks = [
   { name: 'home', href: '#home', ext: '.sql' },
@@ -19,7 +20,7 @@ const THEME_ICONS = {
 }
 
 const notifyDownload = () => {
-  fetch('/.netlify/functions/cv-notify', { method: 'POST' }).catch(() => {})
+  fetch(`${API_BASE}/api/cv-notify`, { method: 'POST' }).catch(() => {})
 }
 
 export default function Navbar() {
