@@ -7,3 +7,6 @@ dist
 
 # Local Netlify folder
 .netlify
+
+# Internal deploy guide (infra details) - kept local, not in the public repo
+DEPLOY.md

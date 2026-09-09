@@ -1,9 +1,32 @@
 # Alief Akbar - Portfolio Website
 
-> Personal portfolio website for **Alief Akbar**, Data Engineer & BI Analyst.  
-> Built with React 18 + Vite + Tailwind CSS, featuring an AI-powered chatbot assistant named **Alyx**.
+> Full-stack personal portfolio for **Alief Akbar**, Data Engineer & BI Analyst - with a
+> content-managed admin panel and an AI assistant named **Alyx**.
 
-🌐 **Live:** [alyxdev.netlify.app](https://alyxdev.netlify.app)
+🌐 **Live:** [alyxlabs.tech](https://alyxlabs.tech)
+
+---
+
+## Architecture
+
+Not just a static site - the portfolio is backed by a database and a small admin CMS,
+so every section can be edited without touching code or redeploying.
+
+```
+Browser
+  |
+  |-- alyxlabs.tech            React (Vite) static site + /admin panel
+  |        |
+  |        '-- /api/*          Express API  ->  PostgreSQL
+  |
+  '-- The public site reads /api/portfolio at runtime, with the bundled
+      static data as a fallback, so it stays up even if the API is down.
+```
+
+- **Frontend** - React 18 + Vite + Tailwind. Public portfolio + `/admin` panel (same app, client-side routed).
+- **API** - Node + Express + PostgreSQL. JWT auth, CRUD for all content, image upload, chatbot config, GitHub changelog mirror.
+- **Chatbot proxy** - Alyx talks to Groq through a server route, so the API key never ships to the browser.
+- **Deploy** - runs all-in-one on a VPS (nginx + Node + Postgres), or hybrid (frontend on Netlify, API on the VPS).
 
 ---
 
@@ -11,49 +34,40 @@
 
 | Layer | Technology |
 |---|---|
-| Framework | React 18 + Vite |
-| Styling | Tailwind CSS v3 |
+| Frontend | React 18, Vite, Tailwind CSS v3, React Router |
 | Icons | Bootstrap Icons, Devicons, Simple Icons |
-| AI Chat | Groq API (LLaMA 3.1) |
-| Voice | Web Speech API (Microsoft Azure Neural / OpenAI Turbo voices) |
-| Deployment | Netlify |
+| API | Node.js, Express, PostgreSQL (`pg`) |
+| Auth | JWT + bcrypt, single active session, email-verified password reset (Nodemailer) |
+| AI Chat | Groq (`openai/gpt-oss-20b`) via a server-side proxy |
+| Voice | Web Speech API (flag-driven language + voice presets) |
+| Hosting | VPS (nginx + pm2) all-in-one, or Netlify + VPS hybrid |
 
 ---
 
 ## Features
 
-### Portfolio Sections
-- **Hero** - Animated intro with dynamic years of experience, theme-aware gradient photo overlay
-- **About** - Bio, background, and personal summary
-- **Skills** - Tech stack with brand-accurate icons (Devicons + Simple Icons + local SVG)
-- **Projects** - Showcase of key data engineering & BI projects
-- **Experience** - Timeline with IT / Freelance / Non-IT tabs, show more/less per tab
-- **Contact** - JWT-style token verification form, social links, availability status
+### Public portfolio
+- **Live content** - Hero, Skills, Projects, Experience, Recognition, Contact all render from the API (static fallback baked in).
+- **Dynamic years of experience** - auto-increments each year.
+- **3 themes** - Code (default dark), Dark, Light - with theme-aware gradients.
+- **Preloader** - boot-sequence terminal + particle canvas.
+- **CV download -> Telegram** - owner gets a real-time alert (time, geo, IP, browser, OS) on every download.
 
-### CV Download & Notifications
-- **$ get_cv button** - Available in navbar (desktop) and hamburger menu (mobile) as a featured CTA
-- **Telegram notifications** - Real-time alert sent to owner via Telegram bot on every CV download, including timestamp, city/country, IP, browser, and OS
+### Admin panel (`/admin`)
+- **CRUD CMS** for Personal info, Skills, Projects, Experience, Awards, Certificates - with pagination, reorder, and per-row tooltips.
+- **Icon picker** - live preview + upload / drag-and-drop for skill logos.
+- **Chatbot settings** - model, temperature, tokens, system prompt, greeting, and feature toggles, all editable.
+- **Changelog + GitHub** - mirror commits/releases from the repo into the changelog with one click (README rendered inline).
+- **Site settings** - contact endpoint + Telegram chat id, editable in-app (secrets stay in server env).
+- **Security** - single-session login, email-verified password change, forgot/reset flow, 5-minute idle auto-logout, rate limiting.
 
-### Alyx AI Chatbot
-- **Groq LLM** (LLaMA 3.1-8b) with portfolio grounding - answers questions about Alief's skills, experience, and projects
-- **Suggestion tree** - Clickable quick questions organized by topic
-- **Voice output** - Text-to-speech with smart voice selection: prioritizes **OpenAI Turbo voices** (Nova, Shimmer, Onyx) via Microsoft Azure Edge neural engine
-- **Voice presets** - Gender (Female / Male), Tone (Human / Anime / Orc), Age (Child / Young / Adult / Elder)
-- **Speech input** - Voice recognition for hands-free questions
-- **Modes** - Portfolio assistant / Curhat (casual chat) / English Practice
-- **LLM response cache** - localStorage cache to avoid duplicate API calls
-- **Rate limit display** - Real-time Groq API quota shown in header
-- **Drag & resize** - Draggable, minimizable, maximizable chat window
-- **Persistent memory** - Conversation history maintained across session
-
-### UI / UX
-- **3 themes** - Code (default dark), Dark (slate), Light
-- **Preloader** - Boot sequence terminal animation with particle network canvas before portfolio loads
-- **Neon pulse button** - "Ask Alyx AI" pill with cyan glow animation
-- **Smart positioning** - Chat button automatically rises above footer when scrolling to bottom
-- **Glitter animation** - Close pill ↔ Header X transition with scale + glow effect
-- **Scroll-triggered animations** - Section fade-in via IntersectionObserver
-- **Language-aware chatbot** - Auto-detects Japanese, Chinese, Korean, Arabic, Indonesian and forces reply in matched language
+### Alyx AI chatbot
+- **Groq LLM** grounded in the live portfolio data.
+- **8-language UI + replies** driven by the mic flag (ID, EN, JA, ZH, KO, FR, DE, AR), time-of-day-aware greeting, Arabic RTL.
+- **Voice** - text-to-speech that follows the selected flag language, plus mic input.
+- **Modes** - Portfolio Q&A / casual chat / English practice.
+- **Rate-limit display** - live Groq quota in the header.
+- **Draggable / resizable** floating window.
 
 ---
 
@@ -61,149 +75,72 @@
 
 ```
 src/
-├── components/
-│   ├── Navbar.jsx        # Navigation + theme switcher + $ get_cv button
-│   ├── Preloader.jsx     # Boot sequence preloader with particle canvas
-│   ├── Hero.jsx          # Landing section with photo
-│   ├── About.jsx         # Bio section
-│   ├── Skills.jsx        # Tech stack grid with SkillIcon component
-│   ├── Projects.jsx      # Project cards
-│   ├── Experience.jsx    # Timeline + Awards/Certificates
-│   ├── Contact.jsx       # Contact form with token verification
-│   ├── ChatBot.jsx       # Alyx AI assistant (full-featured)
-│   └── Footer.jsx
-├── data/
-│   └── portfolio.js      # Single source of truth for all content
-├── App.jsx               # Root layout + chat toggle logic
-├── main.jsx              # Entry point + CSS imports
-└── index.css             # Global styles, theme overrides, animations
+├── components/        # Public site: Hero, Skills, Projects, Experience, ChatBot, ...
+├── admin/             # Admin panel: login, dashboard, CRUD, chatbot/site settings
+├── lib/               # apiBase, PortfolioContext (fetch + fallback), experience helper
+├── data/portfolio.js  # Static fallback content
+├── App.jsx / main.jsx # Public app + routing (public vs /admin)
+└── index.css
 
-netlify/
-└── functions/
-    └── cv-notify.js      # Telegram notification on CV download
+server/                # Express + PostgreSQL API
+├── src/               # routes: auth, crud, portfolio, chatbot, github, settings, groq, cv-notify
+├── schema.sql         # database schema
+└── src/{migrate,seed}.js
 
-public/
-└── icons/                # Custom SVGs: dbt, Looker, Tableau, Power BI, Hive
+public/icons/          # custom SVG logos
 ```
 
 ---
 
 ## Getting Started
 
-### Prerequisites
-- Node.js 18+
-- npm or yarn
-
-### Installation
-
+### Frontend
 ```bash
 git clone https://github.com/AliveNata/Alyx-Website.git
 cd Alyx-Website
 npm install
+npm run dev            # http://localhost:5173  (/admin for the panel)
 ```
 
-### Environment Variables
+Optional `.env` (frontend): `VITE_API_URL` points at the API (defaults to the local API in
+dev, and to the same origin in production). `VITE_CONTACT_SHEET_URL` is an optional fallback
+for the contact form endpoint.
 
-Create a `.env` file in the root:
-
-```env
-VITE_GROQ_API_KEY=your_groq_api_key_here
-```
-
-> Get a free API key at [console.groq.com](https://console.groq.com)
-
-For the Telegram CV notification (Netlify environment variables):
-
-```env
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-TELEGRAM_CHAT_ID=your_telegram_chat_id
-```
-
-> Create a bot via [@BotFather](https://t.me/BotFather) on Telegram, then get your chat ID via `getUpdates`
-
-### Development
-
+### API + database
 ```bash
-npm run dev
+cd server
+npm install
+cp .env.example .env   # set DATABASE_URL, JWT_SECRET, ADMIN_*, GROQ_API_KEY, TELEGRAM_*, SMTP_* ...
+npm run migrate        # create tables
+npm run seed           # seed content + the first admin user
+npm start              # http://localhost:4000
 ```
 
-### Build
-
-```bash
-npm run build
-```
-
----
-
-## What's New in v2.0
-
-### 🎨 UI Overhaul
-- Migrated all icons to **Bootstrap Icons**, **Devicons**, and **Simple Icons** for brand-accurate tech logos
-- **3 themes** - Code (default), Dark (slate), Light - with theme-aware hero photo gradients
-- Light theme hero text gets a **white blur glow** for readability over the background photo
-- Compact **neon pulse** "Ask Alyx AI" button that lifts above the footer when scrolling down
-- **Glitter animation** when the Close pill transitions to the chatbox header X button (and back)
-
-### 💬 Alyx AI Chatbot (New)
-- Full AI assistant powered by **Groq LLaMA 3.1** with portfolio grounding
-- **Suggestion tree** - quick-click topic questions
-- **Voice output** with smart voice scoring: prioritizes **OpenAI Turbo voices** (Nova, Shimmer, Onyx) served via Microsoft Azure Edge - closest to ChatGPT/Gemini voice quality
-- **Voice presets** - Gender, Tone (Human / Anime / Orc), Age (Child → Elder)
-- **Active voice display** - shows which voice engine is currently selected
-- **Speech input** - hands-free mic mode with voice recognition
-- **3 chat modes** - Portfolio Q&A / Curhat (casual) / English Practice
-- **LLM response cache** - avoids duplicate API calls via localStorage
-- **Rate limit display** - live Groq API quota in chatbox header
-- **Drag, minimize, maximize** - fully interactive floating window
-
-### 📋 Portfolio Sections
-- **Experience tabs** - IT / Freelance / Non-IT, each shows 3 latest entries + Show More button
-- **Dynamic years** - auto-updates every year
-- **Contact form** - JWT-style token verification before sending
-- Location updated to **APAC (Asia Pacific)**
-
----
-
-## Chatbot - Alyx
-
-Alyx uses **Groq's LLaMA 3.1-8b-instant** model with a portfolio grounding system prompt. It supports three modes:
-
-| Mode | Trigger |
-|---|---|
-| Portfolio Assistant | Default - answers questions about Alief |
-| Curhat / Casual Chat | Emotional / personal messages |
-| English Practice | User asks to practice English |
-
-Voice output leverages **Microsoft Azure Neural voices** available in Edge/Chrome, with automatic scoring to prioritize the highest-quality voices (OpenAI Turbo tier > Multilingual Natural > Online Natural > local).
+Deployment (VPS all-in-one or Netlify hybrid) is documented separately.
 
 ---
 
 ## Changelog
 
+### v3.0.0 - Full-stack + admin CMS
+- Express + PostgreSQL API; the public site reads content live with a static fallback.
+- Admin panel (`/admin`): CRUD for every section, image upload, chatbot + site settings, GitHub changelog mirror.
+- Auth: JWT single-session, email-verified password change, forgot/reset, idle auto-logout, rate limiting.
+- Chatbot moved to a server-side proxy (key never in the browser); 8-language UI + replies, time-aware greeting, Arabic RTL, flag-driven voice.
+- Security headers (HSTS, CSP, X-Frame-Options, ...) and hardening.
+
 ### v2.1.0
-- Preloader with boot sequence terminal, particle network canvas, pulse rings, and glitch animation
-- Language-aware chatbot: auto-detects script (Japanese/Chinese/Korean/Arabic/Indonesian) and forces reply in matched language
-- `$ get_cv` button in navbar (desktop) and featured CTA in mobile hamburger menu
-- Telegram bot notification on every CV download (IP, geo location, browser, OS, timestamp)
+- Preloader boot sequence; language-aware chatbot; `$ get_cv` button; Telegram CV-download notifications.
 
 ### v2.0.0
-- Full UI overhaul with Bootstrap Icons, Devicons, and Simple Icons
-- Alyx AI chatbot with Groq LLM, voice presets, suggestion tree, and drag/resize
-- Multi-theme support (Code / Dark / Light) with theme-aware gradients
-- Experience section tabs with show more/less per category
-- Smart chat button positioning (lifts above footer)
-- Glitter animation for Close pill ↔ Header X transition
-- OpenAI Turbo voices prioritization for human-like TTS
-- Voice loading polling fix for Microsoft Edge online voices
-- Dynamic years of experience calculation
-- JWT-style contact form token verification
+- Full UI overhaul (Bootstrap Icons / Devicons / Simple Icons), Alyx AI chatbot, 3 themes, experience tabs, dynamic years, contact form.
 
 ---
 
 ## License
 
-MIT - feel free to use as a template. Attribution appreciated!
+MIT - feel free to use as a template. Attribution appreciated.
 
 ---
 
-*Made with ☕ and too many data pipelines.*
+*Made with too many data pipelines.*
