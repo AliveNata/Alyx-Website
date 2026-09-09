@@ -55,7 +55,7 @@ export default function SiteSettings() {
   const [form, setForm] = useState(null)
   const [status, setStatus] = useState('')
 
-  useEffect(() => { apiGet('/api/settings').then(setForm).catch(() => setForm({ contact_endpoint: '', telegram_chat_id: '' })) }, [])
+  useEffect(() => { apiGet('/api/settings/all').then(setForm).catch(() => setForm({ contact_endpoint: '', telegram_chat_id: '' })) }, [])
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
   const save = async () => {

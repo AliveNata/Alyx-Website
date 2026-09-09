@@ -6,9 +6,15 @@ const FIELDS = ['contact_endpoint', 'telegram_chat_id']
 
 export const settingsRouter = Router()
 
-// Public: the contact form reads contact_endpoint; cv-notify reads the chat id.
-// Neither is a secret (a URL and a chat id), so a public GET is fine.
+// Public: only the contact form endpoint (needed by the public site). The
+// telegram chat id is NOT exposed here; cv-notify reads it from the DB directly.
 settingsRouter.get('/', async (_req, res) => {
+  const { rows } = await query('SELECT contact_endpoint FROM site_settings WHERE id = 1')
+  res.json(rows[0] || { contact_endpoint: '' })
+})
+
+// Admin-only: full settings for the Settings panel.
+settingsRouter.get('/all', requireAuth, async (_req, res) => {
   const { rows } = await query('SELECT contact_endpoint, telegram_chat_id FROM site_settings WHERE id = 1')
   res.json(rows[0] || { contact_endpoint: '', telegram_chat_id: '' })
 })
