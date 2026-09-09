@@ -268,42 +268,119 @@ The frontend redeploys itself on Netlify when you push to `main` (or trigger a d
 
 ---
 
-## Part G - All-in-one VPS (optional, no Netlify)
+## Part G - All-in-one VPS (no Netlify)
 
-If you'd rather serve everything from the VPS:
+Serve everything from the VPS: the API (Part A), the two former Netlify Functions
+(Part H), and the frontend static build - all under `alyxlabs.tech`. No `api.`
+subdomain and no Netlify needed. Do Part A and Part H first, then:
 
-1. Build the frontend on the VPS (or upload `dist/`):
-   ```bash
-   cd /opt/alyx && npm install && npm run build   # do NOT set VITE_API_URL
-   ```
-   With `VITE_API_URL` unset, the frontend calls `/api` on its own origin - no CORS needed.
-2. nginx for `alyxlabs.tech`: serve `dist/` and proxy `/api` + `/uploads` to Node:
-   ```nginx
-   server {
-       listen 80;
-       server_name alyxlabs.tech www.alyxlabs.tech;
-       root /opt/alyx/dist;
-       index index.html;
+### G.1 DNS - point the apex at the VPS (dual-stack)
 
-       location /api/     { proxy_pass http://127.0.0.1:4000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-       location /uploads/ { proxy_pass http://127.0.0.1:4000; }
-       location /         { try_files $uri /index.html; }   # SPA fallback
-   }
-   ```
-   Then `sudo certbot --nginx -d alyxlabs.tech -d www.alyxlabs.tech`.
-3. Fold the two Netlify Functions into the API - see **Part H**. After that there is
-   no dependency on Netlify at all.
+Get the VPS IPs:
+```bash
+curl -4 ifconfig.me    # IPv4, e.g. 187.77.157.107
+curl -6 ifconfig.me    # IPv6, if the VPS has one (e.g. 2a02:4780:...)
+```
 
-The hybrid setup (Parts A-C) is recommended unless you specifically want a single box.
+In your DNS panel for `alyxlabs.tech`:
+
+| Type | Name | Value |
+| --- | --- | --- |
+| A | `@` | VPS IPv4 |
+| AAAA | `@` | VPS IPv6 (only if `curl -6` returned one - and it must be THIS VPS's) |
+| CNAME | `www` | `alyxlabs.tech` |
+
+Verify both point to the VPS:
+```bash
+dig A alyxlabs.tech +short        # VPS IPv4
+dig AAAA alyxlabs.tech +short     # VPS IPv6, or empty if you skip IPv6
+```
+
+> **IPv6 gotcha (common certbot failure):** if an `AAAA` record exists, Let's Encrypt
+> validates over IPv6 and it must reach *this* nginx. Either (a) make the VPS's IPv6 the
+> AAAA value AND add `listen [::]:80;` to the server block below, or (b) delete the AAAA
+> and go IPv4-only. A stale AAAA pointing elsewhere gives
+> `Invalid response ... 404` on the acme-challenge. Old records also cache for their TTL
+> (e.g. 4h), so lower the TTL before changing them.
+
+### G.2 Build the frontend on the VPS
+
+```bash
+cd /opt/alyx
+npm install
+npm run build      # creates /opt/alyx/dist - do NOT set VITE_API_URL
+```
+
+With `VITE_API_URL` unset, the frontend calls `/api` on its own origin (same-origin,
+no CORS). Rebuild whenever you `git pull` frontend changes.
+
+### G.3 Set `PUBLIC_URL` to the site origin
+
+For a single box, uploaded images are served from the same domain:
+```bash
+nano /opt/alyx/server/.env    # PUBLIC_URL=https://alyxlabs.tech   (not api.)
+pm2 restart alyx-api
+```
+
+### G.4 nginx: serve `dist/` + proxy `/api` and `/uploads`
+
+```bash
+sudo nano /etc/nginx/sites-available/alyxlabs.tech
+```
+```nginx
+server {
+    listen 80;
+    listen [::]:80;                 # keep only if the VPS has IPv6 + an AAAA record
+    server_name alyxlabs.tech www.alyxlabs.tech;
+    root /opt/alyx/dist;
+    index index.html;
+    client_max_body_size 8M;
+
+    location /api/     { proxy_pass http://127.0.0.1:4000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
+    location /uploads/ { proxy_pass http://127.0.0.1:4000; }
+    location /         { try_files $uri /index.html; }   # SPA fallback
+}
+```
+```bash
+sudo ln -s /etc/nginx/sites-available/alyxlabs.tech /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/api.alyxlabs.tech   # remove the hybrid config if you made one
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### G.5 HTTPS
+
+```bash
+sudo certbot --nginx -d alyxlabs.tech -d www.alyxlabs.tech
+# choose "2 Redirect" so HTTP goes to HTTPS
+```
+Certbot adds the `listen 443 ssl` (and `listen [::]:443 ssl`) directives and auto-renews.
+
+### G.6 Verify
+
+```bash
+curl https://alyxlabs.tech/api/health              # {"ok":true}
+curl -s https://alyxlabs.tech/api/portfolio | head -c 100
+```
+Then open `https://alyxlabs.tech` (portfolio) and `https://alyxlabs.tech/admin` (login).
+Edit something in the admin and refresh the site - it should update live.
+
+The hybrid setup (Parts A-C) uses Netlify's CDN; the all-in-one setup keeps everything
+on one box. Both are fully supported.
 
 ---
 
 ## Part H - Fold the Netlify Functions into the API (for full-VPS)
 
 The two functions (`groq-chat` = LLM proxy, `cv-notify` = Telegram) read Netlify env
-and run on Netlify. To drop Netlify entirely, port them to Express routes. This also
-works in the hybrid setup (the Netlify frontend just calls `api.alyxlabs.tech/api/...`),
-so it is a safe one-way consolidation - after it, `netlify/functions/` is unused.
+and run on Netlify. To drop Netlify entirely, they are ported to Express routes. This
+also works in the hybrid setup (the Netlify frontend just calls
+`api.alyxlabs.tech/api/...`), so it is a safe one-way consolidation - after it,
+`netlify/functions/` is unused.
+
+> **Already in the repo.** These routes and the frontend rewiring are committed, so on
+> the VPS you just `git pull`. The steps below document what was changed (for reference /
+> if you ever need to redo them). You still need to set `GROQ_API_KEY` and
+> `TELEGRAM_BOT_TOKEN` in `server/.env` (H.5).
 
 ### H.1 Create `server/src/groq.js`
 
@@ -449,7 +526,8 @@ are no longer used and can be removed.
 ### H.6 Verify
 
 ```bash
-curl -X POST https://api.alyxlabs.tech/api/cv-notify -H "Content-Type: application/json" -d '{}'
+# all-in-one: use your site origin; hybrid: use https://api.alyxlabs.tech
+curl -X POST https://alyxlabs.tech/api/cv-notify -H "Content-Type: application/json" -d '{}'
 # -> {"ok":true}  (and a Telegram message arrives)
 ```
 Open the site, chat with Alyx (uses `/api/groq-chat`), and download the CV (fires
@@ -461,10 +539,15 @@ Open the site, chat with Alyx (uses `/api/groq-chat`), and download the CV (fire
 
 | Symptom | Check |
 | --- | --- |
-| Site shows old/static data only | API unreachable - `curl https://api.alyxlabs.tech/api/portfolio`; check CORS_ORIGINS + `pm2 logs alyx-api` |
+| `cd server: No such file or directory` after clone | the code was not pushed - `git pull` / re-clone after pushing; `server/` must exist in the repo |
+| certbot: `NXDOMAIN looking up A/AAAA` | that (sub)domain has no DNS record - for full-VPS don't use `api.`, only certbot `alyxlabs.tech` |
+| certbot: `Invalid response ... acme-challenge: 404` over an IPv6 | AAAA points somewhere nginx isn't serving - add `listen [::]:80;` to the server block (if the VPS owns that IPv6) or delete the AAAA record (IPv4-only). See the G.1 IPv6 gotcha. |
+| DNS change not taking effect | old record still cached for its TTL (e.g. 4h) - lower TTL first, or wait; verify with `dig A/AAAA <name> +short` |
+| Site blank / 404 at the domain | frontend not built - `cd /opt/alyx && npm run build` (creates `dist/`); nginx `root` must point to `/opt/alyx/dist` |
+| Site shows old/static data only | API unreachable - `curl https://<domain>/api/portfolio`; check CORS_ORIGINS + `pm2 logs alyx-api` |
 | Admin login fails | `ADMIN_PASSWORD` seeded? re-run `npm run seed`; check `JWT_SECRET` is set |
-| CORS error in browser console | add the exact site origin to `CORS_ORIGINS`, `pm2 restart alyx-api` |
-| Uploaded images 404 | `PUBLIC_URL` must be `https://api.alyxlabs.tech`; `uploads/` writable |
+| CORS error in browser console | add the exact site origin to `CORS_ORIGINS`, `pm2 restart alyx-api` (not needed for same-origin all-in-one) |
+| Uploaded images 404 | `PUBLIC_URL` must match the site origin (`https://alyxlabs.tech` for all-in-one); `uploads/` writable |
 | Password email never arrives | `SMTP_PASS` is a Google **App Password**, not the login password; check `pm2 logs` |
 | GitHub sync 403 | rate limit - set `GITHUB_TOKEN`; README uses a rate-limit-free CDN and is unaffected |
 | API won't start | `pm2 logs alyx-api` - usually a bad `DATABASE_URL` or Postgres not running (`sudo systemctl status postgresql`) |
