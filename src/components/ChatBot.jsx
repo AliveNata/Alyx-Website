@@ -6,6 +6,9 @@ import { API_BASE } from '../lib/apiBase'
 // shipped to the browser. (Direct Groq URL kept for reference only.)
 const LLM_PROXY_URL = `${API_BASE}/api/groq-chat`
 
+// LLMs love em-dashes; normalize em/en-dashes to a plain " - " so replies stay ASCII.
+const stripEmDash = (t) => (t || '').replace(/\s*[—–]\s*/g, ' - ')
+
 // ─── Site Actions ────────────────────────────────────────────────────────────
 // Pattern-matched commands that control the portfolio UI directly.
 // Checked BEFORE LLM — zero quota cost, instant response.
@@ -852,7 +855,7 @@ useEffect(() => {
       const base = prev.date === today ? prev : { date: today, requests: 0, tokens: 0 }
       return { date: today, requests: base.requests + 1, tokens: base.tokens + tokensUsed }
     })
-    return data.choices[0].message.content
+    return stripEmDash(data.choices[0].message.content)
   }
 
   const autoSpeakIfEnabled = (text, newMessagesLength, forceSpeak = false) => {
