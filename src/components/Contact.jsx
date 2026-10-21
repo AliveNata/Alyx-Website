@@ -25,6 +25,8 @@ function generateToken() {
 // Env value is the fallback; the admin Settings panel can override it at runtime.
 const ENV_SHEET_ENDPOINT = import.meta.env.VITE_CONTACT_SHEET_URL || ''
 
+const CALENDLY_URL = 'https://calendly.com/alivenata/30min'
+
 export default function Contact() {
   const { personalInfo } = usePortfolio()
   const [form, setForm] = useState({ name: '', email: '', message: '', token: '' })
@@ -64,6 +66,26 @@ export default function Contact() {
     else if (form.token.trim() === generatedToken.trim()) setTokenStatus('valid')
     else setTokenStatus('invalid')
   }, [form.token, generatedToken])
+
+  // Load Calendly's popup widget assets once.
+  useEffect(() => {
+    if (document.getElementById('calendly-widget-js')) return
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = 'https://assets.calendly.com/assets/external/widget.css'
+    document.head.appendChild(link)
+    const script = document.createElement('script')
+    script.id = 'calendly-widget-js'
+    script.src = 'https://assets.calendly.com/assets/external/widget.js'
+    script.async = true
+    document.body.appendChild(script)
+  }, [])
+
+  const openCalendly = (e) => {
+    e.preventDefault()
+    if (window.Calendly) window.Calendly.initPopupWidget({ url: CALENDLY_URL })
+    else window.open(CALENDLY_URL, '_blank', 'noopener') // fallback if the widget script is blocked
+  }
 
   const isFormValid = form.name && form.email && form.message && tokenStatus === 'valid'
 
@@ -116,6 +138,15 @@ export default function Contact() {
           <p className="text-gray-400 text-[15.5px] mt-4 max-w-[52ch] mx-auto">
             Open to full-time Data Engineer / BI roles, freelance pipelines &amp; dashboarding. I'd love to hear about your project.
           </p>
+        </div>
+
+        {/* Book a meeting (Calendly) */}
+        <div className="section-animate text-center -mt-4 mb-12 sm:mb-14">
+          <button type="button" onClick={openCalendly}
+            className="inline-flex items-center gap-2 px-5 py-3 font-mono text-sm font-bold rounded-lg border border-accent-cyan/40 text-accent-cyan hover:bg-accent-cyan/10 hover:border-accent-cyan transition-all">
+            <i className="bi bi-calendar2-check leading-none" /> $ book_a_meeting()
+          </button>
+          <p className="font-mono text-[11.5px] text-gray-600 mt-3">// prefer a quick call? grab a 30-min slot</p>
         </div>
 
         {/* Terminal form */}
