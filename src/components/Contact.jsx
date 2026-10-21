@@ -27,6 +27,7 @@ const ENV_SHEET_ENDPOINT = import.meta.env.VITE_CONTACT_SHEET_URL || ''
 
 // primary_color tints Calendly's accent to the site cyan (applies on supported plans).
 const CALENDLY_URL = 'https://calendly.com/alivenata/30min?primary_color=00d4ff'
+const SOCIABUZZ_URL = 'https://sociabuzz.com/alyxlabs/support'
 
 export default function Contact() {
   const { personalInfo } = usePortfolio()
@@ -37,6 +38,7 @@ export default function Contact() {
   const [copied, setCopied] = useState(false)
   const [countdown, setCountdown] = useState(15)
   const [sheetEndpoint, setSheetEndpoint] = useState(ENV_SHEET_ENDPOINT)
+  const [bookStep, setBookStep] = useState(null) // null | 'choose' | 'mentoring'
 
   // Prefer the admin-configured endpoint; keep the env value as fallback.
   useEffect(() => {
@@ -82,11 +84,21 @@ export default function Contact() {
     document.body.appendChild(script)
   }, [])
 
-  const openCalendly = (e) => {
-    e.preventDefault()
+  const openCalendly = () => {
     if (window.Calendly) window.Calendly.initPopupWidget({ url: CALENDLY_URL })
     else window.open(CALENDLY_URL, '_blank', 'noopener') // fallback if the widget script is blocked
   }
+
+  const chooseOpenToWork = () => { setBookStep(null); openCalendly() }
+  const mentoringContinue = () => { setBookStep(null); openCalendly() }
+
+  // Close the booking modal on Escape.
+  useEffect(() => {
+    if (!bookStep) return
+    const onKey = (e) => { if (e.key === 'Escape') setBookStep(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [bookStep])
 
   const isFormValid = form.name && form.email && form.message && tokenStatus === 'valid'
 
@@ -143,7 +155,7 @@ export default function Contact() {
 
         {/* Book a meeting (Calendly) */}
         <div className="section-animate text-center -mt-4 mb-12 sm:mb-14">
-          <button type="button" onClick={openCalendly}
+          <button type="button" onClick={() => setBookStep('choose')}
             className="inline-flex items-center px-6 py-3 text-sm font-semibold rounded-lg border border-accent-cyan/40 text-accent-cyan hover:bg-accent-cyan/10 hover:border-accent-cyan transition-all">
             Book a meeting
           </button>
@@ -231,6 +243,49 @@ export default function Contact() {
           <a href={personalInfo.linkedin} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-gray-400 hover:text-accent-cyan transition-colors"><i className="bi bi-linkedin leading-none" /> LinkedIn / Alief Akbar</a>
         </div>
       </div>
+
+      {/* Booking modal: pick a track, then Calendly. Uses theme-aware classes so it follows light/dark. */}
+      {bookStep && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setBookStep(null)}>
+          <div className="w-full max-w-md bg-surface-card border border-surface-border rounded-xl p-6 sm:p-7" onClick={(e) => e.stopPropagation()}>
+            {bookStep === 'choose' ? (
+              <>
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-white font-bold text-lg">How can I help?</h3>
+                  <button onClick={() => setBookStep(null)} className="text-gray-500 hover:text-white" aria-label="Close"><i className="bi bi-x-lg leading-none" /></button>
+                </div>
+                <div className="space-y-3">
+                  <button onClick={chooseOpenToWork} className="w-full text-left p-4 rounded-lg border border-surface-border hover:border-accent-cyan/50 hover:bg-accent-cyan/5 transition-all">
+                    <div className="text-white font-semibold">Open to Work</div>
+                    <div className="text-gray-400 text-[13px] mt-1">Hiring, freelance, or a project chat. Straight to the calendar.</div>
+                  </button>
+                  <button onClick={() => setBookStep('mentoring')} className="w-full text-left p-4 rounded-lg border border-surface-border hover:border-accent-cyan/50 hover:bg-accent-cyan/5 transition-all">
+                    <div className="text-white font-semibold">Mentoring</div>
+                    <div className="text-gray-400 text-[13px] mt-1">One-on-one guidance, supported by a donation.</div>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-white font-bold text-lg">Mentoring session</h3>
+                  <button onClick={() => setBookStep(null)} className="text-gray-500 hover:text-white" aria-label="Close"><i className="bi bi-x-lg leading-none" /></button>
+                </div>
+                <p className="text-gray-400 text-[13.5px] leading-relaxed mb-5">Mentoring runs on a pay-what-you-want donation. Support via SociaBuzz, then continue to pick a time.</p>
+                <a href={SOCIABUZZ_URL} target="_blank" rel="noopener noreferrer"
+                  className="block w-full text-center py-3 rounded-lg font-semibold bg-gradient-to-r from-accent-cyan to-accent-blue text-primary hover:shadow-lg hover:shadow-accent-cyan/25 transition-all">
+                  Donate on SociaBuzz
+                </a>
+                <button onClick={mentoringContinue}
+                  className="w-full mt-3 py-3 rounded-lg font-semibold border border-accent-cyan/40 text-accent-cyan hover:bg-accent-cyan/10 hover:border-accent-cyan transition-all">
+                  I've donated, continue to booking
+                </button>
+                <button onClick={() => setBookStep('choose')} className="w-full mt-3 text-gray-500 hover:text-white text-[13px]">Back</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   )
 }
