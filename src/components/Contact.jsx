@@ -154,7 +154,7 @@ export default function Contact() {
         </div>
 
         {/* Book a meeting (Calendly) */}
-        <div className="section-animate text-center -mt-4 mb-12 sm:mb-14">
+        <div className="section-animate text-center -mt-8 sm:-mt-10 mb-12 sm:mb-14">
           <button type="button" onClick={() => setBookStep('choose')}
             className="inline-flex items-center px-6 py-3 text-sm font-semibold rounded-lg border border-accent-cyan/40 text-accent-cyan hover:bg-accent-cyan/10 hover:border-accent-cyan transition-all">
             Book a meeting
@@ -261,7 +261,7 @@ export default function Contact() {
                   </button>
                   <button onClick={() => setBookStep('mentoring')} className="w-full text-left p-4 rounded-lg border border-surface-border hover:border-accent-cyan/50 hover:bg-accent-cyan/5 transition-all">
                     <div className="text-white font-semibold">Mentoring</div>
-                    <div className="text-gray-400 text-[13px] mt-1">One-on-one guidance, supported by a donation.</div>
+                    <div className="text-gray-400 text-[13px] mt-1">One-on-one guidance. Support is optional, no pressure.</div>
                   </button>
                 </div>
               </>
@@ -271,14 +271,14 @@ export default function Contact() {
                   <h3 className="text-white font-bold text-lg">Mentoring session</h3>
                   <button onClick={() => setBookStep(null)} className="text-gray-500 hover:text-white" aria-label="Close"><i className="bi bi-x-lg leading-none" /></button>
                 </div>
-                <p className="text-gray-400 text-[13.5px] leading-relaxed mb-5">Mentoring runs on a pay-what-you-want donation. Support via SociaBuzz, then continue to pick a time.</p>
+                <p className="text-gray-400 text-[13.5px] leading-relaxed mb-5">Mentoring is free. If it helps, a small donation on SociaBuzz is a nice way to value the time, but it is completely optional. Pick a time whenever you are ready.</p>
                 <a href={SOCIABUZZ_URL} target="_blank" rel="noopener noreferrer"
                   className="block w-full text-center py-3 rounded-lg font-semibold bg-gradient-to-r from-accent-cyan to-accent-blue text-primary hover:shadow-lg hover:shadow-accent-cyan/25 transition-all">
-                  Donate on SociaBuzz
+                  Support on SociaBuzz
                 </a>
                 <button onClick={mentoringContinue}
                   className="w-full mt-3 py-3 rounded-lg font-semibold border border-accent-cyan/40 text-accent-cyan hover:bg-accent-cyan/10 hover:border-accent-cyan transition-all">
-                  I've donated, continue to booking
+                  Continue to booking
                 </button>
                 <button onClick={() => setBookStep('choose')} className="w-full mt-3 text-gray-500 hover:text-white text-[13px]">Back</button>
               </>
