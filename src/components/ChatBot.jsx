@@ -1128,12 +1128,26 @@ useEffect(() => {
     requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
 
+  // Normalize unicode the LLM may emit (dashes, arrows, comparisons, smart quotes) to plain ASCII
+  const toAscii = (s) =>
+    s
+      .replace(/[—–―]/g, '-')
+      .replace(/…/g, '...')
+      .replace(/[‘’‛]/g, "'")
+      .replace(/[“”]/g, '"')
+      .replace(/→/g, '->')
+      .replace(/←/g, '<-')
+      .replace(/↔/g, '<->')
+      .replace(/≥/g, '>=')
+      .replace(/≤/g, '<=')
+      .replace(/≠/g, '!=')
+
   const renderMarkdown = (text) =>
-    text
+    toAscii(text)
       .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/`(.*?)`/g, '<code class="bg-primary/50 px-1 rounded text-accent-cyan text-xs">$1</code>')
-      .replace(/^• /gm, '<span class="text-accent-cyan">▸</span> ')
+      .replace(/^[•\-] /gm, '<span class="text-gray-500">-</span> ')
       .replace(/\n/g, '<br />')
 
   // Header status badge — computed before JSX
@@ -1194,7 +1208,7 @@ useEffect(() => {
             </h3>
             <div className="text-[10px] text-gray-500 font-mono truncate flex items-center gap-1 cursor-help" title={usageTooltip}>
               <span>AI Assistant</span>
-              {!llmMode && <span className="text-red-400">• offline</span>}
+              {!llmMode && <span className="text-red-400 inline-flex items-center gap-1"><span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400" />offline</span>}
               {llmMode && usagePctLabel && (
                 <span className={`px-1 rounded text-[9px] ${usageBadgeClass}`}>{usagePctLabel}</span>
               )}
@@ -1340,7 +1354,7 @@ useEffect(() => {
             onClick={() => speak("Hello! I'm Alyx, Alief's AI assistant. This is how I sound with your current voice preset.", -1)}
             className="w-full mt-1 py-1.5 text-[10px] font-mono rounded bg-accent-green/10 text-accent-green border border-accent-green/30 hover:bg-accent-green/20 transition-all"
           >
-            ▶ Preview voice
+            Preview voice
           </button>
         </div>
       )}
