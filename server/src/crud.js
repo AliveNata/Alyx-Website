@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { query } from './db.js'
 import { requireAuth } from './auth.js'
+import { scheduleReindex } from './reindex.js'
 
 // Build a REST router for one resource from its RESOURCES config.
 // GET is public (the site reads it); writes require a valid admin token.
@@ -29,6 +30,9 @@ export function crudRouter({ table, fields, jsonFields }) {
       `INSERT INTO ${table} (${cols}) VALUES (${placeholders}) RETURNING *`,
       toValues(req.body || {}),
     )
+    // Content changed: refresh the vector store + answer cache (P2-5).
+    // Fire-and-forget, best-effort - never blocks or fails this response.
+    scheduleReindex()
     res.status(201).json(rows[0])
   })
 
@@ -41,12 +45,14 @@ export function crudRouter({ table, fields, jsonFields }) {
       values,
     )
     if (!rows[0]) return res.status(404).json({ error: 'Not found' })
+    scheduleReindex()
     res.json(rows[0])
   })
 
   router.delete('/:id', requireAuth, async (req, res) => {
     const { rowCount } = await query(`DELETE FROM ${table} WHERE id = $1`, [req.params.id])
     if (!rowCount) return res.status(404).json({ error: 'Not found' })
+    scheduleReindex()
     res.json({ ok: true })
   })
 

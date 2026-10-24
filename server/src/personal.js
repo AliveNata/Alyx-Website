@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { query } from './db.js'
 import { requireAuth } from './auth.js'
+import { scheduleReindex } from './reindex.js'
 
 const FIELDS = ['name', 'nickname', 'title', 'tagline', 'email', 'github', 'linkedin', 'bio']
 
@@ -23,5 +24,8 @@ personalRouter.put('/', requireAuth, async (req, res) => {
      ON CONFLICT (id) DO UPDATE SET ${assignments} RETURNING *`,
     values,
   )
+  // Content changed: refresh the vector store + answer cache (P2-5).
+  // Fire-and-forget, best-effort - never blocks or fails this response.
+  scheduleReindex()
   res.json(rows[0])
 })

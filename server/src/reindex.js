@@ -195,6 +195,42 @@ export async function reindexAll() {
   return summary
 }
 
+// Reindex-on-write (P2-5): fire-and-forget wrapper the CMS write handlers call
+// after a successful content change. It coalesces a burst of saves instead of
+// spawning one reindexAll per write: while a run is in flight, further calls
+// just mark the store dirty, and the in-flight run does exactly one trailing
+// pass when it finishes. So a burst collapses to at most one in-flight + one
+// trailing run.
+//
+// Fully best-effort: never awaited by the caller, never throws into a request.
+// A reindex failure is logged and dropped; the DB write already succeeded, and
+// the cache TTL + manual `npm run reindex` are the backstops.
+let reindexRunning = false
+let reindexDirty = false
+
+export function scheduleReindex() {
+  if (reindexRunning) {
+    reindexDirty = true
+    return
+  }
+  reindexRunning = true
+  // Not awaited: the write handler responds immediately; the store and cache
+  // refresh a moment later.
+  ;(async () => {
+    try {
+      await reindexAll()
+    } catch (e) {
+      console.error('[reindex] scheduled reindex failed (cache TTL / manual reindex are the backstops):', e.message)
+    } finally {
+      reindexRunning = false
+      if (reindexDirty) {
+        reindexDirty = false
+        scheduleReindex()
+      }
+    }
+  })()
+}
+
 // Admin-only trigger for a full reindex. Mounted under /api/admin/reindex.
 export const reindexRouter = Router()
 reindexRouter.post('/', requireAuth, async (_req, res) => {
