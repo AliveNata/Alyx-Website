@@ -51,15 +51,19 @@ function capHistory(history) {
 
 // Best-effort logging (P1-1). A failure here is logged and swallowed so the
 // visitor always gets their reply. Content gating: curhat and opted-out store
-// metadata only (content NULL); otherwise content is redacted first. Telemetry
-// columns are left for P1-2.
-async function logTurn({ sessionId, lang, mode, consent, ip, ua, userText, replyText }) {
+// metadata only (content NULL); otherwise content is redacted first. The P1-2
+// telemetry object (tokens, model, latency, rate-limit snapshot) lands on the
+// assistant row only; the user row leaves those columns null.
+async function logTurn({ sessionId, lang, mode, consent, ip, ua, userText, replyText, telemetry }) {
   if (!sessionId) return
   const optedOut = consent === false
   const consentState = optedOut ? 'opted_out' : 'notice_default'
   const storeContent = mode !== 'curhat' && !optedOut
   const userContent = storeContent ? redact(userText) : null
   const assistantContent = storeContent ? redact(replyText) : null
+
+  const t = telemetry || {}
+  const rlSnapshot = t.rate_limit_snapshot ? JSON.stringify(t.rate_limit_snapshot) : null
 
   // One transaction so the upsert and both message inserts commit together:
   // a partial failure must not leave a conversation with zero messages.
@@ -76,8 +80,16 @@ async function logTurn({ sessionId, lang, mode, consent, ip, ua, userText, reply
       [sessionId, lang, mode, consentState, hashValue(ip), hashValue(ua)],
     )
     await client.query(
-      `INSERT INTO messages (conversation_id, role, content) VALUES ($1, 'user', $2), ($1, 'assistant', $3)`,
-      [rows[0].id, userContent, assistantContent],
+      `INSERT INTO messages
+         (conversation_id, role, content, tokens_in, tokens_out, model, latency_ms, cache_hit, rate_limit_snapshot)
+       VALUES
+         ($1, 'user', $2, NULL, NULL, NULL, NULL, NULL, NULL),
+         ($1, 'assistant', $3, $4, $5, $6, $7, $8, $9::jsonb)`,
+      [
+        rows[0].id, userContent, assistantContent,
+        t.tokens_in ?? null, t.tokens_out ?? null, t.model ?? null,
+        t.latency_ms ?? null, t.cache_hit ?? null, rlSnapshot,
+      ],
     )
     await client.query('COMMIT')
   } catch (err) {
@@ -133,6 +145,7 @@ chatRouter.post('/', async (req, res) => {
   }
 
   let result
+  const startedAt = Date.now()
   try {
     result = await groqChat(payload)
   } catch (err) {
@@ -141,6 +154,7 @@ chatRouter.post('/', async (req, res) => {
     console.error('[chat] groq call failed:', err.message)
     return res.status(502).json({ error: 'upstream_error' })
   }
+  const latencyMs = Date.now() - startedAt
 
   // Relay Groq rate-limit headers so the client usage UI keeps working.
   for (const [h, v] of Object.entries(result.rlHeaders)) res.set(h, v)
@@ -166,12 +180,23 @@ chatRouter.post('/', async (req, res) => {
     },
   })
 
+  // Groq omits usage on some error/edge cases; store null token fields then.
+  const usage = result.json.usage || {}
+
   try {
     await logTurn({
       sessionId: typeof body.session_id === 'string' ? body.session_id : null,
       lang, mode, consent: body.consent,
       ip: req.ip, ua: req.headers['user-agent'] || '',
       userText: message, replyText: reply,
+      telemetry: {
+        tokens_in: usage.prompt_tokens ?? null,
+        tokens_out: usage.completion_tokens ?? null,
+        model: result.json.model || payload.model,
+        latency_ms: latencyMs,
+        cache_hit: false, // no server cache yet; P2-6 owns that
+        rate_limit_snapshot: rateLimit,
+      },
     })
   } catch (err) {
     console.error('[chat] logging failed:', err.message)
