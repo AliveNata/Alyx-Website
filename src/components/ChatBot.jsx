@@ -837,10 +837,12 @@ useEffect(() => {
     return 'portfolio'
   }
 
-  // POST to the server-authoritative endpoint. The server owns the prompt and
-  // the model; we only forward the message, the chosen mode, a language hint,
-  // and recent history (the server re-caps it).
-  const sendToChat = async ({ message, history, mode, lang }) => {
+  // POST to the server-authoritative endpoint and read its SSE stream. The server
+  // owns the prompt and the model; we send the message, mode, language hint, and
+  // recent history. onDelta receives the full accumulated reply each time it grows,
+  // so the bubble can fill live. Pre-stream errors (budget/rate_limited/busy) still
+  // arrive as a normal JSON response and throw here for the caller to handle.
+  const sendToChat = async ({ message, history, mode, lang, onDelta }) => {
     const response = await fetch(CHAT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -854,18 +856,45 @@ useEffect(() => {
       }),
     })
     parseRateLimitHeaders(response.headers, setRateLimit)
-    if (response.status === 429) throw new Error('Chat API 429: rate_limited')
-    if (!response.ok) {
+    const ctype = response.headers.get('content-type') || ''
+    if (!response.ok || !ctype.includes('text/event-stream') || !response.body) {
+      if (response.status === 429) throw new Error('Chat API 429: rate_limited')
       const body = await response.text().catch(() => '')
       throw new Error(`Chat API ${response.status}: ${body.slice(0, 200)}`)
     }
-    const data = await response.json()
+
     setLocalUsage(prev => {
       const today = new Date().toISOString().slice(0, 10)
       const base = prev.date === today ? prev : { date: today, requests: 0, tokens: 0 }
       return { date: today, requests: base.requests + 1, tokens: base.tokens }
     })
-    return stripEmDash(data.reply || '')
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buf = '', reply = '', meta = null, streamErr = null
+    // A transport drop mid-stream rejects read(); keep the partial reply and mark
+    // it interrupted here, so the caller does not discard it for the fallback.
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        let nl
+        while ((nl = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, nl).trim()
+          buf = buf.slice(nl + 1)
+          if (!line.startsWith('data:')) continue
+          let evt
+          try { evt = JSON.parse(line.slice(5).trim()) } catch { continue }
+          if (evt.type === 'delta' && evt.text) { reply += evt.text; onDelta?.(stripEmDash(reply)) }
+          else if (evt.type === 'done') meta = evt.meta || null
+          else if (evt.type === 'error') streamErr = evt.error || 'stream error'
+        }
+      }
+    } catch {
+      streamErr = streamErr || 'transport_drop'
+    }
+    return { reply: stripEmDash(reply), meta, streamErr }
   }
 
   const autoSpeakIfEnabled = (text, newMessagesLength, forceSpeak = false) => {
@@ -962,18 +991,40 @@ useEffect(() => {
 
     if (llmMode) {
       try {
+        // The assistant bubble appears on the first delta (replacing the typing
+        // dots) and grows as more text streams in. Index is fixed: the assistant
+        // row sits right after baseMessages.
+        const replyIdx = baseMessages.length
+        let started = false
+        const onDelta = (full) => {
+          if (!started) {
+            started = true
+            setIsTyping(false)
+            setMessages([...baseMessages, { role: 'assistant', content: full }])
+          } else {
+            setMessages((prev) => { const c = prev.slice(); c[replyIdx] = { role: 'assistant', content: full }; return c })
+          }
+        }
         // Prior turns only; the current question goes in `message`.
-        const reply = await sendToChat({ message: query, history: baseMessages.slice(0, -1), mode, lang })
-        const c = loadCache()
-        c[normKey] = reply
-        const keys = Object.keys(c)
-        if (keys.length > 50) delete c[keys[0]]
-        saveCache(c)
-        const newMessages = [...baseMessages, { role: 'assistant', content: reply }]
-        setMessages(newMessages)
-        setIsTyping(false)
-        autoSpeakIfEnabled(reply, newMessages.length - 1, shouldSpeak)
-        return
+        const { reply, streamErr } = await sendToChat({ message: query, history: baseMessages.slice(0, -1), mode, lang, onDelta })
+
+        if (reply) {
+          // A broken stream keeps the partial text plus a short note.
+          const note = streamErr ? (uiLang === 'id' ? '\n\n(koneksi terputus)' : '\n\n(connection interrupted)') : ''
+          const finalText = reply + note
+          setMessages([...baseMessages, { role: 'assistant', content: finalText }])
+          if (!streamErr) { // cache only a complete reply
+            const c = loadCache()
+            c[normKey] = reply
+            const keys = Object.keys(c)
+            if (keys.length > 50) delete c[keys[0]]
+            saveCache(c)
+          }
+          setIsTyping(false)
+          autoSpeakIfEnabled(reply, replyIdx, shouldSpeak)
+          return
+        }
+        // Nothing streamed: fall through to the generic fallback below.
       } catch (err) {
         console.error('[Alyx] LLM call failed:', err)
         // Friendly message for 429 (rate limit) — otherwise fall through to generic fallback.

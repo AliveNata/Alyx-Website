@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { query, pool } from './db.js'
-import { groqChat } from './groq.js'
+import { groqChatStream, RL_HEADERS } from './groq.js'
 import { getPortfolio } from './portfolio.js'
 import { CURHAT_PROMPT, ENGLISH_PROMPT, buildPortfolioPrompt, languageNudge } from './prompts.js'
 import { redact, hashValue } from './redact.js'
@@ -186,47 +186,94 @@ chatRouter.post('/', async (req, res) => {
     }
   }
 
-  let result
+  // Abort the Groq fetch when the browser disconnects, so we stop draining tokens
+  // (and skip logging) for a client that is gone.
+  const ac = new AbortController()
+  req.on('close', () => ac.abort())
+
+  let resp, streamModel
   const startedAt = Date.now()
   try {
-    result = await groqChat(payload)
+    ({ resp, model: streamModel } = await groqChatStream(payload, ac.signal))
   } catch (err) {
     if (err.code === 'NO_KEY') return res.status(500).json({ error: 'Missing GROQ_API_KEY on server' })
+    if (ac.signal.aborted) return // client left before the stream opened
     // Network/fetch failure reaching Groq: surface as an upstream error, not a generic 500.
     console.error('[chat] groq call failed:', err.message)
     return res.status(502).json({ error: 'upstream_error' })
   }
-  const latencyMs = Date.now() - startedAt
 
-  // Relay Groq rate-limit headers so the client usage UI keeps working.
-  for (const [h, v] of Object.entries(result.rlHeaders)) res.set(h, v)
-  const rateLimit = Object.keys(result.rlHeaders).length ? result.rlHeaders : null
+  // Rate-limit headers and pre-stream errors are resolved as normal JSON, before
+  // any SSE bytes, so the client can still branch on status / content-type.
+  const rlHeaders = {}
+  for (const h of RL_HEADERS) { const v = resp.headers.get(h); if (v) rlHeaders[h] = v }
+  const rateLimit = Object.keys(rlHeaders).length ? rlHeaders : null
+  for (const [h, v] of Object.entries(rlHeaders)) res.set(h, v)
 
-  if (result.status === 429) {
-    const retryAfter = Number(result.retryAfter) || undefined
+  if (resp.status === 429) {
+    const retryAfter = Number(resp.headers.get('retry-after')) || undefined
     return res.status(429).json({ error: 'rate_limited', retryAfter })
   }
-  if (result.status < 200 || result.status >= 300 || !result.json) {
+  if (resp.status < 200 || resp.status >= 300 || !resp.body) {
     return res.status(502).json({ error: 'upstream_error' })
   }
 
-  const choice = result.json.choices?.[0]
-  const reply = choice?.message?.content || ''
-  // The model that answered may be the fallback (groq.js 429 hop), not the primary.
-  const answeredModel = result.json.model || result.model || payload.model
-  res.json({
-    reply,
-    mode,
-    meta: {
-      model: answeredModel,
-      finish_reason: choice?.finish_reason || null,
-      rateLimit,
-    },
+  // Open the SSE channel. X-Accel-Buffering: no asks nginx not to buffer.
+  res.status(200).set({
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
   })
+  res.flushHeaders?.()
+  const send = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`)
 
-  // Groq omits usage on some error/edge cases; store null token fields then.
-  const usage = result.json.usage || {}
+  let reply = ''
+  let usage = null
+  let finishReason = null
+  let answeredModel = streamModel || payload.model
+  let aborted = false
 
+  try {
+    // Parse Groq's SSE: `data: {json}` lines, delta content in choices[0].delta,
+    // a final include_usage chunk with totals, and a terminal `data: [DONE]`.
+    const decoder = new TextDecoder()
+    let buf = ''
+    for await (const chunk of resp.body) {
+      buf += decoder.decode(chunk, { stream: true })
+      let nl
+      while ((nl = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, nl).trim()
+        buf = buf.slice(nl + 1)
+        if (!line.startsWith('data:')) continue
+        const data = line.slice(5).trim()
+        if (data === '[DONE]') continue
+        let evt
+        try { evt = JSON.parse(data) } catch { continue }
+        if (evt.model) answeredModel = evt.model
+        if (evt.usage) usage = evt.usage
+        const ch = evt.choices?.[0]
+        if (ch?.finish_reason) finishReason = ch.finish_reason
+        const delta = ch?.delta?.content
+        if (delta) { reply += delta; send({ type: 'delta', text: delta }) }
+      }
+    }
+    send({ type: 'done', meta: { model: answeredModel, finish_reason: finishReason, rateLimit } })
+  } catch (err) {
+    if (ac.signal.aborted || err.name === 'AbortError') {
+      aborted = true // client disconnected: stop quietly, nothing to send
+    } else {
+      // The client keeps whatever text already arrived; just signal the break.
+      console.error('[chat] stream error:', err.message)
+      if (!res.writableEnded) send({ type: 'error', error: 'stream_interrupted' })
+    }
+  }
+  if (!res.writableEnded) res.end()
+
+  if (aborted) return // do not log an incomplete turn for a client that left
+
+  // Log once, after the stream, with the accumulated reply + final usage.
+  const latencyMs = Date.now() - startedAt
   try {
     await logTurn({
       sessionId,
@@ -234,8 +281,8 @@ chatRouter.post('/', async (req, res) => {
       ip: req.ip, ua: req.headers['user-agent'] || '',
       userText: message, replyText: reply,
       telemetry: {
-        tokens_in: usage.prompt_tokens ?? null,
-        tokens_out: usage.completion_tokens ?? null,
+        tokens_in: usage?.prompt_tokens ?? null,
+        tokens_out: usage?.completion_tokens ?? null,
         model: answeredModel,
         latency_ms: latencyMs,
         cache_hit: false, // no server cache yet; P2-6 owns that
