@@ -354,6 +354,11 @@ const findInTree = (nodes, q) => {
   return null
 }
 
+// A fuzzy tree match needs both an absolute floor and that the matched words
+// cover most of the query's own content words. Without the ratio, a specific
+// question that merely shares 2 words with a scripted node (e.g. "Alief" + "data")
+// was answered from a generic tree reply instead of reaching the server RAG.
+const FUZZY_TREE_MIN_RATIO = 0.5
 const fuzzyFindInTree = (nodes, q) => {
   const tokens = q.toLowerCase().split(/\W+/).filter(t => t.length > 3)
   if (!tokens.length) return null
@@ -366,7 +371,7 @@ const fuzzyFindInTree = (nodes, q) => {
     }
   }
   walk(nodes)
-  return bestScore >= 2 ? best : null
+  return bestScore >= 2 && bestScore / tokens.length >= FUZZY_TREE_MIN_RATIO ? best : null
 }
 
 const TOPIC_KEYWORDS = {
