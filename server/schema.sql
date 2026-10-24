@@ -194,3 +194,96 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE INDEX IF NOT EXISTS messages_conversation_id_idx ON messages(conversation_id);
 CREATE INDEX IF NOT EXISTS conversations_started_at_idx ON conversations(started_at);
+
+-- Analytics layer (P1-4). Aggregate metrics only; raw message content never
+-- leaves the base tables. Day grain is the message/conversation created day in
+-- the server timezone. The dashboard (P1-5) reads mv_chat_daily.
+
+-- Which conversation does each message belong to, and under what mode/lang?
+-- One flat row per message, so the aggregates below never re-join.
+-- CREATE OR REPLACE VIEW can only append columns; a removal/rename/retype is a
+-- DROP VIEW + recreate migration.
+CREATE OR REPLACE VIEW v_message_context AS
+SELECT
+  m.id,
+  m.conversation_id,
+  m.role,
+  m.tokens_in,
+  m.tokens_out,
+  m.latency_ms,
+  m.cache_hit,
+  m.created_at,
+  c.mode,
+  c.lang
+FROM messages AS m
+JOIN conversations AS c ON c.id = m.conversation_id;
+
+-- How many messages, tokens, latency and cache hits per day? Assistant-only
+-- metrics (tokens/latency/cache) are filtered to role = 'assistant' inside the
+-- aggregates so user rows never dilute them.
+-- CREATE OR REPLACE VIEW can only append columns; a removal/rename/retype is a
+-- DROP VIEW + recreate migration.
+CREATE OR REPLACE VIEW v_message_daily AS
+SELECT
+  created_at::date AS day,
+  count(*) AS messages,
+  count(*) FILTER (WHERE role = 'assistant') AS assistant_messages,
+  coalesce(sum(tokens_in), 0) AS tokens_in,
+  coalesce(sum(tokens_out), 0) AS tokens_out,
+  avg(tokens_out) FILTER (WHERE role = 'assistant') AS avg_tokens_out,
+  avg(latency_ms) FILTER (WHERE role = 'assistant' AND latency_ms IS NOT NULL) AS avg_latency_ms,
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms)
+    FILTER (WHERE role = 'assistant' AND latency_ms IS NOT NULL) AS p95_latency_ms,
+  count(*) FILTER (WHERE role = 'assistant' AND cache_hit IS TRUE) AS cache_hits
+FROM v_message_context
+GROUP BY created_at::date;
+
+-- How many conversations started per day, split by mode, lang and opt-out?
+-- CREATE OR REPLACE VIEW can only append columns; a removal/rename/retype is a
+-- DROP VIEW + recreate migration.
+CREATE OR REPLACE VIEW v_conversation_daily AS
+SELECT
+  started_at::date AS day,
+  count(*) AS conversations,
+  count(*) FILTER (WHERE mode = 'portfolio') AS conversations_portfolio,
+  count(*) FILTER (WHERE mode = 'curhat') AS conversations_curhat,
+  count(*) FILTER (WHERE mode = 'english') AS conversations_english,
+  count(*) FILTER (WHERE lang = 'id') AS conversations_lang_id,
+  count(*) FILTER (WHERE lang = 'en') AS conversations_lang_en,
+  count(*) FILTER (WHERE consent_state = 'opted_out') AS opted_out
+FROM conversations
+GROUP BY started_at::date;
+
+-- Daily rollup the dashboard reads. Created WITH DATA so the first load has
+-- rows; the nightly cron keeps it fresh via REFRESH ... CONCURRENTLY.
+-- Matviews cannot be CREATE OR REPLACE: a shape change is a DROP MATERIALIZED
+-- VIEW + recreate migration, not an edit in place.
+-- FULL OUTER JOIN so a day with only conversations (or only messages) still
+-- appears; coalesce the day and counts so no column is NULL from a missing side.
+CREATE MATERIALIZED VIEW IF NOT EXISTS mv_chat_daily AS
+SELECT
+  coalesce(c.day, m.day) AS day,
+  coalesce(c.conversations, 0) AS conversations,
+  coalesce(c.conversations_portfolio, 0) AS conversations_portfolio,
+  coalesce(c.conversations_curhat, 0) AS conversations_curhat,
+  coalesce(c.conversations_english, 0) AS conversations_english,
+  coalesce(c.conversations_lang_id, 0) AS conversations_lang_id,
+  coalesce(c.conversations_lang_en, 0) AS conversations_lang_en,
+  coalesce(m.messages, 0) AS messages,
+  coalesce(m.assistant_messages, 0) AS assistant_messages,
+  coalesce(m.tokens_in, 0) AS tokens_in,
+  coalesce(m.tokens_out, 0) AS tokens_out,
+  m.avg_tokens_out,
+  m.avg_latency_ms,
+  m.p95_latency_ms,
+  -- Lights up once P2-6 sets cache_hit; ~0 until then.
+  CASE WHEN m.assistant_messages > 0
+    THEN coalesce(m.cache_hits, 0)::numeric / m.assistant_messages END AS cache_hit_rate,
+  CASE WHEN c.conversations > 0
+    THEN coalesce(c.opted_out, 0)::numeric / c.conversations END AS opt_out_rate
+FROM v_conversation_daily AS c
+FULL OUTER JOIN v_message_daily AS m ON m.day = c.day
+WITH DATA;
+
+-- Unique index is required for REFRESH MATERIALIZED VIEW CONCURRENTLY.
+CREATE UNIQUE INDEX IF NOT EXISTS mv_chat_daily_day_uidx ON mv_chat_daily(day);
