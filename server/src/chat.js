@@ -1,8 +1,9 @@
 import { Router } from 'express'
-import { query } from './db.js'
+import { query, pool } from './db.js'
 import { groqChat } from './groq.js'
 import { getPortfolio } from './portfolio.js'
 import { CURHAT_PROMPT, ENGLISH_PROMPT, buildPortfolioPrompt, languageNudge } from './prompts.js'
+import { redact, hashValue } from './redact.js'
 
 const MESSAGE_MAX = 2000        // reject oversized input before it reaches Groq
 const HISTORY_TURNS = 8         // recent turns kept for context
@@ -46,6 +47,45 @@ function capHistory(history) {
     kept.unshift(clean[i])
   }
   return kept
+}
+
+// Best-effort logging (P1-1). A failure here is logged and swallowed so the
+// visitor always gets their reply. Content gating: curhat and opted-out store
+// metadata only (content NULL); otherwise content is redacted first. Telemetry
+// columns are left for P1-2.
+async function logTurn({ sessionId, lang, mode, consent, ip, ua, userText, replyText }) {
+  if (!sessionId) return
+  const optedOut = consent === false
+  const consentState = optedOut ? 'opted_out' : 'notice_default'
+  const storeContent = mode !== 'curhat' && !optedOut
+  const userContent = storeContent ? redact(userText) : null
+  const assistantContent = storeContent ? redact(replyText) : null
+
+  // One transaction so the upsert and both message inserts commit together:
+  // a partial failure must not leave a conversation with zero messages.
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const { rows } = await client.query(
+      `INSERT INTO conversations (session_id, lang, mode, consent_state, ip_hash, ua_hash)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (session_id) DO UPDATE SET
+         lang = EXCLUDED.lang, mode = EXCLUDED.mode, consent_state = EXCLUDED.consent_state,
+         ip_hash = EXCLUDED.ip_hash, ua_hash = EXCLUDED.ua_hash
+       RETURNING id`,
+      [sessionId, lang, mode, consentState, hashValue(ip), hashValue(ua)],
+    )
+    await client.query(
+      `INSERT INTO messages (conversation_id, role, content) VALUES ($1, 'user', $2), ($1, 'assistant', $3)`,
+      [rows[0].id, userContent, assistantContent],
+    )
+    await client.query('COMMIT')
+  } catch (err) {
+    await client.query('ROLLBACK')
+    throw err
+  } finally {
+    client.release()
+  }
 }
 
 chatRouter.post('/', async (req, res) => {
@@ -115,8 +155,9 @@ chatRouter.post('/', async (req, res) => {
   }
 
   const choice = result.json.choices?.[0]
+  const reply = choice?.message?.content || ''
   res.json({
-    reply: choice?.message?.content || '',
+    reply,
     mode,
     meta: {
       model: payload.model,
@@ -124,4 +165,15 @@ chatRouter.post('/', async (req, res) => {
       rateLimit,
     },
   })
+
+  try {
+    await logTurn({
+      sessionId: typeof body.session_id === 'string' ? body.session_id : null,
+      lang, mode, consent: body.consent,
+      ip: req.ip, ua: req.headers['user-agent'] || '',
+      userText: message, replyText: reply,
+    })
+  } catch (err) {
+    console.error('[chat] logging failed:', err.message)
+  }
 })

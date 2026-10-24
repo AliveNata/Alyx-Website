@@ -158,3 +158,39 @@ CREATE TABLE IF NOT EXISTS chatbot_settings (
   enable_site_actions BOOLEAN NOT NULL DEFAULT true,
   CONSTRAINT chatbot_settings_singleton CHECK (id = 1)
 );
+
+-- Chat logging (P1-1). No raw PII is stored: content is redacted before insert
+-- (or NULL for curhat / opted-out), and ip/ua are HMAC-hashed, never raw.
+-- gen_random_uuid() is in PG 18 core, so no pgcrypto extension is required.
+CREATE TABLE IF NOT EXISTS conversations (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id    TEXT UNIQUE NOT NULL,       -- client-generated id, one per chat session
+  started_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ended_at      TIMESTAMPTZ,               -- set later by a session-timeout job
+  lang          TEXT,
+  mode          TEXT,                      -- portfolio | curhat | english
+  consent_state TEXT NOT NULL,             -- notice_default | opted_out
+  ip_hash       TEXT,                      -- HMAC-SHA256(ip, salt); NULL if salt unset
+  ua_hash       TEXT                       -- HMAC-SHA256(ua, salt); NULL if salt unset
+);
+
+-- Telemetry columns (tokens_in/out, model, latency_ms, cache_hit,
+-- retrieved_sources, rate_limit_snapshot) are created nullable now and
+-- populated by P1-2 / P2, so there is no second migration.
+CREATE TABLE IF NOT EXISTS messages (
+  id                  BIGSERIAL PRIMARY KEY,
+  conversation_id     UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  role                TEXT NOT NULL,        -- user | assistant
+  content             TEXT,                 -- redacted text; NULL when not stored
+  tokens_in           INT,
+  tokens_out          INT,
+  model               TEXT,
+  latency_ms          INT,
+  cache_hit           BOOLEAN,
+  retrieved_sources   JSONB,
+  rate_limit_snapshot JSONB,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS messages_conversation_id_idx ON messages(conversation_id);
+CREATE INDEX IF NOT EXISTS conversations_started_at_idx ON conversations(started_at);
