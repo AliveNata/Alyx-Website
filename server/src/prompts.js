@@ -109,6 +109,52 @@ ${portfolioToContext(portfolio)}
 GROUNDING: Answer questions about Alief only from the PORTFOLIO KNOWLEDGE above. If a detail is not there (rates, salary, personal life), say you do not have it and point them to ${CONTACT_EMAIL}. Never invent projects, employers, certifications, metrics, or skills.`
 }
 
+// Retrieval-mode system prompt (P2-3): same admin base as portfolio mode, but
+// instead of inlining the whole portfolio it carries only the chunks retrieved
+// for this question. Each chunk keeps a stable [source_table#anchor] label so
+// P2-4 can turn it into a deep-linked citation without changing this builder.
+// The GROUNDING rule is stricter than buildPortfolioPrompt's: answer ONLY from
+// these chunks, so the model cannot lean on half-remembered facts from training.
+export function buildRetrievalPrompt(baseSystemPrompt, chunks) {
+  const base = (baseSystemPrompt || '').trim()
+  const context = arr(chunks).map((c) => {
+    // anchor is a section id like '#projects'; drop the leading '#' so the label
+    // reads [projects#projects], not [projects##projects]. Fall back to the row id.
+    const label = c.anchor ? String(c.anchor).replace(/^#/, '') : c.source_id
+    return `[${c.source_table}#${label}] ${c.content}`
+  }).join('\n\n')
+
+  return `${base}
+
+=== RETRIEVED CONTEXT (the only source of truth for this question) ===
+${context}
+=== END RETRIEVED CONTEXT ===
+
+GROUNDING: Answer only from the RETRIEVED CONTEXT above. If it does not contain the answer, say you do not have that detail and point them to ${CONTACT_EMAIL}. Do not use any outside knowledge about Alief, and never invent projects, employers, certifications, metrics, or skills.`
+}
+
+// Language-aware "not sure" reply for the retrieval path (P2-3, decisions B/E).
+// When no retrieved chunk clears the similarity threshold, the bot says it does
+// not have the answer instead of guessing. This is fixed text, streamed as
+// deltas by chat.js (no LLM call), so it stays honest with zero fabrication.
+// Keyed by the same 8 language codes the chatbox offers (ChatBot.jsx), EN
+// fallback. The non-ASCII copy is intentional, matching the frontend's existing
+// localized strings (GREET / NOTICE); native-speaker review welcome later.
+const NOT_SURE = {
+  en: `I don't have that about Alief, and I'd rather not guess. You can email him at ${CONTACT_EMAIL}, or ask me about his skills, experience, or projects.`,
+  id: `Aku belum punya info itu soal Alief, dan nggak mau menebak. Kamu bisa email dia di ${CONTACT_EMAIL}, atau tanya aku soal skill, pengalaman, atau proyeknya.`,
+  ja: `それについてはAliefの情報を持っていないので、推測は控えますね。${CONTACT_EMAIL} にメールするか、彼のスキルや経験、プロジェクトについて聞いてください。`,
+  zh: `关于这个我没有Alief的相关信息，就不乱猜了。你可以发邮件到 ${CONTACT_EMAIL}，或者问我他的技能、经验或项目。`,
+  ko: `그건 Alief에 대한 정보가 없어서 추측하지 않을게요. ${CONTACT_EMAIL} 로 메일을 보내거나, 그의 기술이나 경력, 프로젝트에 대해 물어봐 주세요.`,
+  fr: `Je n'ai pas cette information sur Alief, et je préfère ne pas deviner. Vous pouvez lui écrire à ${CONTACT_EMAIL}, ou me poser des questions sur ses compétences, son expérience ou ses projets.`,
+  de: `Diese Information über Alief habe ich nicht, und ich möchte nicht raten. Du kannst ihm an ${CONTACT_EMAIL} schreiben oder mich nach seinen Fähigkeiten, seiner Erfahrung oder seinen Projekten fragen.`,
+  ar: `ليس لدي هذه المعلومة عن Alief، ولا أريد التخمين. يمكنك مراسلته على ${CONTACT_EMAIL}، أو اسألني عن مهاراته أو خبرته أو مشاريعه.`,
+}
+
+export function notSureReply(lang) {
+  return NOT_SURE[lang] || NOT_SURE.en
+}
+
 // A one-line reply-language reinforcement appended to every system prompt, so
 // the mode's own language rule is restated for the specific request.
 export function languageNudge(lang, mode) {

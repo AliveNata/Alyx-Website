@@ -2,13 +2,23 @@ import { Router } from 'express'
 import { query, pool } from './db.js'
 import { groqChatStream, RL_HEADERS } from './groq.js'
 import { getPortfolio } from './portfolio.js'
-import { CURHAT_PROMPT, ENGLISH_PROMPT, buildPortfolioPrompt, languageNudge } from './prompts.js'
+import { CURHAT_PROMPT, ENGLISH_PROMPT, buildPortfolioPrompt, buildRetrievalPrompt, notSureReply, languageNudge } from './prompts.js'
+import { retrieveChunks } from './retrieve.js'
 import { redact, hashValue } from './redact.js'
 
 const MESSAGE_MAX = 2000        // reject oversized input before it reaches Groq
 const HISTORY_TURNS = 8         // recent turns kept for context
 const HISTORY_CHAR_BUDGET = 6000
 const VALID_MODES = new Set(['portfolio', 'curhat', 'english'])
+
+// RAG retrieval (P2-3), portfolio mode only. RAG_TOP_K chunks are retrieved; if
+// the best cosine similarity (1 - min distance) is below RAG_MIN_SIM the bot
+// returns the not-sure reply instead of guessing. Tune RAG_MIN_SIM from real
+// measurements (scripts/rag-eval.js) before trusting the default.
+const RAG_TOP_K = Number.parseInt(process.env.RAG_TOP_K, 10) || 5
+const RAG_MIN_SIM = Number.isFinite(Number.parseFloat(process.env.RAG_MIN_SIM))
+  ? Number.parseFloat(process.env.RAG_MIN_SIM)
+  : 0.78
 
 // Daily token caps (P1-6). 0 or unset disables that check.
 const SESSION_CAP = Number.parseInt(process.env.BUDGET_TOKENS_PER_SESSION_DAY, 10) || 0
@@ -113,6 +123,81 @@ async function logTurn({ sessionId, lang, mode, consent, ip, ua, userText, reply
   }
 }
 
+// Decide the portfolio-mode prompt (P2-3). Retrieval runs ONLY here; curhat and
+// english never reach this function (no embedding, no DB vector read). Returns
+// either { systemPrompt } to send to the LLM or { notSure: true } to stream the
+// fixed not-sure reply. Three distinct outcomes, per decision F:
+//   - chunk table empty (reindex never ran)  -> legacy whole-portfolio stuffing
+//   - embed() / retrieval throws              -> legacy whole-portfolio stuffing
+//   - chunks exist but none pass the threshold -> not-sure (NOT stuffing)
+//   - a chunk clears the threshold            -> grounded prompt on those chunks
+async function resolvePortfolioPrompt(settings, message) {
+  // Fail-open: an empty vector store means RAG data is missing, so keep the old
+  // behavior rather than regress to a bot with no portfolio knowledge.
+  try {
+    const { rows } = await query('SELECT count(*)::int AS n FROM portfolio_chunks')
+    if (!rows[0] || rows[0].n === 0) {
+      console.warn('[chat] portfolio_chunks empty; using legacy portfolio stuffing')
+      return { systemPrompt: buildPortfolioPrompt(settings.system_prompt, await getPortfolio()) }
+    }
+  } catch (err) {
+    console.error('[chat] chunk count failed; using legacy portfolio stuffing:', err.message)
+    return { systemPrompt: buildPortfolioPrompt(settings.system_prompt, await getPortfolio()) }
+  }
+
+  // Fail-open: a model-load / embedding error must never break the reply.
+  let chunks
+  try {
+    chunks = await retrieveChunks(message, RAG_TOP_K)
+  } catch (err) {
+    console.error('[chat] retrieval failed; using legacy portfolio stuffing:', err.message)
+    return { systemPrompt: buildPortfolioPrompt(settings.system_prompt, await getPortfolio()) }
+  }
+
+  // Chunks come back nearest-first, so chunks[0] holds the smallest distance.
+  // Best similarity below the threshold is a genuine "I don't have that": answer
+  // not-sure, deliberately NOT the legacy stuffing (decision F).
+  const bestDistance = chunks.length ? Number(chunks[0].distance) : 2
+  if (1 - bestDistance < RAG_MIN_SIM) return { notSure: true }
+
+  return { systemPrompt: buildRetrievalPrompt(settings.system_prompt, chunks) }
+}
+
+// Stream the fixed not-sure reply over SSE (P2-3, decision G). No Groq call, but
+// the client sees the same delta + done shape as a normal answer, so its stream
+// parser needs no special case. Logged like any turn, with null token/model
+// telemetry since no LLM ran.
+async function streamNotSure(req, res, { sessionId, lang, mode, message, body }) {
+  const startedAt = Date.now()
+  const text = notSureReply(lang)
+
+  res.status(200).set({
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  })
+  res.flushHeaders?.()
+  res.write(`data: ${JSON.stringify({ type: 'delta', text })}\n\n`)
+  res.write(`data: ${JSON.stringify({ type: 'done', meta: { model: null, finish_reason: 'not_sure', rateLimit: null } })}\n\n`)
+  res.end()
+
+  try {
+    await logTurn({
+      sessionId,
+      lang, mode, consent: body.consent,
+      ip: req.ip, ua: req.headers['user-agent'] || '',
+      userText: message, replyText: text,
+      telemetry: {
+        tokens_in: null, tokens_out: null, model: null,
+        latency_ms: Date.now() - startedAt, cache_hit: false, rate_limit_snapshot: null,
+      },
+    })
+  } catch (err) {
+    console.error('[chat] logging failed:', err.message)
+  }
+}
+
 chatRouter.post('/', async (req, res) => {
   const body = req.body || {}
   const message = typeof body.message === 'string' ? body.message.trim() : ''
@@ -135,10 +220,20 @@ chatRouter.post('/', async (req, res) => {
     })
   }
 
+  const sessionId = typeof body.session_id === 'string' ? body.session_id : null
+
   let systemPrompt
-  if (mode === 'curhat') systemPrompt = CURHAT_PROMPT
-  else if (mode === 'english') systemPrompt = ENGLISH_PROMPT
-  else systemPrompt = buildPortfolioPrompt(settings.system_prompt, await getPortfolio())
+  if (mode === 'curhat') {
+    systemPrompt = CURHAT_PROMPT
+  } else if (mode === 'english') {
+    systemPrompt = ENGLISH_PROMPT
+  } else {
+    // Portfolio is the only mode that retrieves. Ground on the retrieved chunks,
+    // or short-circuit to the streamed not-sure reply (P2-3).
+    const resolved = await resolvePortfolioPrompt(settings, message)
+    if (resolved.notSure) return streamNotSure(req, res, { sessionId, lang, mode, message, body })
+    systemPrompt = resolved.systemPrompt
+  }
   systemPrompt += `\n\n${languageNudge(lang, mode)}`
 
   const messages = [
@@ -160,7 +255,6 @@ chatRouter.post('/', async (req, res) => {
   // Daily token budget (P1-6): reject an over-cap session/IP before spending any
   // Groq quota. Sums today's tokens from the P1-1/P1-2 logs; matches on ip_hash
   // only (never the raw IP). Fail-open: a counting error allows the turn.
-  const sessionId = typeof body.session_id === 'string' ? body.session_id : null
   const ipHash = hashValue(req.ip)
   if ((SESSION_CAP > 0 || IP_CAP > 0) && (sessionId || ipHash)) {
     try {

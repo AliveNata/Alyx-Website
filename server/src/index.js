@@ -17,6 +17,7 @@ import { reindexRouter } from './reindex.js'
 import { cvNotifyRouter } from './cvnotify.js'
 import { uploadRouter, UPLOAD_DIR } from './upload.js'
 import { RESOURCES } from './resources.js'
+import { embed } from './embed.js'
 
 const app = express()
 app.set('trust proxy', 1) // behind nginx
@@ -68,6 +69,16 @@ app.use((err, _req, res, _next) => {
   if (isClientError) return res.status(400).json({ error: err.message })
   res.status(500).json({ error: 'Server error' })
 })
+
+// Optional embedding warm-up (P2-3, decision D). Off by default to keep idle RAM
+// low; set EMBED_WARM_ON_BOOT=1 to pay the one-time model load at boot so the
+// first portfolio visitor doesn't eat it. Fire-and-forget: a failure here must
+// not stop the server (retrieval stays lazy and fails open per chat.js).
+if (/^(1|true)$/i.test(process.env.EMBED_WARM_ON_BOOT || '')) {
+  embed('warm', 'query')
+    .then(() => console.log('[embed] model warmed on boot'))
+    .catch((err) => console.error('[embed] warm-on-boot failed:', err.message))
+}
 
 const port = process.env.PORT || 4000
 app.listen(port, '127.0.0.1', () => console.log(`Alyx API listening on :${port}`))
