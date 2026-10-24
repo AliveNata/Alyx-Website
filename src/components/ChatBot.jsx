@@ -220,6 +220,25 @@ const UI_TEXT = {
   },
 }
 
+// Consent notice + opt-out copy. EN for every flag except the Indonesian one.
+// Honest and self-contained: there is no privacy-policy page to link to.
+const NOTICE = {
+  en: {
+    body: 'To improve Alyx, chats here may be stored with personal details removed. You can turn that off.',
+    optOut: "Don't store my messages",
+    dismiss: 'Got it',
+    privacy: 'Privacy',
+    off: 'not storing messages',
+  },
+  id: {
+    body: 'Untuk membuat Alyx lebih baik, obrolan di sini bisa disimpan dengan data pribadi dihapus. Kamu bisa mematikannya.',
+    optOut: 'Jangan simpan pesan saya',
+    dismiss: 'Oke',
+    privacy: 'Privasi',
+    off: 'pesan tidak disimpan',
+  },
+}
+
 // ============================================================
 // VOICE PRESETS
 // ============================================================
@@ -404,6 +423,18 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
     return { date: new Date().toISOString().slice(0, 10), requests: 0, tokens: 0 }
   })
 
+  // Consent: whether the one-time notice was dismissed and whether the visitor
+  // opted out of storage. optedOut drives `consent` on every /api/chat call.
+  const [privacy, setPrivacy] = useState(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('alyx-privacy') || '{}')
+      return { noticeDismissed: !!raw.noticeDismissed, optedOut: !!raw.optedOut }
+    } catch { return { noticeDismissed: false, optedOut: false } }
+  })
+  const [noticeOpen, setNoticeOpen] = useState(() => {
+    try { return !JSON.parse(localStorage.getItem('alyx-privacy') || '{}').noticeDismissed } catch { return true }
+  })
+
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
@@ -472,6 +503,8 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   // localized UI strings. Drives the whole chatbox surface + reply language.
   const uiLang = UI_TEXT[micLang.split('-')[0]] ? micLang.split('-')[0] : 'en'
   const T = UI_TEXT[uiLang]
+  // Consent notice follows the chat language: Indonesian flag -> ID, else EN.
+  const N = NOTICE[uiLang === 'id' ? 'id' : 'en']
 
   // Admin greeting override wins; otherwise the time-aware localized greeting.
   const greetingFor = (lang) => settings?.greeting?.trim() || buildGreeting(lang)
@@ -587,6 +620,10 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   useEffect(() => {
     localStorage.setItem('alivyx-voice-preset', JSON.stringify(voicePreset))
   }, [voicePreset])
+
+  useEffect(() => {
+    try { localStorage.setItem('alyx-privacy', JSON.stringify(privacy)) } catch {}
+  }, [privacy])
 
 useEffect(() => {
     try { localStorage.setItem('alyx-local-usage', JSON.stringify(localUsage)) } catch {}
@@ -769,7 +806,7 @@ useEffect(() => {
         message,
         lang,
         history: history.slice(-8).map(m => ({ role: m.role, content: m.content })),
-        consent: true,
+        consent: !privacy.optedOut,
       }),
     })
     parseRateLimitHeaders(response.headers, setRateLimit)
@@ -1178,6 +1215,43 @@ useEffect(() => {
 
       {!minimized && (
         <>
+          {/* Consent notice + opt-out. Shown once; collapses to a reopenable line. */}
+          {noticeOpen ? (
+            <div className="shrink-0 bg-surface-card border-b border-surface-border px-4 py-3">
+              <p dir="auto" className="text-xs text-gray-300 leading-relaxed">{N.body}</p>
+              <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={privacy.optedOut}
+                  onClick={() => setPrivacy(p => ({ ...p, optedOut: !p.optedOut }))}
+                  className="inline-flex items-center gap-2 text-[11px] font-mono text-gray-400 hover:text-white rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-purple/50"
+                >
+                  <span className={`relative inline-flex h-4 w-7 items-center rounded-full border transition-colors ${privacy.optedOut ? 'bg-accent-purple/30 border-accent-purple/50' : 'bg-primary border-surface-border'}`}>
+                    <span className={`inline-block h-3 w-3 rounded-full transition-transform ${privacy.optedOut ? 'translate-x-3.5 bg-accent-purple' : 'translate-x-0.5 bg-gray-400'}`} />
+                  </span>
+                  <span dir="auto">{N.optOut}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setPrivacy(p => ({ ...p, noticeDismissed: true })); setNoticeOpen(false) }}
+                  className="px-2.5 py-1 text-[11px] font-mono rounded border border-surface-border text-gray-400 hover:text-accent-cyan hover:border-accent-cyan/40 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                >
+                  {N.dismiss}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setNoticeOpen(true)}
+              className="shrink-0 flex items-center gap-1.5 px-4 py-1.5 border-b border-surface-border text-[10px] font-mono text-gray-500 hover:text-accent-cyan transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+            >
+              <i className="bi bi-shield-check leading-none" aria-hidden="true" />
+              <span dir="auto">{privacy.optedOut ? `${N.privacy} - ${N.off}` : N.privacy}</span>
+            </button>
+          )}
+
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-primary/40">
             {messages.map((msg, i) => (
