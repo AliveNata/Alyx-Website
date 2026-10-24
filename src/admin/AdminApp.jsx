@@ -4,6 +4,7 @@ import Login from './Login'
 import Dashboard from './Dashboard'
 import PersonalInfo from './PersonalInfo'
 import ChatbotSettings from './ChatbotSettings'
+import Analytics from './Analytics'
 import GitHubPanel from './GitHubPanel'
 import SiteSettings from './SiteSettings'
 import ResetPassword from './ResetPassword'
@@ -21,6 +22,7 @@ export default function AdminApp() {
         <Route path="verify-password" element={<VerifyPassword />} />
         <Route element={<RequireAuth><Dashboard /></RequireAuth>}>
           <Route index element={<PersonalInfo />} />
+          <Route path="analytics" element={<Analytics />} />
           <Route path="skills" element={<ResourceManager config={CONFIGS.skills} />} />
           <Route path="projects" element={<ResourceManager config={CONFIGS.projects} />} />
           <Route path="experiences" element={<ResourceManager config={CONFIGS.experiences} />} />
