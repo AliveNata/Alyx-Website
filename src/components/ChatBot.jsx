@@ -397,6 +397,59 @@ const findTopicByKeyword = (q) => {
 
 const isAboutAlief = (q) => /\b(alief|aliv|aliev|akbar)\b/i.test(q)
 
+// ─── Head vs tail routing ────────────────────────────────────────────────────
+// A "head" question is a bare/broad topic ask ("what are his skills?") that the
+// canned topic dump answers completely. A "tail" question is longer/specific
+// ("did Alief use Redis caching in the clinic project?") and must reach the
+// server RAG for a grounded, cited answer. headTopicOf returns the topic for a
+// head question, else null (-> fall through to RAG). HEAD_MAX_WORDS is a tunable
+// threshold: at or below it a single dominant topic keyword is treated as bare.
+const HEAD_MAX_WORDS = 5
+
+// Curated head questions (the suggestion chips). A typed query that closely
+// mirrors one of these is a head question regardless of length, so chip
+// paraphrases longer than HEAD_MAX_WORDS still route to the canned dump.
+const HEAD_CHIPS = [
+  ...(chatbotKnowledge.suggestedQuestions || []),
+  ...(chatbotKnowledge.suggestedQuestionsTree || []).map(n => n.question),
+  ...UI_TEXT.en.suggestions,
+].filter(Boolean).map(s => s.toLowerCase())
+
+// Content words only (drop short glue words and punctuation) for overlap scoring.
+const meaningfulTokens = (s) => s.toLowerCase().replace(/[?!.,'’]/g, ' ').split(/\s+/).filter(t => t.length > 3)
+
+// True when the query shares enough content words with a curated chip to count
+// as the same broad head question (>=3 shared words AND >=60% of the query's).
+// A specific tail query shares few of its own words with any chip, so it fails.
+const fuzzyMatchesHeadChip = (query) => {
+  const qt = meaningfulTokens(query)
+  if (qt.length < 3) return false
+  for (const chip of HEAD_CHIPS) {
+    const ct = new Set(meaningfulTokens(chip))
+    if (!ct.size) continue
+    const shared = qt.filter(t => ct.has(t)).length
+    if (shared >= 3 && shared / qt.length >= 0.6) return true
+  }
+  return false
+}
+
+const headTopicOf = (query) => {
+  // (a) Close paraphrase of a curated head chip -> its topic.
+  if (fuzzyMatchesHeadChip(query)) {
+    const t = findTopicByKeyword(query)
+    if (t) return t
+    if (isAboutAlief(query)) return 'about'
+  }
+  // (b) Short query with a single dominant topic keyword -> bare topic.
+  const wordCount = query.trim().replace(/[?!.,]/g, ' ').split(/\s+/).filter(Boolean).length
+  if (wordCount <= HEAD_MAX_WORDS) {
+    const t = findTopicByKeyword(query)
+    if (t) return t
+    if (isAboutAlief(query)) return 'about'
+  }
+  return null
+}
+
 const parseRateLimitHeaders = (headers, setRateLimit) => {
   const get = (...names) => { for (const n of names) { const v = headers.get(n); if (v) return v } return null }
   const getNum = (...names) => { const v = get(...names); if (!v) return null; const n = parseFloat(v); return Number.isFinite(n) ? n : v }
@@ -937,13 +990,14 @@ useEffect(() => {
     const isIndonesian = /\b(halo|hai|selamat|pagi|siang|sore|malam|terima|kasih|makasih|oke|iya|ya|nggak|gak|mau|bisa|bantu|tanya|coba|lihat|sama|juga|sudah|udah|belum|lagi|terus|bagus|baik|senang|info|lah|nih|kak|mas|pak|bu|saya|anda|kamu|lo|gue|dia|mereka|kita|kami|siapa|apa|apakah|bagaimana|gimana|berapa|kenapa|mengapa|kapan|dimana|cerita|tolong|boleh|dong|sih|yuk|tidak|bukan|dan|atau|dengan|untuk|dari|ke|di|yang|ini|itu|ada|punya|kerja|proyek|tentang|tahu|tau|kasih tau)\b/i.test(query)
     const isNonLatin = /[぀-ヿ㐀-䶿一-鿿가-힯؀-ۿ]/.test(query)
     const isNonEnglish = isIndonesian || isNonLatin
-    // Skip English portfolio scraping when a non-English flag is selected — the
-    // LLM must answer in the flag's language instead of returning English text.
-    if (!node && !isAiMlQuery && !isNonEnglish && uiLang === 'en') {
-      let topic = findTopicByKeyword(query)
-      // If the query clearly mentions Alief but no topic matched → default to `about`
-      if (!topic && isAboutAlief(query)) topic = 'about'
-      if (topic && chatbotKnowledge.topics?.[topic]) {
+    // Canned topic dump fires ONLY for a bare-topic head question; specific/long
+    // questions fall through to the server RAG so they get a grounded, cited
+    // answer. chatbotKnowledge.topics is English-only, so a non-English head
+    // question also falls through to RAG and is answered in the user's language
+    // (no English leak). isAiMlQuery still skips so the LLM owns the denial.
+    if (!node && !isAiMlQuery) {
+      const topic = headTopicOf(query)
+      if (topic && !isNonEnglish && chatbotKnowledge.topics?.[topic]) {
         await new Promise(r => setTimeout(r, 350))
         const reply = chatbotKnowledge.topics[topic]
         const newMessages = [...baseMessages, { role: 'assistant', content: reply }]
