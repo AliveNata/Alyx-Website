@@ -1061,8 +1061,16 @@ useEffect(() => {
     const shouldSpeak = forceSpeak || voiceReplyFlagRef.current
     voiceReplyFlagRef.current = false
     setIsTyping(true)
-    // 1a. Try EXACT tree match
-    let node = findInTree(initialTree, query)
+
+    // Effective chat mode (PK-4): computed ONCE here so the portfolio fast-path
+    // and the server call cannot disagree. 'auto' (or companion off) defers to the
+    // detectMode heuristic; any explicit pick overrides it. The canned/tree fast
+    // path (1a/1b/1c) is portfolio-only: curhat and english skip straight to the
+    // server so the picked mode is honored no matter how the question is worded.
+    const mode = (chatMode === 'auto' || !companionEnabled) ? detectMode(query) : chatMode
+
+    // 1a. Try EXACT tree match (portfolio mode only)
+    let node = mode === 'portfolio' ? findInTree(initialTree, query) : null
 
     // 1b. Portfolio scraping — if query is about Alief or portfolio topics,
     //     answer from chatbotKnowledge.topics directly. NO LLM CALL → saves quota.
@@ -1077,7 +1085,7 @@ useEffect(() => {
     // answer. chatbotKnowledge.topics is English-only, so a non-English head
     // question also falls through to RAG and is answered in the user's language
     // (no English leak). isAiMlQuery still skips so the LLM owns the denial.
-    if (!node && !isAiMlQuery) {
+    if (mode === 'portfolio' && !node && !isAiMlQuery) {
       const topic = headTopicOf(query)
       if (topic && !isNonEnglish && chatbotKnowledge.topics?.[topic]) {
         await new Promise(r => setTimeout(r, 350))
@@ -1092,7 +1100,7 @@ useEffect(() => {
     }
 
     // 1c. Fuzzy tree match — handle paraphrases before falling through to LLM
-    if (!node) {
+    if (mode === 'portfolio' && !node) {
       node = fuzzyFindInTree(initialTree, query)
     }
 
@@ -1129,10 +1137,8 @@ useEffect(() => {
       else if (/[؀-ۿ]/.test(query)) lang = 'ar'
       else if (isIndonesian) lang = 'id'
     }
-    // 'auto' keeps the detectMode heuristic; an explicit pick overrides it (PK-4).
-    // With the companion off the picker is hidden, so a stale saved mode can't
-    // force anything: fall back to detectMode (which stays on portfolio).
-    const mode = (chatMode === 'auto' || !companionEnabled) ? detectMode(query) : chatMode
+    // `mode` was resolved once at the top of respondToQuery (PK-4) and is reused
+    // here, so the fast-path gate and this server call always agree on the mode.
     const normKey = mode + '|' + uiLang + '|' + query.toLowerCase().trim().replace(/\s+/g, ' ').replace(/[?!.,]/g, '')
     const cache = loadCache()
     if (cache[normKey]) {
