@@ -6,7 +6,9 @@ import { query } from './db.js'
 // its static import for one fetch with minimal changes.
 export const portfolioRouter = Router()
 
-portfolioRouter.get('/', async (_req, res) => {
+// Shared aggregate builder, reused by the public endpoint and by /api/chat when
+// it grounds a portfolio-mode reply.
+export async function getPortfolio() {
   const [personal, skillRows, projects, expRows, awards, certificates] = await Promise.all([
     query('SELECT * FROM personal_info WHERE id = 1'),
     query('SELECT * FROM skills ORDER BY sort_order ASC, id ASC'),
@@ -28,7 +30,7 @@ portfolioRouter.get('/', async (_req, res) => {
   const byType = { it: [], freelance: [], nonit: [] }
   for (const e of expRows.rows) (byType[e.exp_type] || byType.it).push(mapExp(e))
 
-  res.json({
+  return {
     personalInfo: personal.rows[0] || {},
     skills,
     projects: projects.rows,
@@ -37,5 +39,9 @@ portfolioRouter.get('/', async (_req, res) => {
     experiencesNonIT: byType.nonit,
     awards: awards.rows,
     certificates: certificates.rows,
-  })
+  }
+}
+
+portfolioRouter.get('/', async (_req, res) => {
+  res.json(await getPortfolio())
 })

@@ -2,9 +2,10 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { chatbotKnowledge, personalInfo } from '../data/portfolio'
 import { API_BASE } from '../lib/apiBase'
 
-// LLM calls go through a server-side Netlify Function so the API key is never
-// shipped to the browser. (Direct Groq URL kept for reference only.)
-const LLM_PROXY_URL = `${API_BASE}/api/groq-chat`
+// The server-authoritative chat endpoint owns the prompt, the context, and the
+// model. The browser sends only the message plus a few flags, and never sees
+// GROQ_API_KEY.
+const CHAT_URL = `${API_BASE}/api/chat`
 
 // LLMs love em-dashes; normalize em/en-dashes to a plain " - " so replies stay ASCII.
 const stripEmDash = (t) => (t || '').replace(/\s*[—–]\s*/g, ' - ')
@@ -113,19 +114,7 @@ function detectSiteAction(query, isIndonesian) {
   return null
 }
 
-const LLM_CONFIG = {
-  // gpt-oss-20b is a fast, low-quota reasoning model on Groq. reasoning_effort
-  // 'low' keeps thinking tokens minimal so replies stay quick and cheap.
-  model: 'openai/gpt-oss-20b',
-  reasoningEffort: 'low',
-  temperature: 0.7,
-  maxTokens: 700,
-}
-
 const FALLBACK_MSG = "I'm not sure I understand your question, but I can help you learn more about Alief's background, skills, or availability. What would you like to ask about?"
-
-// Full-name of each mic-flag language, used to force the LLM reply language.
-const LANG_NAMES = { en: 'English', id: 'Indonesian', ja: 'Japanese', zh: 'Chinese', ko: 'Korean', fr: 'French', de: 'German', ar: 'Arabic' }
 
 // BCP-47 tag per detected TTS language. Forcing utter.lang to this makes
 // multilingual/turbo voices switch accent (e.g. read Arabic in Arabic, not English).
@@ -230,76 +219,6 @@ const UI_TEXT = {
     suggestions: ['ما أهم مهارات Alief؟', 'حدثني عن خبرته', 'ما المشاريع التي أنجزها؟', 'كيف أتواصل معه؟'],
   },
 }
-
-// Build grounding context from the portfolio data itself (single source of truth).
-const PORTFOLIO_CONTEXT = Object.entries(chatbotKnowledge.topics || {})
-  .map(([k, v]) => `## ${k.toUpperCase()}\n${v}`)
-  .join('\n\n')
-
-const SYSTEM_PROMPT = `You are Alyx, an AI assistant for ${personalInfo.name}'s portfolio website. You are friendly, professional, and strictly grounded in the portfolio content below.
-
-=== PORTFOLIO KNOWLEDGE (primary source of truth) ===
-${PORTFOLIO_CONTEXT}
-=== END PORTFOLIO KNOWLEDGE ===
-
-ROLE POSITIONING — VERY IMPORTANT:
-- Alief's primary identity is **Data Engineer / Data Analyst / BI Analyst**.
-- His strongest areas: data pipelines, ETL/ELT, SQL, Python for data, dbt, BigQuery, Airflow, Kafka/Debezium CDC, BI dashboards (Looker, Tableau, Power BI).
-- Alief is **NOT** an AI Engineer or ML Engineer. If asked directly (e.g. "Is he an AI Engineer?", "Can he build ML models?"), respond clearly: "No, Alief is not an AI/ML Engineer. His focus is Data Engineering and BI/Analytics." Then redirect to his real strengths.
-- Do NOT claim he builds ML models, LLM apps, MLOps systems, or production AI systems. Do not fabricate AI/ML experience.
-
-GROUNDING RULES (for portfolio questions):
-- For any question about Alief — his skills, experience, projects, availability, contact — base the answer ONLY on the PORTFOLIO KNOWLEDGE section above.
-- If the portfolio knowledge does not cover a specific detail (e.g. rates, salary, personal life), say: "I don't have that information — you can reach Alief directly at alivenata@gmail.com."
-- Never invent projects, employers, certifications, metrics, or skills that aren't in the portfolio.
-
-OFF-TOPIC HANDLING — STRICT:
-- If a question is unrelated to Alief AND doesn't fit Curhat or English Practice (e.g. general trivia, geography, math, coding help, games), respond with exactly this format:
-  "That's outside what I can help with here! I'm best at answering questions about Alief's portfolio. Want to know about his skills, projects, or experience?"
-- NEVER answer general trivia or factual questions (capitals, history, science, etc.) — always redirect.
-- NEVER play games, quizzes, or riddles even if the suggestion tree contains them.
-
-COMPANION MODES — you are also allowed to act as a friendly companion for TWO specific use cases:
-
-1) **Curhat / Casual Chat Mode** (emotional support & small talk)
-   - If the user wants to vent, share feelings, or have a casual conversation ("I feel tired", "aku lagi sedih", "bad day", "let's just chat", etc.), switch to a warm, empathetic companion tone.
-   - Listen actively, validate feelings, ask gentle follow-up questions. Do NOT lecture or give unsolicited advice.
-   - Keep responses short (2–4 sentences), supportive, non-judgmental.
-   - ALWAYS respond in the SAME language the user used (Indonesian → Indonesian, English → English).
-   - Never diagnose mental health issues. If the user mentions serious distress or self-harm, gently encourage them to talk to a trusted person or professional.
-
-2) **English Practice Mode** (conversation partner + tutor)
-   - If the user wants to practice English, asks for corrections, or clearly speaks to you for language practice, act as a friendly English tutor.
-   - Have natural English conversations at the user's level. Ask open questions to keep them talking.
-   - When the user makes a grammar/vocabulary/pronunciation mistake, gently correct it in a short feedback line using this format:
-     • *Correction:* <fixed sentence>
-     • *Why:* <one-line reason>
-   - Suggest better/more natural phrasing when useful. Do not over-correct — focus on the most important 1–2 issues per reply.
-   - Encourage the user. Keep the conversation flowing.
-
-MODE SELECTION:
-- Default to portfolio-assistant mode.
-- Switch to Curhat mode if the user's message is clearly emotional / personal / casual small talk.
-- Switch to English Practice mode if the user explicitly asks to practice English, asks for corrections, or the conversation is clearly a language-practice exchange.
-- You may combine modes naturally (e.g., practice English while chatting casually).
-
-LANGUAGE — CRITICAL:
-- You support ALL languages. ALWAYS reply in the SAME language the user writes in.
-- If user writes in Indonesian → reply in Indonesian.
-- If user writes in Japanese → reply in Japanese.
-- If user writes in Chinese → reply in Chinese.
-- If user writes in Korean → reply in Korean.
-- If user writes in Arabic → reply in Arabic.
-- If user writes in French, German, Spanish, or any other language → reply in that language.
-- Keep technical terms in English regardless of language (SQL, Python, dbt, BigQuery, Data Engineering, etc.).
-- Do NOT say "I can only speak Indonesian and English" — you can speak ANY language.
-- Do NOT carry over the previous reply's language. Each message is independent.
-- Exception: English Practice mode always stays in English regardless.
-
-STYLE:
-- Default length: concise (2–4 sentences).
-- Friendly, warm, professional tone.
-- Use markdown sparingly (bold/bullets only when it improves clarity).`
 
 // ============================================================
 // VOICE PRESETS
@@ -493,7 +412,18 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   const messagesRef = useRef(messages)
   const respondToQueryRef = useRef(null)
 
-  // LLM is served via the Netlify Function proxy, always available in production.
+  // One stable id per browser chat session, for server-side logging/memory in
+  // later phases. S0-1 only passes it through.
+  const sessionIdRef = useRef(null)
+  if (!sessionIdRef.current) {
+    try {
+      let sid = localStorage.getItem('alyx-session-id')
+      if (!sid) { sid = crypto.randomUUID(); localStorage.setItem('alyx-session-id', sid) }
+      sessionIdRef.current = sid
+    } catch { sessionIdRef.current = crypto.randomUUID() }
+  }
+
+  // LLM goes through the server /api/chat endpoint, always available in production.
   const llmMode = true
 
   // Setup SpeechRecognition (voice input)
@@ -815,47 +745,46 @@ useEffect(() => {
     setSpeakingIndex(null)
   }
 
-  // Build the system prompt + LLM params from admin settings, falling back to
-  // the hardcoded defaults when settings haven't loaded (or the API is down).
-  const buildLLMRequest = (conversationHistory) => {
-    let systemContent = SYSTEM_PROMPT
-    if (settings?.system_prompt?.trim()) {
-      systemContent = `${settings.system_prompt.trim()}\n\n=== PORTFOLIO KNOWLEDGE (primary source of truth) ===\n${PORTFOLIO_CONTEXT}\n=== END PORTFOLIO KNOWLEDGE ===`
-    }
-    if (settings?.enable_companion === false) {
-      systemContent += `\n\nIMPORTANT: Do NOT act as a companion, curhat buddy, or English tutor. Only answer questions about Alief's portfolio; politely decline unrelated requests.`
-    }
-    return {
-      model: settings?.model || LLM_CONFIG.model,
-      reasoning_effort: settings?.reasoning_effort || LLM_CONFIG.reasoningEffort,
-      messages: [
-        { role: 'system', content: systemContent },
-        ...conversationHistory.map(m => ({ role: m.role, content: m.content })),
-      ],
-      temperature: settings?.temperature != null ? Number(settings.temperature) : LLM_CONFIG.temperature,
-      max_tokens: settings?.max_tokens ? Number(settings.max_tokens) : LLM_CONFIG.maxTokens,
-    }
+  // No mode selector exists in the UI yet, so infer one from clear cues and
+  // default to portfolio. Stopgap until a real mode toggle ships; the server
+  // treats any unknown value as portfolio. When companion is admin-disabled we
+  // never leave portfolio, matching the old behavior.
+  const detectMode = (q) => {
+    if (settings?.enable_companion === false) return 'portfolio'
+    if (/\b(practice english|english practice|latihan (bahasa )?inggris|correct my (english|grammar)|grammar check|koreksi (bahasa )?inggris)\b/i.test(q)) return 'english'
+    if (/\b(curhat|cerita dong|pengen cerita|temani|ngobrol santai|lagi (sedih|galau|capek|lelah|stress|stres|down)|sedih|galau|capek banget|lelah banget|kesepian|lonely|feeling (down|sad|low)|bad day|i(?:'m| am) (sad|tired|exhausted|lonely|depressed|stressed)|just (wanna|want to) (chat|talk)|vent)\b/i.test(q)) return 'curhat'
+    return 'portfolio'
   }
 
-  const sendToLLM = async (conversationHistory) => {
-    const response = await fetch(LLM_PROXY_URL, {
+  // POST to the server-authoritative endpoint. The server owns the prompt and
+  // the model; we only forward the message, the chosen mode, a language hint,
+  // and recent history (the server re-caps it).
+  const sendToChat = async ({ message, history, mode, lang }) => {
+    const response = await fetch(CHAT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(buildLLMRequest(conversationHistory)),
+      body: JSON.stringify({
+        session_id: sessionIdRef.current,
+        mode,
+        message,
+        lang,
+        history: history.slice(-8).map(m => ({ role: m.role, content: m.content })),
+        consent: true,
+      }),
     })
     parseRateLimitHeaders(response.headers, setRateLimit)
+    if (response.status === 429) throw new Error('Chat API 429: rate_limited')
     if (!response.ok) {
       const body = await response.text().catch(() => '')
-      throw new Error(`Groq API ${response.status}: ${body.slice(0, 200)}`)
+      throw new Error(`Chat API ${response.status}: ${body.slice(0, 200)}`)
     }
     const data = await response.json()
-    const tokensUsed = data.usage?.total_tokens ?? 200
     setLocalUsage(prev => {
       const today = new Date().toISOString().slice(0, 10)
       const base = prev.date === today ? prev : { date: today, requests: 0, tokens: 0 }
-      return { date: today, requests: base.requests + 1, tokens: base.tokens + tokensUsed }
+      return { date: today, requests: base.requests + 1, tokens: base.tokens }
     })
-    return stripEmDash(data.choices[0].message.content)
+    return stripEmDash(data.reply || '')
   }
 
   const autoSpeakIfEnabled = (text, newMessagesLength, forceSpeak = false) => {
@@ -926,8 +855,19 @@ useEffect(() => {
       return
     }
 
-    // 2. Try Groq LLM — with localStorage cache to avoid re-burning quota on repeats.
-    const normKey = uiLang + '|' + query.toLowerCase().trim().replace(/\s+/g, ' ').replace(/[?!.,]/g, '')
+    // 2. Try the server LLM — with localStorage cache to avoid re-burning quota on repeats.
+    // A non-English flag sets the reply language; the English flag falls back to
+    // detecting the language of the query, so typing Indonesian still replies in it.
+    let lang = uiLang
+    if (uiLang === 'en') {
+      if (/[぀-ヿ]/.test(query)) lang = 'ja'
+      else if (/[一-鿿㐀-䶿]/.test(query)) lang = 'zh'
+      else if (/[가-힯]/.test(query)) lang = 'ko'
+      else if (/[؀-ۿ]/.test(query)) lang = 'ar'
+      else if (isIndonesian) lang = 'id'
+    }
+    const mode = detectMode(query)
+    const normKey = mode + '|' + uiLang + '|' + query.toLowerCase().trim().replace(/\s+/g, ' ').replace(/[?!.,]/g, '')
     const cache = loadCache()
     if (cache[normKey]) {
       await new Promise(r => setTimeout(r, 300))
@@ -941,32 +881,8 @@ useEffect(() => {
 
     if (llmMode) {
       try {
-        // Pick the reply language. A non-English flag forces its language; the
-        // default English flag falls back to detecting the language of the query
-        // itself, so typing Indonesian still gets an Indonesian reply.
-        let replyLang
-        if (uiLang !== 'en') {
-          replyLang = LANG_NAMES[uiLang]
-        } else {
-          replyLang = 'English'
-          if (/[぀-ヿ]/.test(query)) replyLang = 'Japanese'
-          else if (/[一-鿿㐀-䶿]/.test(query)) replyLang = 'Chinese'
-          else if (/[가-힯]/.test(query)) replyLang = 'Korean'
-          else if (/[؀-ۿ]/.test(query)) replyLang = 'Arabic'
-          else if (isIndonesian) replyLang = 'Indonesian'
-        }
-        // Inject the user's local time so time-of-day greetings are correct
-        // (e.g. konbanwa at night, not konnichiwa).
-        const now = new Date()
-        const hr = now.getHours()
-        const period = hr < 5 ? 'late night' : hr < 11 ? 'morning' : hr < 15 ? 'midday' : hr < 18 ? 'afternoon' : hr < 22 ? 'evening' : 'night'
-        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        const messagesForLLM = baseMessages.map((m, idx) =>
-          idx === baseMessages.length - 1 && m.role === 'user'
-            ? { ...m, content: `${m.content}\n\n[MANDATORY: Reply in ${replyLang} only. Ignore previous messages' language. User's local time is ${timeStr} (${period}); if you greet, use a greeting that fits this time of day.]` }
-            : m
-        )
-        const reply = await sendToLLM(messagesForLLM)
+        // Prior turns only; the current question goes in `message`.
+        const reply = await sendToChat({ message: query, history: baseMessages.slice(0, -1), mode, lang })
         const c = loadCache()
         c[normKey] = reply
         const keys = Object.keys(c)

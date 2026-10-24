@@ -11,6 +11,7 @@ import { chatbotRouter } from './chatbot.js'
 import { githubRouter } from './github.js'
 import { settingsRouter } from './settings.js'
 import { groqRouter, RL_HEADERS } from './groq.js'
+import { chatRouter } from './chat.js'
 import { cvNotifyRouter } from './cvnotify.js'
 import { uploadRouter, UPLOAD_DIR } from './upload.js'
 import { RESOURCES } from './resources.js'
@@ -35,6 +36,7 @@ const chatLimiter = rateLimit({ windowMs: 5 * 60 * 1000, max: 40, standardHeader
 app.use('/api/auth/login', loginLimiter)   // brute-force protection
 app.use('/api/auth/forgot', loginLimiter)  // don't let forgot-password be spammed
 app.use('/api/groq-chat', chatLimiter)     // protect the Groq quota from abuse
+app.use('/api/chat', chatLimiter)          // same quota guard for the server-authoritative endpoint
 
 // Uploaded images (served directly; nginx can also serve this path).
 app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '30d' }))
@@ -48,6 +50,7 @@ app.use('/api/chatbot', chatbotRouter)
 app.use('/api/github', githubRouter)
 app.use('/api/settings', settingsRouter)
 app.use('/api/groq-chat', groqRouter)
+app.use('/api/chat', chatRouter)
 app.use('/api/cv-notify', cvNotifyRouter)
 app.use('/api/upload', uploadRouter)
 for (const [name, cfg] of Object.entries(RESOURCES)) {
