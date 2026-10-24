@@ -13,6 +13,7 @@ import { settingsRouter } from './settings.js'
 import { RL_HEADERS } from './groq.js'
 import { chatRouter } from './chat.js'
 import { analyticsRouter } from './analytics.js'
+import { reindexRouter } from './reindex.js'
 import { cvNotifyRouter } from './cvnotify.js'
 import { uploadRouter, UPLOAD_DIR } from './upload.js'
 import { RESOURCES } from './resources.js'
@@ -51,6 +52,7 @@ app.use('/api/github', githubRouter)
 app.use('/api/settings', settingsRouter)
 app.use('/api/chat', chatRouter)
 app.use('/api/admin/analytics', analyticsRouter)
+app.use('/api/admin/reindex', reindexRouter)
 app.use('/api/cv-notify', cvNotifyRouter)
 app.use('/api/upload', uploadRouter)
 for (const [name, cfg] of Object.entries(RESOURCES)) {

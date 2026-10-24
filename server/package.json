@@ -8,9 +8,11 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "migrate": "node src/migrate.js",
-    "seed": "node src/seed.js"
+    "seed": "node src/seed.js",
+    "reindex": "node src/reindex.js"
   },
   "dependencies": {
+    "@huggingface/transformers": "4.3.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

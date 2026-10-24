@@ -289,3 +289,22 @@ WITH DATA;
 
 -- Unique index is required for REFRESH MATERIALIZED VIEW CONCURRENTLY.
 CREATE UNIQUE INDEX IF NOT EXISTS mv_chat_daily_day_uidx ON mv_chat_daily(day);
+
+-- Phase 2 (RAG) vector store. One row per CMS record (a project, skill group,
+-- experience, award, certificate, the personal_info blurb). source_table +
+-- source_id point back at the origin row; anchor is the site deep-link the chat
+-- UI cites. embedding is multilingual-e5-small (384-dim). The UNIQUE key lets
+-- the reindex upsert by origin row and prune rows whose source is gone.
+-- The corpus is dozens of rows, so exact search (ORDER BY embedding <=> q) is
+-- correct and an ANN index would only add error. If it grows into the thousands,
+-- add: CREATE INDEX ON portfolio_chunks USING hnsw (embedding vector_cosine_ops).
+CREATE TABLE IF NOT EXISTS portfolio_chunks (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_table TEXT NOT NULL,
+  source_id    TEXT NOT NULL,
+  anchor       TEXT NOT NULL,
+  content      TEXT NOT NULL,
+  embedding    VECTOR(384),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (source_table, source_id)
+);
