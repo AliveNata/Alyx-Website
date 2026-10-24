@@ -194,6 +194,8 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE INDEX IF NOT EXISTS messages_conversation_id_idx ON messages(conversation_id);
 CREATE INDEX IF NOT EXISTS conversations_started_at_idx ON conversations(started_at);
+-- Per-IP daily token budget (P1-6) sums messages by conversations.ip_hash.
+CREATE INDEX IF NOT EXISTS conversations_ip_hash_idx ON conversations(ip_hash);
 
 -- Analytics layer (P1-4). Aggregate metrics only; raw message content never
 -- leaves the base tables. Day grain is the message/conversation created day in

@@ -8,8 +8,8 @@ export const RL_HEADERS = [
 ]
 
 // The single place that talks to Groq. Returns the raw body (the legacy proxy
-// forwards it verbatim), the parsed JSON when the body is JSON, and the
-// rate-limit headers so callers can relay live usage to the browser.
+// forwards it verbatim), the parsed JSON, the rate-limit headers, and `model`
+// (the model that actually answered, so telemetry records a fallback correctly).
 // Throws with code 'NO_KEY' when GROQ_API_KEY is missing so callers map it to 500.
 export async function groqChat(payload) {
   const key = process.env.GROQ_API_KEY
@@ -19,20 +19,32 @@ export async function groqChat(payload) {
     throw err
   }
 
-  const resp = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify(payload || {}),
-  })
-  const text = await resp.text()
-  const rlHeaders = {}
-  for (const h of RL_HEADERS) {
-    const v = resp.headers.get(h)
-    if (v) rlHeaders[h] = v
+  const callOnce = async (body) => {
+    const resp = await fetch(GROQ_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+      body: JSON.stringify(body || {}),
+    })
+    const text = await resp.text()
+    const rlHeaders = {}
+    for (const h of RL_HEADERS) {
+      const v = resp.headers.get(h)
+      if (v) rlHeaders[h] = v
+    }
+    let json = null
+    try { json = JSON.parse(text) } catch {}
+    return { status: resp.status, text, json, rlHeaders, retryAfter: resp.headers.get('retry-after'), model: body?.model }
   }
-  let json = null
-  try { json = JSON.parse(text) } catch {}
-  return { status: resp.status, text, json, rlHeaders, retryAfter: resp.headers.get('retry-after') }
+
+  let result = await callOnce(payload)
+
+  // One fallback hop: Groq per-model limits differ, so a 429 on the primary may
+  // still succeed on a lighter model. No loop, no queue. Empty env disables it.
+  const fallback = process.env.GROQ_FALLBACK_MODEL
+  if (result.status === 429 && fallback && fallback !== payload?.model) {
+    result = await callOnce({ ...payload, model: fallback })
+  }
+  return result
 }
 
 export const groqRouter = Router()

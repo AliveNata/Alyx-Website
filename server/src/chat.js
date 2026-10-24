@@ -10,6 +10,19 @@ const HISTORY_TURNS = 8         // recent turns kept for context
 const HISTORY_CHAR_BUDGET = 6000
 const VALID_MODES = new Set(['portfolio', 'curhat', 'english'])
 
+// Daily token caps (P1-6). 0 or unset disables that check.
+const SESSION_CAP = Number.parseInt(process.env.BUDGET_TOKENS_PER_SESSION_DAY, 10) || 0
+const IP_CAP = Number.parseInt(process.env.BUDGET_TOKENS_PER_IP_DAY, 10) || 0
+
+// Seconds until the next local midnight, when the daily budget resets. Matches
+// PG's date_trunc('day', now()) when the app and DB share a timezone.
+function secondsToMidnight() {
+  const now = new Date()
+  const mid = new Date(now)
+  mid.setHours(24, 0, 0, 0)
+  return Math.max(1, Math.round((mid - now) / 1000))
+}
+
 export const chatRouter = Router()
 
 // Defaults matching schema.sql, so a missing row never leaves a field undefined
@@ -144,6 +157,35 @@ chatRouter.post('/', async (req, res) => {
     messages,
   }
 
+  // Daily token budget (P1-6): reject an over-cap session/IP before spending any
+  // Groq quota. Sums today's tokens from the P1-1/P1-2 logs; matches on ip_hash
+  // only (never the raw IP). Fail-open: a counting error allows the turn.
+  const sessionId = typeof body.session_id === 'string' ? body.session_id : null
+  const ipHash = hashValue(req.ip)
+  if ((SESSION_CAP > 0 || IP_CAP > 0) && (sessionId || ipHash)) {
+    try {
+      const { rows } = await query(
+        `SELECT
+           coalesce(sum(m.tokens_in) FILTER (WHERE c.session_id = $1), 0)
+             + coalesce(sum(m.tokens_out) FILTER (WHERE c.session_id = $1), 0) AS session_tokens,
+           coalesce(sum(m.tokens_in) FILTER (WHERE c.ip_hash = $2), 0)
+             + coalesce(sum(m.tokens_out) FILTER (WHERE c.ip_hash = $2), 0) AS ip_tokens
+         FROM messages m
+         JOIN conversations c ON c.id = m.conversation_id
+         WHERE m.created_at >= date_trunc('day', now())
+           AND (c.session_id = $1 OR c.ip_hash = $2)`,
+        [sessionId, ipHash],
+      )
+      const sessionTokens = Number(rows[0]?.session_tokens) || 0
+      const ipTokens = Number(rows[0]?.ip_tokens) || 0
+      if ((SESSION_CAP > 0 && sessionTokens >= SESSION_CAP) || (IP_CAP > 0 && ipTokens >= IP_CAP)) {
+        return res.status(429).json({ error: 'budget_exceeded', retryAfter: secondsToMidnight() })
+      }
+    } catch (err) {
+      console.error('[chat] budget check failed (allowing turn):', err.message)
+    }
+  }
+
   let result
   const startedAt = Date.now()
   try {
@@ -170,11 +212,13 @@ chatRouter.post('/', async (req, res) => {
 
   const choice = result.json.choices?.[0]
   const reply = choice?.message?.content || ''
+  // The model that answered may be the fallback (groq.js 429 hop), not the primary.
+  const answeredModel = result.json.model || result.model || payload.model
   res.json({
     reply,
     mode,
     meta: {
-      model: payload.model,
+      model: answeredModel,
       finish_reason: choice?.finish_reason || null,
       rateLimit,
     },
@@ -185,14 +229,14 @@ chatRouter.post('/', async (req, res) => {
 
   try {
     await logTurn({
-      sessionId: typeof body.session_id === 'string' ? body.session_id : null,
+      sessionId,
       lang, mode, consent: body.consent,
       ip: req.ip, ua: req.headers['user-agent'] || '',
       userText: message, replyText: reply,
       telemetry: {
         tokens_in: usage.prompt_tokens ?? null,
         tokens_out: usage.completion_tokens ?? null,
-        model: result.json.model || payload.model,
+        model: answeredModel,
         latency_ms: latencyMs,
         cache_hit: false, // no server cache yet; P2-6 owns that
         rate_limit_snapshot: rateLimit,
