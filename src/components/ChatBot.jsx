@@ -120,6 +120,20 @@ const FALLBACK_MSG = "I'm not sure I understand your question, but I can help yo
 // multilingual/turbo voices switch accent (e.g. read Arabic in Arabic, not English).
 const LANG_BCP = { en: 'en-US', id: 'id-ID', ja: 'ja-JP', zh: 'zh-CN', ko: 'ko-KR', fr: 'fr-FR', de: 'de-DE', ar: 'ar-SA' }
 
+// English TTS only: data abbreviations the speech engine reads as words ("BI" ->
+// "bye", "ETL" -> "ettle"). Spelling each out letter by letter makes it say the
+// letters instead. Applied to the spoken string just before TTS; the on-screen
+// reply never changes. Match is whole-word and case-sensitive so ordinary words
+// stay intact (hits "CV", leaves the "cv" inside a longer word alone). Keyed so
+// the set stays easy to tune — longer tokens listed before shorter ones.
+const EN_SPOKEN_ABBR = {
+  ETL: 'E T L', ELT: 'E L T', SQL: 'S Q L', API: 'A P I', GCP: 'G C P',
+  ODS: 'O D S', DWH: 'D W H', KPI: 'K P I', dbt: 'd b t',
+  BI: 'B I', AI: 'A I', ML: 'M L', CV: 'C V',
+}
+const EN_ABBR_RE = new RegExp(`\\b(${Object.keys(EN_SPOKEN_ABBR).join('|')})\\b`, 'g')
+const spellOutAbbr = (text) => text.replace(EN_ABBR_RE, (m) => EN_SPOKEN_ABBR[m] || m)
+
 // Time-of-day bucket from the local hour. Four buckets so Indonesian keeps its
 // pagi/siang/sore/malam distinction; other languages collapse duplicates.
 const greetPeriod = (h) => h < 5 ? 'night' : h < 11 ? 'morning' : h < 15 ? 'afternoon' : h < 18 ? 'evening' : 'night'
@@ -296,6 +310,35 @@ const SECTION_LABELS = {
 // Lead-in before the chip row, and the verb for each chip's screen-reader label.
 const SOURCES_LABEL = { en: 'Sources', id: 'Sumber' }
 const GOTO_LABEL = { en: 'Go to', id: 'Buka bagian' }
+
+// Explicit chat-mode picker (PK-4). "Auto" keeps the detectMode heuristic; the
+// other three force the mode the server already understands (portfolio runs the
+// hybrid RAG routing, companion and english bypass it). Labels follow the
+// GREET/NOTICE pattern: en + id written, every other chat language falls back to
+// en. Order here is the pill order. "tip" is the hover/aria hint per option.
+const CHAT_MODES = ['auto', 'portfolio', 'curhat', 'english']
+const MODE_LABELS = {
+  en: {
+    label: 'Mode',
+    auto: 'Auto', portfolio: 'Portfolio', curhat: 'Companion', english: 'English',
+    tip: {
+      auto: 'Alyx reads each message and picks the mode',
+      portfolio: 'Answer from Alief\'s portfolio',
+      curhat: 'A warm, listening companion chat',
+      english: 'Practice English and get corrections',
+    },
+  },
+  id: {
+    label: 'Mode',
+    auto: 'Auto', portfolio: 'Portofolio', curhat: 'Curhat', english: 'Inggris',
+    tip: {
+      auto: 'Alyx membaca tiap pesan dan memilih modenya',
+      portfolio: 'Menjawab dari portofolio Alief',
+      curhat: 'Teman ngobrol yang hangat dan mau mendengar',
+      english: 'Latihan bahasa Inggris plus koreksi',
+    },
+  },
+}
 
 // ============================================================
 // VOICE PRESETS
@@ -511,6 +554,21 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   const [dragging, setDragging] = useState(false)
   const [currentSuggestions, setCurrentSuggestions] = useState(initialTree)
 
+  // Explicit chat mode (PK-4). 'auto' defers to detectMode; any other value is
+  // sent verbatim on every /api/chat call until the visitor changes it. Remembered
+  // per viewer; a stray value falls back to 'auto'.
+  const [chatMode, setChatMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('alyx-chat-mode')
+      return CHAT_MODES.includes(saved) ? saved : 'auto'
+    } catch { return 'auto' }
+  })
+  // Suggested-chip list expanded/collapsed (PK-6). Default expanded; remembered
+  // per viewer. Only the chip list hides, the header with the toggle stays.
+  const [suggestionsExpanded, setSuggestionsExpanded] = useState(() => {
+    try { return localStorage.getItem('alyx-suggestions-expanded') !== '0' } catch { return true }
+  })
+
   // Voice state
   const [voiceEnabled, setVoiceEnabled] = useState(false)
   const [showVoiceSettings, setShowVoiceSettings] = useState(false)
@@ -623,11 +681,19 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   const T = UI_TEXT[uiLang]
   // Consent notice follows the chat language (all 8 UI_TEXT langs), EN fallback.
   const N = NOTICE[uiLang] || NOTICE.en
-  const noticeRtl = uiLang === 'ar'
+  // ar is the only RTL code shipped. Drives both the notice and the message
+  // bubble/chip mirroring (PK-3); every LTR language keeps its layout untouched.
+  const isRtl = uiLang === 'ar'
+  const noticeRtl = isRtl
+  // Mode picker labels for the current chat language, en fallback (PK-4).
+  const M = MODE_LABELS[uiLang] || MODE_LABELS.en
 
   // Admin greeting override wins; otherwise the time-aware localized greeting.
   const greetingFor = (lang) => settings?.greeting?.trim() || buildGreeting(lang)
   const voiceAllowed = settings?.enable_voice !== false
+  // Companion/english modes only exist when admin leaves the companion on; with it
+  // off detectMode never leaves portfolio, so the mode picker would be dead (PK-4).
+  const companionEnabled = settings?.enable_companion !== false
 
   // Load admin chatbot settings once. On failure, hardcoded defaults stay in use.
   useEffect(() => {
@@ -748,6 +814,14 @@ useEffect(() => {
     try { localStorage.setItem('alyx-local-usage', JSON.stringify(localUsage)) } catch {}
   }, [localUsage])
 
+  useEffect(() => {
+    try { localStorage.setItem('alyx-chat-mode', chatMode) } catch {}
+  }, [chatMode])
+
+  useEffect(() => {
+    try { localStorage.setItem('alyx-suggestions-expanded', suggestionsExpanded ? '1' : '0') } catch {}
+  }, [suggestionsExpanded])
+
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
   useEffect(() => { if (!minimized) inputRef.current?.focus() }, [minimized])
 
@@ -849,7 +923,10 @@ useEffect(() => {
     const lang  = uiLang !== 'en' ? uiLang : detectLang(clean)
     const voice = pickVoice(lang)
     const isTurbo = voice && /turbo|online.*natural/i.test(voice.name)
-    const chunks = clean
+    // English voice path only: spell out data abbreviations so the TTS reads the
+    // letters, not a mangled word (PK-5). Screen text (clean) is left untouched.
+    const spoken = lang === 'en' ? spellOutAbbr(clean) : clean
+    const chunks = spoken
       .split(/(?<=[.!?,;])\s+/)
       .map(s => s.trim())
       .filter(Boolean)
@@ -1052,7 +1129,10 @@ useEffect(() => {
       else if (/[؀-ۿ]/.test(query)) lang = 'ar'
       else if (isIndonesian) lang = 'id'
     }
-    const mode = detectMode(query)
+    // 'auto' keeps the detectMode heuristic; an explicit pick overrides it (PK-4).
+    // With the companion off the picker is hidden, so a stale saved mode can't
+    // force anything: fall back to detectMode (which stays on portfolio).
+    const mode = (chatMode === 'auto' || !companionEnabled) ? detectMode(query) : chatMode
     const normKey = mode + '|' + uiLang + '|' + query.toLowerCase().trim().replace(/\s+/g, ' ').replace(/[?!.,]/g, '')
     const cache = loadCache()
     if (cache[normKey]) {
@@ -1461,12 +1541,15 @@ useEffect(() => {
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-primary/40">
             {messages.map((msg, i) => (
-              <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              // RTL (ar): dir="rtl" on the row flips the flex axis so the avatar
+              // and bubble mirror to the right; the bubble's pointed corner swaps
+              // sides to match (PK-3). LTR languages pass dir=undefined, unchanged.
+              <div key={i} dir={isRtl ? 'rtl' : undefined} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && <BotAvatar size="sm" />}
                 <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                   msg.role === 'user'
-                    ? 'bg-accent-purple/20 text-white rounded-br-md border border-accent-purple/30'
-                    : 'bg-surface-card text-gray-200 rounded-bl-md border border-surface-border'
+                    ? `bg-accent-purple/20 text-white border border-accent-purple/30 ${isRtl ? 'rounded-bl-md' : 'rounded-br-md'}`
+                    : `bg-surface-card text-gray-200 border border-surface-border ${isRtl ? 'rounded-br-md' : 'rounded-bl-md'}`
                 }`} dir="auto">
                   {msg.role === 'assistant' ? (
                     <>
@@ -1555,7 +1638,24 @@ useEffect(() => {
           {/* Suggestions (tree-based) */}
           {currentSuggestions.length > 0 && (
             <div className="px-4 pb-2 pt-2 shrink-0 bg-primary/40 border-t border-surface-border">
-              <div dir="auto" className="text-[10px] font-mono text-gray-500 mb-1.5">{T.suggestedLabel}</div>
+              {/* Chevron collapses/expands the chip list (PK-6). The label itself
+                  is the control for an easy target; the chevron rotates to show state. */}
+              <button
+                type="button"
+                onClick={() => setSuggestionsExpanded(v => !v)}
+                aria-expanded={suggestionsExpanded}
+                dir="auto"
+                className="flex items-center gap-1 mb-1.5 text-[10px] font-mono text-gray-500 hover:text-accent-cyan transition-colors rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+              >
+                <span>{T.suggestedLabel}</span>
+                <svg
+                  className={`w-3 h-3 transition-transform ${suggestionsExpanded ? 'rotate-180' : ''}`}
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {suggestionsExpanded && (
               <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto scrollbar-hide">
                 {currentSuggestions.map((node, idx) => (
                   <button
@@ -1577,11 +1677,35 @@ useEffect(() => {
                   </button>
                 )}
               </div>
+              )}
             </div>
           )}
 
           {/* Input */}
           <div className="border-t border-surface-border px-3 py-3 shrink-0 bg-surface-card">
+            {/* Mode picker (PK-4): Auto keeps detectMode; an explicit pick is sent
+                on every message until changed. Hidden when the companion is off. */}
+            {companionEnabled && (
+              <div dir="auto" role="group" aria-label={M.label} className="mb-2 flex flex-wrap items-center gap-1">
+                <span className="text-[10px] font-mono text-gray-500 mr-0.5">{M.label}</span>
+                {CHAT_MODES.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setChatMode(m)}
+                    aria-pressed={chatMode === m}
+                    title={M.tip[m]}
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50 ${
+                      chatMode === m
+                        ? 'bg-accent-cyan/15 text-accent-cyan border-accent-cyan/40'
+                        : 'bg-primary/40 text-gray-400 border-surface-border hover:text-white'
+                    }`}
+                  >
+                    {M[m]}
+                  </button>
+                ))}
+              </div>
+            )}
             {voiceAllowed && speechSupported && (
               <div dir="auto" className="text-[10px] font-mono text-gray-500 mb-1.5 flex items-center gap-1.5">
                 <i className="bi bi-info-circle-fill text-accent-green leading-none" />
