@@ -282,6 +282,21 @@ const NOTICE = {
   },
 }
 
+// Section-level citations (P2-4). The server sends only { anchor, section } from
+// a fixed allowlist; the client owns both the visible label and the scroll target,
+// so no text from the database ever reaches the DOM. CITED_SECTIONS mirrors the
+// real section ids rendered by src/components/* and gates every chip: a section
+// outside it is dropped, never linked. Labels follow the GREET/NOTICE pattern,
+// en + id defined, other chat languages fall back to en.
+const CITED_SECTIONS = new Set(['about', 'projects', 'skills', 'experience', 'recognition'])
+const SECTION_LABELS = {
+  en: { about: 'About', projects: 'Projects', skills: 'Skills', experience: 'Experience', recognition: 'Recognition' },
+  id: { about: 'Tentang', projects: 'Proyek', skills: 'Keahlian', experience: 'Pengalaman', recognition: 'Penghargaan' },
+}
+// Lead-in before the chip row, and the verb for each chip's screen-reader label.
+const SOURCES_LABEL = { en: 'Sources', id: 'Sumber' }
+const GOTO_LABEL = { en: 'Go to', id: 'Buka bagian' }
+
 // ============================================================
 // VOICE PRESETS
 // ============================================================
@@ -306,7 +321,9 @@ const VOICE_PRESETS = {
 
 // ── Module-level pure helpers (no state/props) ──────────────────────────────
 
-const CACHE_KEY = 'alyx-llm-cache-v7'
+// v8: cache entries carry { reply, citations } so a cache hit re-renders the
+// citation chips (P2-4). Older v7 string entries are abandoned, not migrated.
+const CACHE_KEY = 'alyx-llm-cache-v8'
 const loadCache = () => { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}') } catch { return {} } }
 const saveCache = (obj) => { try { localStorage.setItem(CACHE_KEY, JSON.stringify(obj)) } catch {} }
 
@@ -981,8 +998,11 @@ useEffect(() => {
     const cache = loadCache()
     if (cache[normKey]) {
       await new Promise(r => setTimeout(r, 300))
-      const reply = cache[normKey]
-      const newMessages = [...baseMessages, { role: 'assistant', content: reply }]
+      // v8 entries are { reply, citations }; tolerate any stray string entry.
+      const hit = cache[normKey]
+      const reply = typeof hit === 'string' ? hit : hit.reply
+      const citations = typeof hit === 'string' ? null : (hit.citations || null)
+      const newMessages = [...baseMessages, { role: 'assistant', content: reply, citations }]
       setMessages(newMessages)
       setIsTyping(false)
       autoSpeakIfEnabled(reply, newMessages.length - 1, shouldSpeak)
@@ -1006,16 +1026,19 @@ useEffect(() => {
           }
         }
         // Prior turns only; the current question goes in `message`.
-        const { reply, streamErr } = await sendToChat({ message: query, history: baseMessages.slice(0, -1), mode, lang, onDelta })
+        const { reply, meta, streamErr } = await sendToChat({ message: query, history: baseMessages.slice(0, -1), mode, lang, onDelta })
 
         if (reply) {
           // A broken stream keeps the partial text plus a short note.
           const note = streamErr ? (uiLang === 'id' ? '\n\n(koneksi terputus)' : '\n\n(connection interrupted)') : ''
           const finalText = reply + note
-          setMessages([...baseMessages, { role: 'assistant', content: finalText }])
-          if (!streamErr) { // cache only a complete reply
+          // Citations ride the done meta and only exist on a complete grounded
+          // portfolio answer (P2-4). A broken stream never carries them.
+          const citations = !streamErr && meta && Array.isArray(meta.citations) ? meta.citations : null
+          setMessages([...baseMessages, { role: 'assistant', content: finalText, citations }])
+          if (!streamErr) { // cache only a complete reply, with its citations
             const c = loadCache()
-            c[normKey] = reply
+            c[normKey] = { reply, citations }
             const keys = Object.keys(c)
             if (keys.length > 50) delete c[keys[0]]
             saveCache(c)
@@ -1089,6 +1112,20 @@ useEffect(() => {
     const newMessages = [...messages, userMessage]
     setMessages(newMessages)
     await respondToQuery(node.question, newMessages)
+  }
+
+  // Scroll the portfolio to a cited section (P2-4). `section` always comes from
+  // CITED_SECTIONS via the render guard, so getElementById hits a real node; the
+  // extra guard is defensive. On a phone, or when the chat is maximized, the
+  // window covers the page, so collapse it first, then scroll once the collapse
+  // has painted, so the target actually lands in view.
+  const scrollToSection = (section) => {
+    if (!CITED_SECTIONS.has(section)) return
+    const el = document.getElementById(section)
+    if (!el) return
+    const covers = maximized || (typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches)
+    if (covers) { setMaximized(false); setMinimized(true) }
+    requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
 
   const renderMarkdown = (text) =>
@@ -1382,6 +1419,36 @@ useEffect(() => {
                           </>
                         )}
                       </button>}
+                      {Array.isArray(msg.citations) && (() => {
+                        // Chips are built only from the section allowlist: label and
+                        // scroll target both come from client maps, never chunk text.
+                        const cites = msg.citations.filter((c) => c && CITED_SECTIONS.has(c.section))
+                        if (!cites.length) return null
+                        const labels = SECTION_LABELS[uiLang] || SECTION_LABELS.en
+                        const goto = GOTO_LABEL[uiLang] || GOTO_LABEL.en
+                        return (
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            <span dir="auto" className="text-[10px] font-mono text-gray-500">
+                              {(SOURCES_LABEL[uiLang] || SOURCES_LABEL.en) + ':'}
+                            </span>
+                            {cites.map((c) => {
+                              const label = labels[c.section] || SECTION_LABELS.en[c.section]
+                              return (
+                                <button
+                                  key={c.section}
+                                  type="button"
+                                  onClick={() => scrollToSection(c.section)}
+                                  aria-label={`${goto} ${label}`}
+                                  dir="auto"
+                                  className="px-2 py-0.5 text-[11px] font-mono rounded border border-surface-border text-gray-400 hover:text-accent-cyan hover:border-accent-cyan/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                                >
+                                  {label}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )
+                      })()}
                     </>
                   ) : (
                     msg.content

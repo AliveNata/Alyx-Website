@@ -24,6 +24,31 @@ const RAG_MIN_SIM = Number.isFinite(Number.parseFloat(process.env.RAG_MIN_SIM))
 const SESSION_CAP = Number.parseInt(process.env.BUDGET_TOKENS_PER_SESSION_DAY, 10) || 0
 const IP_CAP = Number.parseInt(process.env.BUDGET_TOKENS_PER_IP_DAY, 10) || 0
 
+// Section-level citations (P2-4). The portfolio renders exactly these section
+// ids (src/components/*), so a citation is only emitted when a retrieved chunk's
+// anchor resolves to one of them. The set is the server-side allowlist: an
+// unexpected anchor from the DB can never become a bogus deep-link, and the
+// client rebuilds the href from its own copy of this set.
+const CITED_SECTIONS = new Set(['about', 'projects', 'skills', 'experience', 'recognition'])
+const CITATION_CAP = 3
+
+// Turn the retrieved-and-fed chunks into section-level citations. Chunks arrive
+// nearest-first, so first-seen order is best-similarity order: dedupe by section,
+// keep that order, drop anything outside the allowlist, cap the count. Returns
+// [{ anchor, section }]; the client maps section -> label + scroll target.
+function buildCitations(chunks) {
+  const seen = new Set()
+  const out = []
+  for (const c of Array.isArray(chunks) ? chunks : []) {
+    const section = c && c.anchor ? String(c.anchor).replace(/^#/, '') : ''
+    if (!CITED_SECTIONS.has(section) || seen.has(section)) continue
+    seen.add(section)
+    out.push({ anchor: `#${section}`, section })
+    if (out.length >= CITATION_CAP) break
+  }
+  return out
+}
+
 // Seconds until the next local midnight, when the daily budget resets. Matches
 // PG's date_trunc('day', now()) when the app and DB share a timezone.
 function secondsToMidnight() {
@@ -160,7 +185,8 @@ async function resolvePortfolioPrompt(settings, message) {
   const bestDistance = chunks.length ? Number(chunks[0].distance) : 2
   if (1 - bestDistance < RAG_MIN_SIM) return { notSure: true }
 
-  return { systemPrompt: buildRetrievalPrompt(settings.system_prompt, chunks) }
+  // Grounded path only: cite the sections of the chunks we actually fed (P2-4).
+  return { systemPrompt: buildRetrievalPrompt(settings.system_prompt, chunks), citations: buildCitations(chunks) }
 }
 
 // Stream the fixed not-sure reply over SSE (P2-3, decision G). No Groq call, but
@@ -223,6 +249,9 @@ chatRouter.post('/', async (req, res) => {
   const sessionId = typeof body.session_id === 'string' ? body.session_id : null
 
   let systemPrompt
+  // Section-level citations for the done meta (P2-4). Only the grounded portfolio
+  // path sets this; curhat, english, not-sure, and legacy stuffing leave it null.
+  let citations = null
   if (mode === 'curhat') {
     systemPrompt = CURHAT_PROMPT
   } else if (mode === 'english') {
@@ -233,6 +262,7 @@ chatRouter.post('/', async (req, res) => {
     const resolved = await resolvePortfolioPrompt(settings, message)
     if (resolved.notSure) return streamNotSure(req, res, { sessionId, lang, mode, message, body })
     systemPrompt = resolved.systemPrompt
+    citations = resolved.citations || null
   }
   systemPrompt += `\n\n${languageNudge(lang, mode)}`
 
@@ -352,7 +382,7 @@ chatRouter.post('/', async (req, res) => {
         if (delta) { reply += delta; send({ type: 'delta', text: delta }) }
       }
     }
-    send({ type: 'done', meta: { model: answeredModel, finish_reason: finishReason, rateLimit } })
+    send({ type: 'done', meta: { model: answeredModel, finish_reason: finishReason, rateLimit, citations } })
   } catch (err) {
     if (ac.signal.aborted || err.name === 'AbortError') {
       aborted = true // client disconnected: stop quietly, nothing to send
