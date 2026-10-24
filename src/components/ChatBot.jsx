@@ -1190,7 +1190,7 @@ useEffect(() => {
   // Normalize unicode the LLM may emit (dashes, arrows, comparisons, smart quotes) to plain ASCII
   const toAscii = (s) =>
     s
-      .replace(/[—–―]/g, '-')
+      .replace(/[‐‑‒–—―−]/g, '-')
       .replace(/…/g, '...')
       .replace(/[‘’‛]/g, "'")
       .replace(/[“”]/g, '"')
