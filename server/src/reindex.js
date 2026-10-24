@@ -3,6 +3,7 @@ import { Router } from 'express'
 import { pathToFileURL } from 'node:url'
 import { pool, query } from './db.js'
 import { embed } from './embed.js'
+import { clearCache } from './cache.js'
 import { requireAuth } from './auth.js'
 
 // Full "reindex all" for the portfolio_chunks vector store: read every CMS
@@ -133,6 +134,7 @@ async function collectChunks() {
 export async function reindexAll() {
   const chunks = await collectChunks()
   const client = await pool.connect()
+  let summary
   try {
     await client.query('BEGIN')
 
@@ -172,13 +174,25 @@ export async function reindexAll() {
 
     const byTable = {}
     for (const c of chunks) byTable[c.source_table] = (byTable[c.source_table] || 0) + 1
-    return { total: chunks.length, byTable, pruned }
+    summary = { total: chunks.length, byTable, pruned }
   } catch (e) {
     await client.query('ROLLBACK')
     throw e
   } finally {
     client.release()
   }
+
+  // Invalidate the shared answer cache (P2-6) after a successful commit: the
+  // content these grounded replies cite just changed, so stale answers must go.
+  // Best-effort - the reindex itself already committed, so a cache-clear hiccup
+  // must not report a good reindex as failed; TTL expiry is the backstop. This
+  // also gives reindex-on-write (P2-5) free invalidation later.
+  try {
+    await clearCache()
+  } catch (e) {
+    console.error('[reindex] cache clear failed (entries will expire via TTL):', e.message)
+  }
+  return summary
 }
 
 // Admin-only trigger for a full reindex. Mounted under /api/admin/reindex.

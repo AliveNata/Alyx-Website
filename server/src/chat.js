@@ -4,6 +4,7 @@ import { groqChatStream, RL_HEADERS } from './groq.js'
 import { getPortfolio } from './portfolio.js'
 import { CURHAT_PROMPT, ENGLISH_PROMPT, buildPortfolioPrompt, buildRetrievalPrompt, notSureReply, languageNudge } from './prompts.js'
 import { retrieveChunks } from './retrieve.js'
+import { cacheKey, getCached, putCached, bumpHits, sweepCache } from './cache.js'
 import { redact, hashValue } from './redact.js'
 
 const MESSAGE_MAX = 2000        // reject oversized input before it reaches Groq
@@ -224,6 +225,42 @@ async function streamNotSure(req, res, { sessionId, lang, mode, message, body })
   }
 }
 
+// Replay a cached grounded portfolio reply over SSE (P2-6, decision G). Same
+// delta + done shape as a live or not-sure answer, with the stored citations in
+// the done meta, so the client parser needs no special case. No Groq call ran, so
+// this never touches the token budget (the caller checks the cache before the
+// budget). Telemetry (decision F): cache_hit=true, model='cache', tokens 0,
+// latency = the lookup time. hits is bumped best-effort, off the response path.
+async function streamCacheHit(req, res, { sessionId, lang, mode, message, body, reply, citations, key, lookupMs }) {
+  res.status(200).set({
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  })
+  res.flushHeaders?.()
+  res.write(`data: ${JSON.stringify({ type: 'delta', text: reply })}\n\n`)
+  res.write(`data: ${JSON.stringify({ type: 'done', meta: { model: 'cache', finish_reason: 'cache_hit', rateLimit: null, citations: citations || [] } })}\n\n`)
+  res.end()
+
+  bumpHits(key).catch((err) => console.error('[chat] cache hit bump failed:', err.message))
+
+  try {
+    await logTurn({
+      sessionId,
+      lang, mode, consent: body.consent,
+      ip: req.ip, ua: req.headers['user-agent'] || '',
+      userText: message, replyText: reply,
+      telemetry: {
+        tokens_in: 0, tokens_out: 0, model: 'cache',
+        latency_ms: lookupMs, cache_hit: true, rate_limit_snapshot: null,
+      },
+    })
+  } catch (err) {
+    console.error('[chat] logging failed:', err.message)
+  }
+}
+
 chatRouter.post('/', async (req, res) => {
   const body = req.body || {}
   const message = typeof body.message === 'string' ? body.message.trim() : ''
@@ -252,17 +289,46 @@ chatRouter.post('/', async (req, res) => {
   // Section-level citations for the done meta (P2-4). Only the grounded portfolio
   // path sets this; curhat, english, not-sure, and legacy stuffing leave it null.
   let citations = null
+  // Shared answer-cache key (P2-6). Set ONLY when this turn takes the grounded
+  // portfolio path, so the post-stream store below can never cache curhat,
+  // english, not-sure or the legacy stuffing fallback. Stays null otherwise.
+  let cacheStoreKey = null
   if (mode === 'curhat') {
     systemPrompt = CURHAT_PROMPT
   } else if (mode === 'english') {
     systemPrompt = ENGLISH_PROMPT
   } else {
+    // Shared server-side cache (P2-6). Check BEFORE the budget check and BEFORE
+    // any embedding/retrieval: a hit is a stored grounded answer, so it costs no
+    // Groq call and must not consume the token budget. Only grounded replies are
+    // ever stored, so a hit always maps to a real grounded answer. A lookup error
+    // is treated as a miss (fail-open), matching the rest of this handler.
+    const key = cacheKey(mode, lang, message)
+    const lookupStartedAt = Date.now()
+    let cached = null
+    try {
+      cached = await getCached(key)
+    } catch (err) {
+      console.error('[chat] cache lookup failed (treating as miss):', err.message)
+    }
+    if (cached) {
+      return streamCacheHit(req, res, {
+        sessionId, lang, mode, message, body,
+        reply: cached.reply, citations: cached.citations,
+        key, lookupMs: Date.now() - lookupStartedAt,
+      })
+    }
+
     // Portfolio is the only mode that retrieves. Ground on the retrieved chunks,
     // or short-circuit to the streamed not-sure reply (P2-3).
     const resolved = await resolvePortfolioPrompt(settings, message)
     if (resolved.notSure) return streamNotSure(req, res, { sessionId, lang, mode, message, body })
     systemPrompt = resolved.systemPrompt
     citations = resolved.citations || null
+    // resolvePortfolioPrompt returns a `citations` array only on the grounded
+    // path; legacy stuffing omits it. Cache this turn's answer only when it is
+    // grounded (decision C: never store the fallback).
+    if (Array.isArray(resolved.citations)) cacheStoreKey = key
   }
   systemPrompt += `\n\n${languageNudge(lang, mode)}`
 
@@ -395,6 +461,21 @@ chatRouter.post('/', async (req, res) => {
   if (!res.writableEnded) res.end()
 
   if (aborted) return // do not log an incomplete turn for a client that left
+
+  // Store the grounded answer (P2-6), only on a clean completion of a grounded
+  // portfolio turn (cacheStoreKey is set only there). finish_reason 'stop' means
+  // Groq finished the answer; a truncated ('length') or stream-interrupted reply
+  // is not cached, so a future hit never replays a broken answer. Best-effort,
+  // after the response, so it adds no visitor-facing latency; sweepCache bounds
+  // the table whenever we add a row.
+  if (cacheStoreKey && reply && finishReason === 'stop') {
+    try {
+      await putCached(cacheStoreKey, reply, citations, lang)
+      await sweepCache()
+    } catch (err) {
+      console.error('[chat] cache store failed:', err.message)
+    }
+  }
 
   // Log once, after the stream, with the accumulated reply + final usage.
   const latencyMs = Date.now() - startedAt

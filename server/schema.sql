@@ -308,3 +308,22 @@ CREATE TABLE IF NOT EXISTS portfolio_chunks (
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (source_table, source_id)
 );
+
+-- Shared server-side answer cache (P2-6). A grounded portfolio reply is computed
+-- once (one Groq call) and replayed for the same normalized question from any
+-- visitor, so a repeat question costs no Groq call and no token budget. key is
+-- sha256(mode|lang|normalizedQuery); only grounded portfolio answers are stored
+-- here (never curhat/english, the not-sure reply, or the legacy stuffing
+-- fallback). Invalidated three ways: a TTL (CACHE_TTL_DAYS), a size cap
+-- (CACHE_MAX_ROWS, oldest trimmed first), and a full clear at the end of every
+-- successful reindex. Durable so it survives the frequent pm2 restarts.
+CREATE TABLE IF NOT EXISTS chat_cache (
+  key        TEXT PRIMARY KEY,                 -- sha256 hex of mode|lang|normalized query
+  reply      TEXT NOT NULL,
+  citations  JSONB NOT NULL DEFAULT '[]',
+  lang       TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  hits       INT NOT NULL DEFAULT 0
+);
+-- created_at drives both the TTL sweep and the oldest-first overflow trim.
+CREATE INDEX IF NOT EXISTS chat_cache_created_at_idx ON chat_cache(created_at);
