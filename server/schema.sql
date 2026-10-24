@@ -1,6 +1,11 @@
 -- Alyx portfolio - Postgres schema
 -- Run via: npm run migrate  (or psql -f schema.sql)
 
+-- Phase 2 (RAG) stores embeddings. Dev and the VPS superuser own the actual
+-- creation; for the non-superuser app role this is a no-op once vector exists,
+-- so migrate never fails. IF NOT EXISTS returns early before any privilege check.
+CREATE EXTENSION IF NOT EXISTS vector;
+
 CREATE TABLE IF NOT EXISTS admin_users (
   id            SERIAL PRIMARY KEY,
   email         TEXT UNIQUE NOT NULL,

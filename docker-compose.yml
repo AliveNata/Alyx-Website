@@ -1,0 +1,24 @@
+# Dev-only Postgres with pgvector, so Windows gets the same `vector` type as the VPS.
+# The pgvector image ships the extension, so no package install is needed in dev.
+services:
+  db:
+    # Tag format is <pgvector-version>-pg<N>. pg18 matches the prod PG major
+    # (host Postgres 18.6 from the pre-flight), so dev and prod agree.
+    image: pgvector/pgvector:0.8.7-pg18
+    # Bound to loopback only, matching the VPS hardening posture (never 0.0.0.0).
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-alyx}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alyx_dev_pw}
+      POSTGRES_DB: ${POSTGRES_DB:-alyx_portfolio}
+    volumes:
+      - alyx_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-alyx} -d ${POSTGRES_DB:-alyx_portfolio}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  alyx_pgdata:
