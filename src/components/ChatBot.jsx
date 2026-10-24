@@ -220,8 +220,9 @@ const UI_TEXT = {
   },
 }
 
-// Consent notice + opt-out copy. EN for every flag except the Indonesian one.
+// Consent notice + opt-out copy, keyed by the same language codes as UI_TEXT.
 // Honest and self-contained: there is no privacy-policy page to link to.
+// Non-ASCII translations are intentional; native-speaker review welcome later.
 const NOTICE = {
   en: {
     body: 'To improve Alyx, chats here may be stored with personal details removed. You can turn that off.',
@@ -236,6 +237,48 @@ const NOTICE = {
     dismiss: 'Oke',
     privacy: 'Privasi',
     off: 'pesan tidak disimpan',
+  },
+  ja: {
+    body: 'Alyxを改善するため、ここでの会話は個人情報を除いて保存されることがあります。オフにもできます。',
+    optOut: 'メッセージを保存しない',
+    dismiss: 'OK',
+    privacy: 'プライバシー',
+    off: 'メッセージは保存しません',
+  },
+  zh: {
+    body: '为了改进 Alyx，这里的对话可能会在移除个人信息后被保存。你可以随时关闭。',
+    optOut: '不要保存我的消息',
+    dismiss: '知道了',
+    privacy: '隐私',
+    off: '不保存消息',
+  },
+  ko: {
+    body: 'Alyx를 개선하기 위해 여기 대화는 개인정보를 제거한 뒤 저장될 수 있어요. 언제든 끌 수 있어요.',
+    optOut: '내 메시지를 저장하지 않기',
+    dismiss: '확인',
+    privacy: '개인정보',
+    off: '메시지를 저장하지 않음',
+  },
+  fr: {
+    body: "Pour améliorer Alyx, les conversations ici peuvent être conservées sans vos données personnelles. Vous pouvez désactiver cela.",
+    optOut: 'Ne pas enregistrer mes messages',
+    dismiss: 'Compris',
+    privacy: 'Confidentialité',
+    off: 'messages non enregistrés',
+  },
+  de: {
+    body: 'Um Alyx zu verbessern, können Chats hier ohne persönliche Daten gespeichert werden. Du kannst das abschalten.',
+    optOut: 'Meine Nachrichten nicht speichern',
+    dismiss: 'Verstanden',
+    privacy: 'Datenschutz',
+    off: 'Nachrichten werden nicht gespeichert',
+  },
+  ar: {
+    body: 'لتحسين Alyx، قد تُحفظ المحادثات هنا بعد إزالة البيانات الشخصية. يمكنك إيقاف ذلك في أي وقت.',
+    optOut: 'عدم حفظ رسائلي',
+    dismiss: 'حسناً',
+    privacy: 'الخصوصية',
+    off: 'لا يتم حفظ الرسائل',
   },
 }
 
@@ -503,8 +546,9 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   // localized UI strings. Drives the whole chatbox surface + reply language.
   const uiLang = UI_TEXT[micLang.split('-')[0]] ? micLang.split('-')[0] : 'en'
   const T = UI_TEXT[uiLang]
-  // Consent notice follows the chat language: Indonesian flag -> ID, else EN.
-  const N = NOTICE[uiLang === 'id' ? 'id' : 'en']
+  // Consent notice follows the chat language (all 8 UI_TEXT langs), EN fallback.
+  const N = NOTICE[uiLang] || NOTICE.en
+  const noticeRtl = uiLang === 'ar'
 
   // Admin greeting override wins; otherwise the time-aware localized greeting.
   const greetingFor = (lang) => settings?.greeting?.trim() || buildGreeting(lang)
@@ -1217,7 +1261,7 @@ useEffect(() => {
         <>
           {/* Consent notice + opt-out. Shown once; collapses to a reopenable line. */}
           {noticeOpen ? (
-            <div className="shrink-0 bg-surface-card border-b border-surface-border px-4 py-3">
+            <div dir={noticeRtl ? 'rtl' : undefined} className="shrink-0 bg-surface-card border-b border-surface-border px-4 py-3">
               <p dir="auto" className="text-xs text-gray-300 leading-relaxed">{N.body}</p>
               <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                 <button
@@ -1244,6 +1288,7 @@ useEffect(() => {
           ) : (
             <button
               type="button"
+              dir={noticeRtl ? 'rtl' : undefined}
               onClick={() => setNoticeOpen(true)}
               className="shrink-0 flex items-center gap-1.5 px-4 py-1.5 border-b border-surface-border text-[10px] font-mono text-gray-500 hover:text-accent-cyan transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
             >
