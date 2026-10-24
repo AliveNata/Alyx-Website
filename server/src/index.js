@@ -65,4 +65,4 @@ app.use((err, _req, res, _next) => {
 })
 
 const port = process.env.PORT || 4000
-app.listen(port, () => console.log(`Alyx API listening on :${port}`))
+app.listen(port, '127.0.0.1', () => console.log(`Alyx API listening on :${port}`))
