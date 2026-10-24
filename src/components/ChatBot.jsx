@@ -26,17 +26,17 @@ const SITE_ACTIONS = [
     reply: { id: 'Oke! Scroll ke bagian About. 👤', en: 'Sure! Scrolling to About. 👤' },
   },
   {
-    patterns: [/\b(skill|keahlian|kemampuan|teknologi|tech\s*stack)\b/i],
+    patterns: [/\b(skills?|keahlian|kemampuan|teknologi|tech\s*stack)\b/i],
     action: () => document.getElementById('skills')?.scrollIntoView({ behavior: 'smooth' }),
     reply: { id: 'Oke! Scroll ke bagian Skills. 🛠️', en: 'Sure! Scrolling to Skills. 🛠️' },
   },
   {
-    patterns: [/\b(project|proyek|portofolio|portfolio|karya)\b/i],
+    patterns: [/\b(projects?|proyek|portofolio|portfolio|karya)\b/i],
     action: () => document.getElementById('projects')?.scrollIntoView({ behavior: 'smooth' }),
     reply: { id: 'Oke! Scroll ke bagian Projects. 🚀', en: 'Sure! Scrolling to Projects. 🚀' },
   },
   {
-    patterns: [/\b(experience|pengalaman|karir|riwayat\s*kerja|kerja|pekerjaan)\b/i],
+    patterns: [/\b(experiences?|pengalaman|karir|riwayat\s*kerja|kerja|pekerjaan)\b/i],
     action: () => document.getElementById('experience')?.scrollIntoView({ behavior: 'smooth' }),
     reply: { id: 'Oke! Scroll ke bagian Experience. 💼', en: 'Sure! Scrolling to Experience. 💼' },
   },
