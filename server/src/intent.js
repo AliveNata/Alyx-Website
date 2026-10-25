@@ -11,23 +11,36 @@
 
 // Hiring / availability -> booking. The strong words (an explicit hire/recruit)
 // read as a hot lead; the rest (availability, freelance, rate, budget) are warm.
+// The warm set must cover every term the client's TOPIC_KEYWORDS.availability can
+// show an availability chip on (P3-3 BUG3): if the client surfaces the chip but
+// the server recompute returns null, the lead is dropped with a 400. So the terms
+// added here (opportunity, looking for, remote, consult, full/part time, open to,
+// hirable) mirror that client set, keeping server and client in agreement.
 const HIRE_STRONG = ['hire', 'hiring', 'recruit', 'recruiter', 'recruiting', 'rekrut', 'merekrut']
 const HIRE_WARM = [
-  'available', 'availability', 'open to work', 'open for work', 'freelance',
-  'freelancer', 'rate', 'rates', 'budget', 'join your team', 'join the team',
+  'available', 'availability', 'open to', 'open to work', 'open for work',
+  'freelance', 'freelancer', 'rate', 'rates', 'budget', 'remote', 'hirable',
+  'opportunity', 'opportunities', 'looking for', 'consult', 'consulting',
+  'full time', 'part time', 'join your team', 'join the team',
   'tersedia', 'lowongan', 'proyek', 'butuh',
 ]
 
 // Mentoring / learning -> sociabuzz (the paid 1-on-1 channel). Always warm.
 const MENTOR = [
   'mentor', 'mentoring', 'mentorship', '1 on 1', 'one on one', 'learn from',
-  'teach me', 'belajar sama', 'belajar dari', 'ajarin', 'bimbingan',
+  'teach me', 'coach', 'coaching', 'tutor', 'guidance', 'guide me',
+  'belajar sama', 'belajar dari', 'ajarin', 'bimbingan',
 ]
 
 // Async contact -> email. Always warm. Deliberately checked last: a message that
-// also says "hire" is a booking lead, not a plain contact one.
+// also says "hire" is a booking lead, not a plain contact one. Covers the client's
+// TOPIC_KEYWORDS.contact set (P3-3 BUG3) so a contact chip the client shows always
+// recomputes to a lead instead of a 400 (mail, reach, phone, number, linkedin,
+// github, connect were missing).
 const CONTACT = [
-  'contact', 'reach out', 'get in touch', 'email', 'hubungi', 'kontak',
+  'contact', 'reach', 'reach out', 'get in touch', 'email', 'mail', 'phone',
+  'number', 'linkedin', 'github', 'connect', 'social', 'message',
+  'alivenata', 'alvnts', 'hubungi', 'kontak',
 ]
 
 // Sections that corroborate a hiring intent when retrieval pulled them. They

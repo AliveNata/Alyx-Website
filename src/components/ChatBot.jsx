@@ -664,7 +664,10 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   // status is idle | invalid | sending | error, and `done` holds the one-line
   // confirmation shown in place of the offer after a successful engage.
   const [cta, setCta] = useState({ hostIndex: null, dismissed: false })
-  const [ctaForm, setCtaForm] = useState({ open: false, email: '', note: '', status: 'idle', done: '' })
+  // `hp` is the honeypot (P3-3): a hidden, offscreen field a human never sees and
+  // a bot tends to fill. It is sent with the lead; the server silently drops a
+  // submission when it is non-empty.
+  const [ctaForm, setCtaForm] = useState({ open: false, email: '', note: '', hp: '', status: 'idle', done: '' })
 
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
   const messagesEndRef = useRef(null)
@@ -1251,8 +1254,12 @@ useEffect(() => {
           // Lead cta (P3-2) rides the live done meta only. It is intentionally not
           // cached below (decision D): the chip comes from a LIVE server turn, so a
           // cache-replay reply simply carries no chip. The claim/gate logic lives
-          // in the effect that watches `messages`.
-          const liveCta = !streamErr && meta && meta.cta && CTA_CHANNELS.has(meta.cta.channel) ? meta.cta : null
+          // in the effect that watches `messages`. `context` pins the question that
+          // earned the chip (P3-3 BUG2) so the server recomputes the tier over it,
+          // not over a later message like "thanks"; the canned path already does this.
+          const liveCta = !streamErr && meta && meta.cta && CTA_CHANNELS.has(meta.cta.channel)
+            ? { ...meta.cta, context: query }
+            : null
           setMessages([...baseMessages, { role: 'assistant', content: finalText, citations, cta: liveCta }])
           if (!streamErr) { // cache only a complete reply, with its citations
             const c = loadCache()
@@ -1332,7 +1339,7 @@ useEffect(() => {
   // only the channel, session id, optional email, and optional note. A failure is
   // swallowed: the funnel must never block the visitor's own action (the external
   // tab still opens). Returns the response ok flag for the email form to reflect.
-  const postLead = async ({ channel, contactValue, context }) => {
+  const postLead = async ({ channel, contactValue, context, honeypot = '' }) => {
     try {
       const res = await fetch(`${API_BASE}/api/lead`, {
         method: 'POST',
@@ -1340,6 +1347,7 @@ useEffect(() => {
         body: JSON.stringify({
           session_id: sessionIdRef.current,
           channel,
+          honeypot,
           ...(contactValue ? { contact_value: contactValue } : {}),
           ...(context ? { context } : {}),
         }),
@@ -1352,16 +1360,16 @@ useEffect(() => {
   // replace the offer with a one-line confirmation. Email opens the inline form.
   const engageCta = (channel) => {
     const copy = (CTA_COPY[uiLang] || CTA_COPY.en)[channel]
-    // A canned chip carries the question on its cta.context (the live server path
-    // leaves it undefined). A canned-only session may have no conversation yet, so
-    // send the question along; the server redacts it and falls back to it when no
-    // stored message exists.
-    const context = messages[cta.hostIndex]?.cta?.context
-    if (channel === 'email') { setCtaForm({ open: true, email: '', note: '', status: 'idle', done: '' }); return }
+    // Forward the question that earned this chip as context for every channel
+    // (P3-3 BUG2). Both the canned and live paths now set cta.context to that
+    // question; the host-turn user message is the fallback. The server redacts it,
+    // uses it as the tier basis, and relies on it when no conversation exists.
+    const context = messages[cta.hostIndex]?.cta?.context || messages[cta.hostIndex - 1]?.content || ''
+    if (channel === 'email') { setCtaForm({ open: true, email: '', note: '', hp: '', status: 'idle', done: '' }); return }
     const url = ctaDestination(channel)
     if (url) window.open(url, '_blank', 'noopener,noreferrer')
     postLead({ channel, context })
-    setCtaForm({ open: false, email: '', note: '', status: 'idle', done: copy.opened })
+    setCtaForm({ open: false, email: '', note: '', hp: '', status: 'idle', done: copy.opened })
   }
 
   const dismissCta = () => setCta((s) => ({ ...s, dismissed: true }))
@@ -1373,12 +1381,13 @@ useEffect(() => {
     const email = ctaForm.email.trim()
     if (!isValidEmail(email)) { setCtaForm((f) => ({ ...f, status: 'invalid' })); return }
     setCtaForm((f) => ({ ...f, status: 'sending' }))
-    // On a canned chip the host message carries the question; combine it with the
-    // visitor's optional note so a no-conversation lead still has context.
-    const cannedContext = messages[cta.hostIndex]?.cta?.context
-    const context = [cannedContext, ctaForm.note.trim()].filter(Boolean).join(' | ')
-    const ok = await postLead({ channel: 'email', contactValue: email, context })
-    if (ok) setCtaForm({ open: false, email: '', note: '', status: 'idle', done: copy.sent })
+    // The host chip carries the question that earned it (P3-3 BUG2), with the
+    // host-turn user message as fallback; combine it with the visitor's optional
+    // note so the server has both the earning question and any volunteered detail.
+    const earnedContext = messages[cta.hostIndex]?.cta?.context || messages[cta.hostIndex - 1]?.content || ''
+    const context = [earnedContext, ctaForm.note.trim()].filter(Boolean).join(' | ')
+    const ok = await postLead({ channel: 'email', contactValue: email, context, honeypot: ctaForm.hp })
+    if (ok) setCtaForm({ open: false, email: '', note: '', hp: '', status: 'idle', done: copy.sent })
     else setCtaForm((f) => ({ ...f, status: 'error' }))
   }
 
@@ -1798,6 +1807,24 @@ useEffect(() => {
                                   className="w-full px-2.5 py-1.5 text-[13px] rounded border border-surface-border bg-primary/60 text-gray-200 placeholder-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
                                 />
                               </label>
+                              {/* Honeypot (P3-3 BUG1): offscreen (not display:none, so a bot still
+                                  fills it), out of the tab order. The name is deliberately non-semantic:
+                                  "company" is a standard organization autofill token that Chrome/Edge
+                                  could fill for a real person (a recruiter), silently dropping a valid
+                                  lead. A nonsense name matches no profile field. A visually-hidden label
+                                  tells a screen-reader user to skip it (clearer than aria-hidden on an
+                                  input). Only a bot completes it; the server drops any filled value. */}
+                              <label style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>
+                                Leave this field blank
+                                <input
+                                  type="text"
+                                  name="contact_ref_x"
+                                  tabIndex={-1}
+                                  autoComplete="off"
+                                  value={ctaForm.hp}
+                                  onChange={(e) => setCtaForm((f) => ({ ...f, hp: e.target.value }))}
+                                />
+                              </label>
                               <input
                                 type="text"
                                 value={ctaForm.note}
@@ -1819,7 +1846,7 @@ useEffect(() => {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => setCtaForm({ open: false, email: '', note: '', status: 'idle', done: '' })}
+                                  onClick={() => setCtaForm({ open: false, email: '', note: '', hp: '', status: 'idle', done: '' })}
                                   className="px-2.5 py-1 text-[11px] font-mono rounded text-gray-500 hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
                                 >
                                   {copy.cancel}

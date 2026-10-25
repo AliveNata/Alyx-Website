@@ -14,6 +14,7 @@ import { RL_HEADERS } from './groq.js'
 import { chatRouter } from './chat.js'
 import { leadRouter } from './lead.js'
 import { analyticsRouter } from './analytics.js'
+import { leadsAdminRouter } from './leadsAdmin.js'
 import { reindexRouter } from './reindex.js'
 import { cvNotifyRouter } from './cvnotify.js'
 import { uploadRouter, UPLOAD_DIR } from './upload.js'
@@ -59,6 +60,7 @@ app.use('/api/settings', settingsRouter)
 app.use('/api/chat', chatRouter)
 app.use('/api/lead', leadRouter)
 app.use('/api/admin/analytics', analyticsRouter)
+app.use('/api/admin/leads', leadsAdminRouter)
 app.use('/api/admin/reindex', reindexRouter)
 app.use('/api/cv-notify', cvNotifyRouter)
 app.use('/api/upload', uploadRouter)

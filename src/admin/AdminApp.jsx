@@ -5,6 +5,7 @@ import Dashboard from './Dashboard'
 import PersonalInfo from './PersonalInfo'
 import ChatbotSettings from './ChatbotSettings'
 import Analytics from './Analytics'
+import Leads from './Leads'
 import GitHubPanel from './GitHubPanel'
 import SiteSettings from './SiteSettings'
 import ResetPassword from './ResetPassword'
@@ -23,6 +24,7 @@ export default function AdminApp() {
         <Route element={<RequireAuth><Dashboard /></RequireAuth>}>
           <Route index element={<PersonalInfo />} />
           <Route path="analytics" element={<Analytics />} />
+          <Route path="leads" element={<Leads />} />
           <Route path="skills" element={<ResourceManager config={CONFIGS.skills} />} />
           <Route path="projects" element={<ResourceManager config={CONFIGS.projects} />} />
           <Route path="experiences" element={<ResourceManager config={CONFIGS.experiences} />} />

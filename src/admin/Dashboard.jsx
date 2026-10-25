@@ -4,6 +4,7 @@ import { useAuth } from './auth'
 const NAV = [
   { to: '/admin', end: true, icon: 'bi-person-badge', label: 'Personal' },
   { to: '/admin/analytics', icon: 'bi-graph-up', label: 'Analytics' },
+  { to: '/admin/leads', icon: 'bi-person-lines-fill', label: 'Leads' },
   { to: '/admin/skills', icon: 'bi-stack', label: 'Skills' },
   { to: '/admin/projects', icon: 'bi-kanban', label: 'Projects' },
   { to: '/admin/experiences', icon: 'bi-briefcase', label: 'Experience' },
