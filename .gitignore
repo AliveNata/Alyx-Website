@@ -10,3 +10,6 @@ dist
 
 # Internal deploy guide (infra details) - kept local, not in the public repo
 DEPLOY.md
+
+# Portfolio drafts (unpublished, may hold unconfirmed numbers) - kept local
+portfolio/drafts/
