@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { query } from './db.js'
 import { requireAuth } from './auth.js'
 
-const FIELDS = ['model', 'reasoning_effort', 'temperature', 'max_tokens', 'system_prompt', 'greeting', 'enable_companion', 'enable_voice', 'enable_site_actions']
+const FIELDS = ['model', 'reasoning_effort', 'temperature', 'max_tokens', 'system_prompt', 'greeting', 'enable_companion', 'enable_voice', 'enable_site_actions', 'calendly_url', 'sociabuzz_url', 'contact_email']
 
 export const chatbotRouter = Router()
 

@@ -311,6 +311,53 @@ const SECTION_LABELS = {
 const SOURCES_LABEL = { en: 'Sources', id: 'Sumber' }
 const GOTO_LABEL = { en: 'Go to', id: 'Buka bagian' }
 
+// Lead CTA (P3-2). A single gentle chip under a grounded portfolio answer when
+// the server marks the turn with a lead cta. Value-first: it never shows on the
+// first reply (CTA_TURN_FLOOR), at most once per browser session (CTA_FLAG in
+// sessionStorage, the same shape as the consent notice flag), and can be waved
+// off. Copy follows the GREET/NOTICE pattern: en + id written, every other chat
+// language falls back to en. One channel per chip, keyed by the server's cta.
+const CTA_TURN_FLOOR = 2
+const CTA_FLAG = 'alyx-cta-v1'
+const CTA_CHANNELS = new Set(['booking', 'sociabuzz', 'email'])
+const CTA_COPY = {
+  en: {
+    dismiss: 'Not now',
+    dismissAria: 'Hide this suggestion',
+    booking: { lead: 'Want to talk to Alief directly?', action: 'Book a short call', opened: 'Opening the booking page in a new tab.' },
+    sociabuzz: { lead: 'Looking for mentoring?', action: 'See mentoring on SociaBuzz', opened: 'Opening SociaBuzz in a new tab.' },
+    email: {
+      lead: 'Prefer to reach Alief by email?',
+      action: 'Leave your email',
+      emailLabel: 'Your email',
+      notePlaceholder: 'Anything you want to add? (optional)',
+      send: 'Send',
+      cancel: 'Cancel',
+      invalid: 'Enter a valid email.',
+      error: 'Could not send. Please try again.',
+      sent: 'Sent. Alief will reply to your email.',
+    },
+  },
+  id: {
+    dismiss: 'Nanti aja',
+    dismissAria: 'Sembunyikan saran ini',
+    booking: { lead: 'Mau ngobrol langsung sama Alief?', action: 'Jadwalkan panggilan singkat', opened: 'Membuka halaman jadwal di tab baru.' },
+    sociabuzz: { lead: 'Lagi cari mentoring?', action: 'Lihat mentoring di SociaBuzz', opened: 'Membuka SociaBuzz di tab baru.' },
+    email: {
+      lead: 'Lebih nyaman lewat email?',
+      action: 'Tinggalkan email kamu',
+      emailLabel: 'Email kamu',
+      notePlaceholder: 'Ada yang mau ditambahkan? (opsional)',
+      send: 'Kirim',
+      cancel: 'Batal',
+      invalid: 'Masukkan email yang valid.',
+      error: 'Gagal mengirim. Coba lagi ya.',
+      sent: 'Terkirim. Alief bakal balas ke emailmu.',
+    },
+  },
+}
+const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || '').trim())
+
 // Explicit chat-mode picker (PK-4). "Auto" keeps the detectMode heuristic; the
 // other three force the mode the server already understands (portfolio runs the
 // hybrid RAG routing, companion and english bypass it). Labels follow the
@@ -610,6 +657,14 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   const [noticeOpen, setNoticeOpen] = useState(() => {
     try { return !JSON.parse(localStorage.getItem('alyx-privacy') || '{}').noticeDismissed } catch { return true }
   })
+
+  // Lead CTA (P3-2). `cta.hostIndex` is the message index that owns the one chip
+  // shown this session (null until claimed); `dismissed` hides it after "not now".
+  // `ctaForm` drives the inline email mini-form and the post-engage confirmation:
+  // status is idle | invalid | sending | error, and `done` holds the one-line
+  // confirmation shown in place of the offer after a successful engage.
+  const [cta, setCta] = useState({ hostIndex: null, dismissed: false })
+  const [ctaForm, setCtaForm] = useState({ open: false, email: '', note: '', status: 'idle', done: '' })
 
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
   const messagesEndRef = useRef(null)
@@ -1180,7 +1235,12 @@ useEffect(() => {
           // Citations ride the done meta and only exist on a complete grounded
           // portfolio answer (P2-4). A broken stream never carries them.
           const citations = !streamErr && meta && Array.isArray(meta.citations) ? meta.citations : null
-          setMessages([...baseMessages, { role: 'assistant', content: finalText, citations }])
+          // Lead cta (P3-2) rides the live done meta only. It is intentionally not
+          // cached below (decision D): the chip comes from a LIVE server turn, so a
+          // cache-replay reply simply carries no chip. The claim/gate logic lives
+          // in the effect that watches `messages`.
+          const liveCta = !streamErr && meta && meta.cta && CTA_CHANNELS.has(meta.cta.channel) ? meta.cta : null
+          setMessages([...baseMessages, { role: 'assistant', content: finalText, citations, cta: liveCta }])
           if (!streamErr) { // cache only a complete reply, with its citations
             const c = loadCache()
             c[normKey] = { reply, citations }
@@ -1224,6 +1284,81 @@ useEffect(() => {
   // Keep refs fresh for speech recognition handler
   useEffect(() => { messagesRef.current = messages }, [messages])
   useEffect(() => { respondToQueryRef.current = respondToQuery })
+
+  // The destination for a cta channel, or '' when the admin left it blank. A
+  // blank destination hides that channel's chip entirely (decision A).
+  const ctaDestination = (channel) => {
+    if (channel === 'booking') return settings?.calendly_url?.trim() || ''
+    if (channel === 'sociabuzz') return settings?.sociabuzz_url?.trim() || ''
+    if (channel === 'email') return settings?.contact_email?.trim() || ''
+    return ''
+  }
+
+  // Claim the one CTA chip for this session (P3-2, decision C). Runs when a reply
+  // arrives or settings load. Gates: once-per-session (sessionStorage flag and the
+  // host already claimed), value-first turn-floor (the opening greeting does not
+  // count toward the floor), a non-null cta on the latest reply, and a configured
+  // destination for its channel. Only the most recent assistant message can be
+  // claimed, so the chip always sits under the turn that earned it.
+  useEffect(() => {
+    if (cta.hostIndex !== null) return
+    try { if (sessionStorage.getItem(CTA_FLAG) === '1') return } catch {}
+    const replies = messages.reduce((n, m, idx) => n + (m.role === 'assistant' && idx > 0 ? 1 : 0), 0)
+    if (replies < CTA_TURN_FLOOR) return
+    const idx = messages.length - 1
+    const last = messages[idx]
+    if (!last || last.role !== 'assistant' || !last.cta || !CTA_CHANNELS.has(last.cta.channel)) return
+    if (!ctaDestination(last.cta.channel)) return
+    setCta({ hostIndex: idx, dismissed: false })
+    try { sessionStorage.setItem(CTA_FLAG, '1') } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, settings])
+
+  // Best-effort lead write (P3-2, decision E). The server resolves the
+  // conversation, recomputes the tier, and redacts context, so the client sends
+  // only the channel, session id, optional email, and optional note. A failure is
+  // swallowed: the funnel must never block the visitor's own action (the external
+  // tab still opens). Returns the response ok flag for the email form to reflect.
+  const postLead = async ({ channel, contactValue, context }) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/lead`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sessionIdRef.current,
+          channel,
+          ...(contactValue ? { contact_value: contactValue } : {}),
+          ...(context ? { context } : {}),
+        }),
+      })
+      return res.ok
+    } catch { return false }
+  }
+
+  // Booking / mentoring: open the destination in a new tab, write the lead, then
+  // replace the offer with a one-line confirmation. Email opens the inline form.
+  const engageCta = (channel) => {
+    const copy = (CTA_COPY[uiLang] || CTA_COPY.en)[channel]
+    if (channel === 'email') { setCtaForm({ open: true, email: '', note: '', status: 'idle', done: '' }); return }
+    const url = ctaDestination(channel)
+    if (url) window.open(url, '_blank', 'noopener,noreferrer')
+    postLead({ channel })
+    setCtaForm({ open: false, email: '', note: '', status: 'idle', done: copy.opened })
+  }
+
+  const dismissCta = () => setCta((s) => ({ ...s, dismissed: true }))
+
+  // Email mini-form submit (P3-2, decision F). Validate locally for fast feedback,
+  // then let the server be authoritative. On success swap to the sent confirmation.
+  const submitEmailLead = async () => {
+    const copy = (CTA_COPY[uiLang] || CTA_COPY.en).email
+    const email = ctaForm.email.trim()
+    if (!isValidEmail(email)) { setCtaForm((f) => ({ ...f, status: 'invalid' })); return }
+    setCtaForm((f) => ({ ...f, status: 'sending' }))
+    const ok = await postLead({ channel: 'email', contactValue: email, context: ctaForm.note.trim() })
+    if (ok) setCtaForm({ open: false, email: '', note: '', status: 'idle', done: copy.sent })
+    else setCtaForm((f) => ({ ...f, status: 'error' }))
+  }
 
   const handleSend = async () => {
     if (!input.trim() || isTyping) return
@@ -1608,6 +1743,89 @@ useEffect(() => {
                                 </button>
                               )
                             })}
+                          </div>
+                        )
+                      })()}
+                      {/* Lead CTA chip (P3-2). Shown under the one claimed host
+                          message, from a LIVE cta only. Copy is gentle and lang
+                          aware; the engage control reuses the plain citation-chip
+                          look, the dismiss is a quiet text button. */}
+                      {cta.hostIndex === i && !cta.dismissed && msg.cta && (() => {
+                        const channel = msg.cta.channel
+                        if (!ctaDestination(channel)) return null
+                        const copy = (CTA_COPY[uiLang] || CTA_COPY.en)[channel]
+                        const base = CTA_COPY[uiLang] || CTA_COPY.en
+                        if (ctaForm.done) {
+                          return (
+                            <div dir="auto" className="mt-2.5 text-[11px] font-mono text-accent-green">{ctaForm.done}</div>
+                          )
+                        }
+                        if (channel === 'email' && ctaForm.open) {
+                          return (
+                            <div dir="auto" className="mt-2.5 flex flex-col gap-2 rounded-lg border border-surface-border p-3">
+                              <label className="flex flex-col gap-1">
+                                <span className="text-[11px] font-mono text-gray-500">{copy.emailLabel}</span>
+                                <input
+                                  type="email"
+                                  inputMode="email"
+                                  autoComplete="email"
+                                  value={ctaForm.email}
+                                  onChange={(e) => setCtaForm((f) => ({ ...f, email: e.target.value, status: f.status === 'invalid' ? 'idle' : f.status }))}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitEmailLead() } }}
+                                  placeholder="email@example.com"
+                                  className="w-full px-2.5 py-1.5 text-[13px] rounded border border-surface-border bg-primary/60 text-gray-200 placeholder-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                                />
+                              </label>
+                              <input
+                                type="text"
+                                value={ctaForm.note}
+                                onChange={(e) => setCtaForm((f) => ({ ...f, note: e.target.value }))}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitEmailLead() } }}
+                                placeholder={copy.notePlaceholder}
+                                className="w-full px-2.5 py-1.5 text-[13px] rounded border border-surface-border bg-primary/60 text-gray-200 placeholder-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                              />
+                              {ctaForm.status === 'invalid' && <span className="text-[11px] font-mono text-red-400">{copy.invalid}</span>}
+                              {ctaForm.status === 'error' && <span className="text-[11px] font-mono text-red-400">{copy.error}</span>}
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={submitEmailLead}
+                                  disabled={ctaForm.status === 'sending'}
+                                  className="px-2.5 py-1 text-[11px] font-mono rounded border border-accent-cyan/40 text-accent-cyan hover:border-accent-cyan hover:bg-accent-cyan/10 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                                >
+                                  {ctaForm.status === 'sending' ? '...' : copy.send}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setCtaForm({ open: false, email: '', note: '', status: 'idle', done: '' })}
+                                  className="px-2.5 py-1 text-[11px] font-mono rounded text-gray-500 hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                                >
+                                  {copy.cancel}
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        }
+                        return (
+                          <div dir="auto" className="mt-2.5 flex flex-col gap-1.5">
+                            <span className="text-[11px] font-mono text-gray-500">{copy.lead}</span>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => engageCta(channel)}
+                                className="px-2.5 py-1 text-[11px] font-mono rounded border border-accent-cyan/40 text-accent-cyan hover:border-accent-cyan hover:bg-accent-cyan/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                              >
+                                {copy.action}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={dismissCta}
+                                aria-label={base.dismissAria}
+                                className="px-1.5 py-1 text-[11px] font-mono rounded text-gray-500 hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                              >
+                                {base.dismiss}
+                              </button>
+                            </div>
                           </div>
                         )
                       })()}

@@ -156,8 +156,17 @@ CREATE TABLE IF NOT EXISTS chatbot_settings (
   enable_companion    BOOLEAN NOT NULL DEFAULT true,
   enable_voice        BOOLEAN NOT NULL DEFAULT true,
   enable_site_actions BOOLEAN NOT NULL DEFAULT true,
+  -- Lead-funnel destinations (P3-2), edited in admin. A blank value hides that
+  -- channel's CTA chip, so the owner can roll each one out independently.
+  calendly_url        TEXT    NOT NULL DEFAULT '',  -- booking channel target
+  sociabuzz_url       TEXT    NOT NULL DEFAULT '',  -- mentoring channel target
+  contact_email       TEXT    NOT NULL DEFAULT '',  -- email channel; also where leads should land
   CONSTRAINT chatbot_settings_singleton CHECK (id = 1)
 );
+-- Idempotent for existing rows: the CREATE above only fires on a fresh install.
+ALTER TABLE chatbot_settings ADD COLUMN IF NOT EXISTS calendly_url  TEXT NOT NULL DEFAULT '';
+ALTER TABLE chatbot_settings ADD COLUMN IF NOT EXISTS sociabuzz_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE chatbot_settings ADD COLUMN IF NOT EXISTS contact_email TEXT NOT NULL DEFAULT '';
 
 -- Chat logging (P1-1). No raw PII is stored: content is redacted before insert
 -- (or NULL for curhat / opted-out), and ip/ua are HMAC-hashed, never raw.

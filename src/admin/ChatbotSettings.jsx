@@ -65,6 +65,27 @@ export default function ChatbotSettings() {
         <input className={inputCls} value={form.greeting || ''} onChange={(e) => set('greeting', e.target.value)} placeholder="Leave empty = automatic greeting (time & language aware)" />
       </div>
 
+      {/* Lead-funnel destinations (P3-2). A blank field hides that channel's CTA
+          chip in the chat, so each channel rolls out independently. */}
+      <div className="mb-6">
+        <label className={labelCls}>Lead funnel destinations</label>
+        <p className="text-gray-600 text-[10px] mb-2 font-mono">Leave a field blank to hide that channel's chip in the chat.</p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-[11px] text-gray-400 mb-1">Booking link (Calendly)</label>
+            <input className={inputCls} value={form.calendly_url || ''} onChange={(e) => set('calendly_url', e.target.value)} placeholder="https://calendly.com/..." />
+          </div>
+          <div>
+            <label className="block text-[11px] text-gray-400 mb-1">Mentoring link (SociaBuzz)</label>
+            <input className={inputCls} value={form.sociabuzz_url || ''} onChange={(e) => set('sociabuzz_url', e.target.value)} placeholder="https://sociabuzz.com/..." />
+          </div>
+          <div>
+            <label className="block text-[11px] text-gray-400 mb-1">Contact email (where leads land)</label>
+            <input type="email" className={inputCls} value={form.contact_email || ''} onChange={(e) => set('contact_email', e.target.value)} placeholder="you@example.com" />
+          </div>
+        </div>
+      </div>
+
       {/* Feature toggles */}
       <div className="space-y-2 mb-6">
         <Toggle label="Companion modes" hint="Casual chat & English practice" checked={form.enable_companion !== false} onChange={(v) => set('enable_companion', v)} />
