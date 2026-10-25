@@ -30,18 +30,23 @@ leadRouter.post('/', async (req, res) => {
   if (!CHANNELS.has(channel)) return res.status(400).json({ error: 'invalid channel' })
   if (!sessionId) return res.status(400).json({ error: 'session_id is required' })
 
-  // Resolve the conversation this session belongs to. No conversation means no
-  // grounded portfolio context exists, so there is nothing to turn into a lead.
+  // Resolve the conversation this session belongs to, if one exists. A canned-only
+  // session (P3-2 gap fix) can engage an availability/contact chip without ever
+  // POSTing to /api/chat, so it may have no conversation row yet. That is inherently
+  // a portfolio lead: the client only produces a canned cta in portfolio mode (PK-4).
+  // So no conversation is tolerated here rather than rejected; stricter hardening is
+  // P3-3.
   const { rows: convRows } = await query(
     'SELECT id, mode FROM conversations WHERE session_id = $1',
     [sessionId],
   )
-  const conv = convRows[0]
-  if (!conv) return res.status(400).json({ error: 'no matching conversation' })
+  const conv = convRows[0] || null
 
-  // The funnel is portfolio-only. Companion/English chats are off-limits, the
-  // same boundary detectLeadCta enforces when it emits the cta in the first place.
-  if (conv.mode === 'curhat' || conv.mode === 'english') {
+  // The funnel is portfolio-only. When a conversation exists, companion/English
+  // chats are off-limits, the same boundary detectLeadCta enforces when it emits
+  // the cta. A no-conversation session has no such mode to reject (it is portfolio
+  // by construction).
+  if (conv && (conv.mode === 'curhat' || conv.mode === 'english')) {
     return res.status(403).json({ error: 'lead not allowed for this conversation' })
   }
 
@@ -54,24 +59,29 @@ leadRouter.post('/', async (req, res) => {
     contactValue = candidate
   }
 
-  // Intent tier is server-decided. Recompute it from the last stored user message
-  // (already redacted at log time, keywords survive) rather than trusting the
-  // client. The channel stays the one the visitor actually clicked; only the
-  // warmth is reassessed here. A message with no keyword left (e.g. the cta came
-  // from an earlier turn) falls back to 'warm'.
-  const { rows: msgRows } = await query(
-    `SELECT content FROM messages
-     WHERE conversation_id = $1 AND role = 'user' AND content IS NOT NULL
-     ORDER BY id DESC LIMIT 1`,
-    [conv.id],
-  )
-  const lastUserText = msgRows[0]?.content || ''
-  const recomputed = detectLeadCta(lastUserText, conv.mode || 'portfolio', [])
+  // Intent tier is server-decided. With a conversation, recompute it from the last
+  // stored user message (already redacted at log time, keywords survive) rather
+  // than trusting the client. Without one, recompute from the client-sent context
+  // (the canned path forwards the question). Either way the channel stays the one
+  // the visitor clicked; only the warmth is reassessed, falling back to 'warm'.
+  let lastUserText = ''
+  if (conv) {
+    const { rows: msgRows } = await query(
+      `SELECT content FROM messages
+       WHERE conversation_id = $1 AND role = 'user' AND content IS NOT NULL
+       ORDER BY id DESC LIMIT 1`,
+      [conv.id],
+    )
+    lastUserText = msgRows[0]?.content || ''
+  }
+  const tierBasis = lastUserText || (typeof body.context === 'string' ? body.context : '')
+  const recomputed = detectLeadCta(tierBasis, conv?.mode || 'portfolio', [])
   const intentTier = recomputed?.tier || 'warm'
 
   // Context summary: a short, redacted note, never the raw transcript. Built from
   // the last stored user message plus the visitor's optional one-line note from
-  // the email form, both run through redact() defensively.
+  // the email form, both run through redact() defensively. A canned session has no
+  // stored message, so the client-sent context is the only basis.
   const parts = []
   if (lastUserText) parts.push(lastUserText)
   if (typeof body.context === 'string' && body.context.trim()) parts.push(body.context.trim())
@@ -80,7 +90,7 @@ leadRouter.post('/', async (req, res) => {
   await query(
     `INSERT INTO leads (conversation_id, session_id, channel, intent_tier, context_summary, contact_value, status)
      VALUES ($1, $2, $3, $4, $5, $6, 'new')`,
-    [conv.id, sessionId, channel, intentTier, summary, contactValue],
+    [conv?.id || null, sessionId, channel, intentTier, summary, contactValue],
   )
 
   res.status(201).json({ ok: true })

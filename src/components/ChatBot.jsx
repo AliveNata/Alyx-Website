@@ -1145,7 +1145,20 @@ useEffect(() => {
       if (topic && !isNonEnglish && chatbotKnowledge.topics?.[topic]) {
         await new Promise(r => setTimeout(r, 350))
         const reply = chatbotKnowledge.topics[topic]
-        const newMessages = [...baseMessages, { role: 'assistant', content: reply }]
+        // Canned lead cta (P3-2 gap). An availability/contact head question is
+        // answered from chatbotKnowledge here with NO server turn, so the server's
+        // done-meta cta never fires and the chip was lost. Mirror the server
+        // mapping client-side on the same `cta` field the live path uses, so the
+        // existing claim/gate effect (turn-floor, once-per-session, configured
+        // destination) applies identically. This branch is already gated to
+        // portfolio mode, so curhat/english can never produce a canned cta.
+        // `context` carries the question for the no-conversation lead path (the
+        // server redacts it); other canned topics get no chip.
+        const cannedCta =
+          topic === 'availability' ? { tier: 'hot', channel: 'booking', context: query } :
+          topic === 'contact' ? { tier: 'warm', channel: 'email', context: query } :
+          null
+        const newMessages = [...baseMessages, { role: 'assistant', content: reply, cta: cannedCta }]
         setMessages(newMessages)
         setCurrentSuggestions(initialTree)
         setIsTyping(false)
@@ -1339,10 +1352,15 @@ useEffect(() => {
   // replace the offer with a one-line confirmation. Email opens the inline form.
   const engageCta = (channel) => {
     const copy = (CTA_COPY[uiLang] || CTA_COPY.en)[channel]
+    // A canned chip carries the question on its cta.context (the live server path
+    // leaves it undefined). A canned-only session may have no conversation yet, so
+    // send the question along; the server redacts it and falls back to it when no
+    // stored message exists.
+    const context = messages[cta.hostIndex]?.cta?.context
     if (channel === 'email') { setCtaForm({ open: true, email: '', note: '', status: 'idle', done: '' }); return }
     const url = ctaDestination(channel)
     if (url) window.open(url, '_blank', 'noopener,noreferrer')
-    postLead({ channel })
+    postLead({ channel, context })
     setCtaForm({ open: false, email: '', note: '', status: 'idle', done: copy.opened })
   }
 
@@ -1355,7 +1373,11 @@ useEffect(() => {
     const email = ctaForm.email.trim()
     if (!isValidEmail(email)) { setCtaForm((f) => ({ ...f, status: 'invalid' })); return }
     setCtaForm((f) => ({ ...f, status: 'sending' }))
-    const ok = await postLead({ channel: 'email', contactValue: email, context: ctaForm.note.trim() })
+    // On a canned chip the host message carries the question; combine it with the
+    // visitor's optional note so a no-conversation lead still has context.
+    const cannedContext = messages[cta.hostIndex]?.cta?.context
+    const context = [cannedContext, ctaForm.note.trim()].filter(Boolean).join(' | ')
+    const ok = await postLead({ channel: 'email', contactValue: email, context })
     if (ok) setCtaForm({ open: false, email: '', note: '', status: 'idle', done: copy.sent })
     else setCtaForm((f) => ({ ...f, status: 'error' }))
   }
