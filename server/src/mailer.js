@@ -16,13 +16,14 @@ if (process.env.SMTP_USER && process.env.SMTP_PASS) {
 
 export const mailerReady = () => !!transporter
 
-export async function sendMail({ to, subject, html, text }) {
+export async function sendMail({ to, subject, html, text, replyTo }) {
   if (!transporter) {
-    console.log(`\n[mailer:DEV] (SMTP not configured) would email ${to}: ${subject}\n${text}\n`)
+    const rt = replyTo ? ` (reply-to ${replyTo})` : ''
+    console.log(`\n[mailer:DEV] (SMTP not configured) would email ${to}: ${subject}${rt}\n${text}\n`)
     return { dev: true }
   }
   const from = process.env.SMTP_FROM || process.env.SMTP_USER
-  await transporter.sendMail({ from, to, subject, html, text })
+  await transporter.sendMail({ from, to, subject, html, text, ...(replyTo ? { replyTo } : {}) })
   return { sent: true }
 }
 

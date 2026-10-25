@@ -330,7 +330,11 @@ const CTA_COPY = {
       lead: 'Prefer to reach Alief by email?',
       action: 'Leave your email',
       emailLabel: 'Your email',
-      notePlaceholder: 'Anything you want to add? (optional)',
+      messageLabel: 'Message to Alief',
+      notePlaceholder: 'Write your message, or use the draft button.',
+      draftAction: 'Draft a message for me',
+      drafting: 'Drafting...',
+      draftError: 'Could not draft right now. You can still write your message.',
       send: 'Send',
       cancel: 'Cancel',
       invalid: 'Enter a valid email.',
@@ -347,7 +351,11 @@ const CTA_COPY = {
       lead: 'Lebih nyaman lewat email?',
       action: 'Tinggalkan email kamu',
       emailLabel: 'Email kamu',
-      notePlaceholder: 'Ada yang mau ditambahkan? (opsional)',
+      messageLabel: 'Pesan untuk Alief',
+      notePlaceholder: 'Tulis pesanmu, atau pakai tombol draf.',
+      draftAction: 'Buatkan draf',
+      drafting: 'Menyusun draf...',
+      draftError: 'Belum bisa buat draf sekarang. Kamu tetap bisa tulis pesannya.',
       send: 'Kirim',
       cancel: 'Batal',
       invalid: 'Masukkan email yang valid.',
@@ -667,7 +675,7 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   // `hp` is the honeypot (P3-3): a hidden, offscreen field a human never sees and
   // a bot tends to fill. It is sent with the lead; the server silently drops a
   // submission when it is non-empty.
-  const [ctaForm, setCtaForm] = useState({ open: false, email: '', note: '', hp: '', status: 'idle', done: '' })
+  const [ctaForm, setCtaForm] = useState({ open: false, email: '', note: '', hp: '', status: 'idle', done: '', drafting: false, draftError: '' })
 
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
   const messagesEndRef = useRef(null)
@@ -1339,7 +1347,7 @@ useEffect(() => {
   // only the channel, session id, optional email, and optional note. A failure is
   // swallowed: the funnel must never block the visitor's own action (the external
   // tab still opens). Returns the response ok flag for the email form to reflect.
-  const postLead = async ({ channel, contactValue, context, honeypot = '' }) => {
+  const postLead = async ({ channel, contactValue, context, message, honeypot = '' }) => {
     try {
       const res = await fetch(`${API_BASE}/api/lead`, {
         method: 'POST',
@@ -1350,6 +1358,7 @@ useEffect(() => {
           honeypot,
           ...(contactValue ? { contact_value: contactValue } : {}),
           ...(context ? { context } : {}),
+          ...(message ? { message } : {}),
         }),
       })
       return res.ok
@@ -1365,14 +1374,37 @@ useEffect(() => {
     // question; the host-turn user message is the fallback. The server redacts it,
     // uses it as the tier basis, and relies on it when no conversation exists.
     const context = messages[cta.hostIndex]?.cta?.context || messages[cta.hostIndex - 1]?.content || ''
-    if (channel === 'email') { setCtaForm({ open: true, email: '', note: '', hp: '', status: 'idle', done: '' }); return }
+    if (channel === 'email') { setCtaForm({ open: true, email: '', note: '', hp: '', status: 'idle', done: '', drafting: false, draftError: '' }); return }
     const url = ctaDestination(channel)
     if (url) window.open(url, '_blank', 'noopener,noreferrer')
     postLead({ channel, context })
-    setCtaForm({ open: false, email: '', note: '', hp: '', status: 'idle', done: copy.opened })
+    setCtaForm({ open: false, email: '', note: '', hp: '', status: 'idle', done: copy.opened, drafting: false, draftError: '' })
   }
 
   const dismissCta = () => setCta((s) => ({ ...s, dismissed: true }))
+
+  // Ask the server to draft the handoff message (P3-4). The draft fills the
+  // message box; the visitor then edits it freely. Graceful by design: any
+  // failure leaves a short inline note and a working plain form, so the draft is
+  // a convenience, never a dependency. Server-authoritative (it resolves the
+  // conversation from the session and grounds the draft in the visitor's own
+  // questions); the client sends only the session id.
+  const requestDraft = async () => {
+    const copy = (CTA_COPY[uiLang] || CTA_COPY.en).email
+    setCtaForm((f) => ({ ...f, drafting: true, draftError: '' }))
+    try {
+      const res = await fetch(`${API_BASE}/api/lead/draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionIdRef.current }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.draft) setCtaForm((f) => ({ ...f, note: data.draft, drafting: false, draftError: '' }))
+      else setCtaForm((f) => ({ ...f, drafting: false, draftError: copy.draftError }))
+    } catch {
+      setCtaForm((f) => ({ ...f, drafting: false, draftError: copy.draftError }))
+    }
+  }
 
   // Email mini-form submit (P3-2, decision F). Validate locally for fast feedback,
   // then let the server be authoritative. On success swap to the sent confirmation.
@@ -1382,12 +1414,14 @@ useEffect(() => {
     if (!isValidEmail(email)) { setCtaForm((f) => ({ ...f, status: 'invalid' })); return }
     setCtaForm((f) => ({ ...f, status: 'sending' }))
     // The host chip carries the question that earned it (P3-3 BUG2), with the
-    // host-turn user message as fallback; combine it with the visitor's optional
-    // note so the server has both the earning question and any volunteered detail.
+    // host-turn user message as fallback. The message box (P3-4) is the handoff
+    // body: send it as `message` for the email Alief receives, and keep it in
+    // `context` too so the lead's stored summary and tier basis are unchanged.
     const earnedContext = messages[cta.hostIndex]?.cta?.context || messages[cta.hostIndex - 1]?.content || ''
-    const context = [earnedContext, ctaForm.note.trim()].filter(Boolean).join(' | ')
-    const ok = await postLead({ channel: 'email', contactValue: email, context, honeypot: ctaForm.hp })
-    if (ok) setCtaForm({ open: false, email: '', note: '', hp: '', status: 'idle', done: copy.sent })
+    const message = ctaForm.note.trim()
+    const context = [earnedContext, message].filter(Boolean).join(' | ')
+    const ok = await postLead({ channel: 'email', contactValue: email, context, message, honeypot: ctaForm.hp })
+    if (ok) setCtaForm({ open: false, email: '', note: '', hp: '', status: 'idle', done: copy.sent, drafting: false, draftError: '' })
     else setCtaForm((f) => ({ ...f, status: 'error' }))
   }
 
@@ -1825,14 +1859,32 @@ useEffect(() => {
                                   onChange={(e) => setCtaForm((f) => ({ ...f, hp: e.target.value }))}
                                 />
                               </label>
-                              <input
-                                type="text"
-                                value={ctaForm.note}
-                                onChange={(e) => setCtaForm((f) => ({ ...f, note: e.target.value }))}
-                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitEmailLead() } }}
-                                placeholder={copy.notePlaceholder}
-                                className="w-full px-2.5 py-1.5 text-[13px] rounded border border-surface-border bg-primary/60 text-gray-200 placeholder-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
-                              />
+                              {/* Message to Alief (P3-4). Multiline and editable. The draft button
+                                  asks the server to write a first-person starting point from the
+                                  visitor's own questions; the visitor edits it freely. The field stays
+                                  optional, so an email-only lead works exactly as it did in P3-2. */}
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[11px] font-mono text-gray-500">{copy.messageLabel}</span>
+                                  <button
+                                    type="button"
+                                    onClick={requestDraft}
+                                    disabled={ctaForm.drafting}
+                                    className="px-2 py-0.5 text-[11px] font-mono rounded border border-surface-border text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                                  >
+                                    {ctaForm.drafting ? copy.drafting : copy.draftAction}
+                                  </button>
+                                </div>
+                                <textarea
+                                  rows={4}
+                                  value={ctaForm.note}
+                                  onChange={(e) => setCtaForm((f) => ({ ...f, note: e.target.value }))}
+                                  onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submitEmailLead() } }}
+                                  placeholder={copy.notePlaceholder}
+                                  className="w-full px-2.5 py-1.5 text-[13px] rounded border border-surface-border bg-primary/60 text-gray-200 placeholder-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50 resize-y"
+                                />
+                                {ctaForm.draftError && <span className="text-[11px] font-mono text-gray-400">{ctaForm.draftError}</span>}
+                              </div>
                               {ctaForm.status === 'invalid' && <span className="text-[11px] font-mono text-red-400">{copy.invalid}</span>}
                               {ctaForm.status === 'error' && <span className="text-[11px] font-mono text-red-400">{copy.error}</span>}
                               <div className="flex items-center gap-2">
@@ -1846,7 +1898,7 @@ useEffect(() => {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => setCtaForm({ open: false, email: '', note: '', hp: '', status: 'idle', done: '' })}
+                                  onClick={() => setCtaForm({ open: false, email: '', note: '', hp: '', status: 'idle', done: '', drafting: false, draftError: '' })}
                                   className="px-2.5 py-1 text-[11px] font-mono rounded text-gray-500 hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
                                 >
                                   {copy.cancel}

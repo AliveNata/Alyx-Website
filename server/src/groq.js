@@ -35,3 +35,32 @@ export async function groqChatStream(payload, signal) {
   }
   return { resp, model }
 }
+
+// Non-streaming one-shot call, for short server-side generations like the P3-4
+// handoff draft where there is no browser stream to feed. Same key, URL, and
+// 429 -> fallback-model behaviour as groqChatStream, but it resolves the whole
+// completion as JSON. Returns the raw Response so the caller checks status and
+// parses choices[0].message.content itself. Left separate so the streaming path
+// (the hot path) is never touched.
+export async function groqChatOnce(payload, signal) {
+  const key = process.env.GROQ_API_KEY
+  if (!key) {
+    const err = new Error('Missing GROQ_API_KEY on server')
+    err.code = 'NO_KEY'
+    throw err
+  }
+
+  const callOnce = (body) => fetch(GROQ_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({ ...body, stream: false }),
+    signal,
+  })
+
+  let resp = await callOnce(payload)
+  const fallback = process.env.GROQ_FALLBACK_MODEL
+  if (resp.status === 429 && fallback && fallback !== payload?.model) {
+    resp = await callOnce({ ...payload, model: fallback })
+  }
+  return resp
+}

@@ -133,6 +133,41 @@ ${context}
 GROUNDING: Answer only from the RETRIEVED CONTEXT above. If it does not contain the answer, say you do not have that detail and point them to ${CONTACT_EMAIL}. Do not use any outside knowledge about Alief, and never invent projects, employers, certifications, metrics, or skills.`
 }
 
+// Soft-handoff draft prompt (P3-4). The visitor can ask the bot to draft a short
+// message that THEY will send to Alief, then edit it before sending. The draft is
+// written in the visitor's own first person ("Hi Alief, I'm reaching out about
+// ...") and may only summarize what the visitor asked in this conversation. It is
+// a starting point the visitor edits, so the plain, honest version is the correct
+// one: the prompt forbids inventing any visitor detail and forbids asserting
+// anything about Alief, because the bot can know neither. Same grounding
+// discipline as buildRetrievalPrompt / notSureReply, aimed at the handoff note.
+// `userMessages` are the recent user turns (already redacted when stored).
+export function buildDraftPrompt(userMessages) {
+  const asked = arr(userMessages)
+    .map((m) => String(m || '').trim())
+    .filter((m) => m.length > 1)
+    .map((m) => `- ${m}`)
+    .join('\n') || '- (no specific question was captured)'
+
+  return `You are helping a website visitor write a short message that THEY will send to Alief. Write it in the visitor's own voice: first person ("I", "me", "my"), addressed to Alief. The visitor will read, edit, and send it themselves.
+
+WHAT THE VISITOR ASKED IN THIS CONVERSATION (the only source for the message):
+${asked}
+
+HOW TO WRITE IT:
+- Start with "Hi Alief," then 2 to 4 short sentences in the first person.
+- Summarize only what the visitor asked about above, and that they would like to connect.
+- Keep it plain and specific. No marketing tone, no flattery.
+
+YOU MUST NOT:
+- Invent the visitor's name, company, role, email, location, or any detail they did not state. If something is unknown, leave it out. Do not add a signature or a made-up name.
+- Claim anything about Alief: not his availability, his rates, his skills, his experience, his interest, or that he will reply or agree to anything.
+- Promise anything, set any deadline, or invent a project, budget, or timeline.
+- Add a subject line, labels, or quotation marks around the message.
+
+Output only the message text, nothing else.`
+}
+
 // Language-aware "not sure" reply for the retrieval path (P2-3, decisions B/E).
 // When no retrieved chunk clears the similarity threshold, the bot says it does
 // not have the answer instead of guessing. This is fixed text, streamed as
