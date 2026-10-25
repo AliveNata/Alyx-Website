@@ -5,6 +5,7 @@ import { getPortfolio } from './portfolio.js'
 import { CURHAT_PROMPT, ENGLISH_PROMPT, buildPortfolioPrompt, buildRetrievalPrompt, notSureReply, languageNudge } from './prompts.js'
 import { retrieveChunks } from './retrieve.js'
 import { cacheKey, getCached, putCached, bumpHits, sweepCache } from './cache.js'
+import { detectLeadCta } from './intent.js'
 import { redact, hashValue } from './redact.js'
 
 const MESSAGE_MAX = 2000        // reject oversized input before it reaches Groq
@@ -197,6 +198,9 @@ async function resolvePortfolioPrompt(settings, message) {
 async function streamNotSure(req, res, { sessionId, lang, mode, message, body }) {
   const startedAt = Date.now()
   const text = notSureReply(lang)
+  // Lead cta (P3-1) computed fresh from this request. Not-sure means nothing was
+  // retrieved, so there are no sections to corroborate; keywords alone decide.
+  const cta = detectLeadCta(message, mode, [])
 
   res.status(200).set({
     'Content-Type': 'text/event-stream; charset=utf-8',
@@ -206,7 +210,7 @@ async function streamNotSure(req, res, { sessionId, lang, mode, message, body })
   })
   res.flushHeaders?.()
   res.write(`data: ${JSON.stringify({ type: 'delta', text })}\n\n`)
-  res.write(`data: ${JSON.stringify({ type: 'done', meta: { model: null, finish_reason: 'not_sure', rateLimit: null } })}\n\n`)
+  res.write(`data: ${JSON.stringify({ type: 'done', meta: { model: null, finish_reason: 'not_sure', rateLimit: null, cta } })}\n\n`)
   res.end()
 
   try {
@@ -232,6 +236,13 @@ async function streamNotSure(req, res, { sessionId, lang, mode, message, body })
 // budget). Telemetry (decision F): cache_hit=true, model='cache', tokens 0,
 // latency = the lookup time. hits is bumped best-effort, off the response path.
 async function streamCacheHit(req, res, { sessionId, lang, mode, message, body, reply, citations, key, lookupMs }) {
+  // Cache-leak guard (P3-1, decision D): the cta is per-visitor, not per-answer,
+  // so it is never stored in or read from the cache row. Compute it fresh from
+  // THIS request's message/mode; the cached citations stand in as corroboration
+  // since they describe the same question. The reply+citations are the cached
+  // ones, but the cta belongs to the visitor in front of us now.
+  const cta = detectLeadCta(message, mode, (citations || []).map((c) => c.section))
+
   res.status(200).set({
     'Content-Type': 'text/event-stream; charset=utf-8',
     'Cache-Control': 'no-cache, no-transform',
@@ -240,7 +251,7 @@ async function streamCacheHit(req, res, { sessionId, lang, mode, message, body, 
   })
   res.flushHeaders?.()
   res.write(`data: ${JSON.stringify({ type: 'delta', text: reply })}\n\n`)
-  res.write(`data: ${JSON.stringify({ type: 'done', meta: { model: 'cache', finish_reason: 'cache_hit', rateLimit: null, citations: citations || [] } })}\n\n`)
+  res.write(`data: ${JSON.stringify({ type: 'done', meta: { model: 'cache', finish_reason: 'cache_hit', rateLimit: null, citations: citations || [], cta } })}\n\n`)
   res.end()
 
   bumpHits(key).catch((err) => console.error('[chat] cache hit bump failed:', err.message))
@@ -448,7 +459,11 @@ chatRouter.post('/', async (req, res) => {
         if (delta) { reply += delta; send({ type: 'delta', text: delta }) }
       }
     }
-    send({ type: 'done', meta: { model: answeredModel, finish_reason: finishReason, rateLimit, citations } })
+    // Lead cta (P3-1) computed fresh for this request, across every portfolio
+    // path through here (grounded and legacy stuffing). detectLeadCta returns
+    // null for curhat/english, so those modes never carry a cta.
+    const cta = detectLeadCta(message, mode, (citations || []).map((c) => c.section))
+    send({ type: 'done', meta: { model: answeredModel, finish_reason: finishReason, rateLimit, citations, cta } })
   } catch (err) {
     if (ac.signal.aborted || err.name === 'AbortError') {
       aborted = true // client disconnected: stop quietly, nothing to send

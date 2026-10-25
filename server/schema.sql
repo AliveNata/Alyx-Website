@@ -327,3 +327,28 @@ CREATE TABLE IF NOT EXISTS chat_cache (
 );
 -- created_at drives both the TTL sweep and the oldest-first overflow trim.
 CREATE INDEX IF NOT EXISTS chat_cache_created_at_idx ON chat_cache(created_at);
+
+-- Lead funnel (P3). A lead is a visitor who explicitly asked to hire, be
+-- mentored by, or contact Alief and then submitted a way to reach them. Kept in
+-- its own table, not on conversations: conversations purge at 90 days, a lead is
+-- retained. session_id is denormalized so a lead survives its conversation being
+-- purged, and conversation_id falls to NULL in that case. context_summary is a
+-- short redacted note, never a raw transcript; contact_value is stored as-is
+-- because the whole point is to be able to reach back. No rows are written in
+-- P3-1 (the table is created for P3-2/P3-3 submit); gen_random_uuid() is PG 18
+-- core, same as conversations above.
+CREATE TABLE IF NOT EXISTS leads (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
+  session_id      TEXT,
+  channel         TEXT,                      -- booking | email | sociabuzz
+  intent_tier     TEXT,                      -- warm | hot
+  context_summary TEXT,
+  contact_value   TEXT,
+  status          TEXT NOT NULL DEFAULT 'new', -- new | contacted | closed
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS leads_created_at_idx ON leads(created_at);
+CREATE INDEX IF NOT EXISTS leads_status_idx ON leads(status);
