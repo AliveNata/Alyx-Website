@@ -1376,11 +1376,16 @@ useEffect(() => {
   useEffect(() => {
     if (cta.hostIndex !== null) return
     try { if (sessionStorage.getItem(CTA_FLAG) === '1') return } catch {}
-    const replies = messages.reduce((n, m, idx) => n + (m.role === 'assistant' && idx > 0 ? 1 : 0), 0)
-    if (replies < CTA_TURN_FLOOR) return
     const idx = messages.length - 1
     const last = messages[idx]
     if (!last || last.role !== 'assistant' || !last.cta || !CTA_CHANNELS.has(last.cta.channel)) return
+    // Turn-floor holds CTAs back from visitors still browsing. A fit-check chip
+    // sets `bypassTurnFloor` because a pasted JD is already strong hire intent, so
+    // it skips the floor; every other path (grounded/canned) still earns it.
+    if (!last.cta.bypassTurnFloor) {
+      const replies = messages.reduce((n, m, i) => n + (m.role === 'assistant' && i > 0 ? 1 : 0), 0)
+      if (replies < CTA_TURN_FLOOR) return
+    }
     if (!ctaDestination(last.cta.channel)) return
     setCta({ hostIndex: idx, dismissed: false })
     try { sessionStorage.setItem(CTA_FLAG, '1') } catch {}
@@ -1511,9 +1516,13 @@ useEffect(() => {
       // fit-check), which both reads honestly in the lead record and carries the
       // "recruiter" keyword the server recomputes the booking tier from, so the
       // lead actually persists instead of 400-ing as "no lead intent".
+      // `bypassTurnFloor` lets this one chip skip the value-first turn-floor in the
+      // claim gate (a JD paste is already the strongest hire-intent signal, so the
+      // floor that holds CTAs back from browsers does not apply here). Every other
+      // gate still runs: once per session, dismissible, destination-configured.
       const bookingReady = !!(settings?.calendly_url?.trim())
       const cta = bookingReady
-        ? { tier: 'hot', channel: 'booking', context: 'Recruiter ran a job description fit-check.' }
+        ? { tier: 'hot', channel: 'booking', context: 'Recruiter ran a job description fit-check.', bypassTurnFloor: true }
         : null
       const updated = [...base, { role: 'assistant', content: data.assessment, cta }]
       setMessages(updated)
