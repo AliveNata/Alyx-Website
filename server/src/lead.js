@@ -4,7 +4,7 @@ import { detectLeadCta } from './intent.js'
 import { redact } from './redact.js'
 import { sendMail } from './mailer.js'
 import { groqChatOnce } from './groq.js'
-import { buildDraftPrompt } from './prompts.js'
+import { buildDraftPrompt, asciiNormalize } from './prompts.js'
 
 // Lead capture (P3-2 + P3-3). A lead is written only when a visitor actively
 // engages a CTA chip in the chat: clicks the booking/mentoring link, or submits
@@ -210,7 +210,9 @@ leadRouter.post('/draft', async (req, res) => {
   }
   if (!draft) return res.status(502).json({ error: 'draft_failed' })
 
-  res.json({ draft })
+  // Fold the P3-4 ASCII nit server-side (P3-5, decision E): the visitor's draft
+  // textarea gets plain ASCII without relying on the client render path.
+  res.json({ draft: asciiNormalize(draft) })
 })
 
 leadRouter.post('/', async (req, res) => {

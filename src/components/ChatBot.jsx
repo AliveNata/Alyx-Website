@@ -366,6 +366,46 @@ const CTA_COPY = {
 }
 const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || '').trim())
 
+// Fit-check (P3-5). An explicit affordance a recruiter opens to paste a job
+// description and get an honest, grounded read of how Alief fits. Copy follows
+// the GREET/NOTICE pattern: en + id written, every other chat language falls
+// back to en. The framing is deliberately honest, not salesy: the value is that
+// it names gaps, so the copy promises exactly that and nothing more.
+const FITCHECK_JD_MIN = 40   // too short to assess; nudge for more of the posting
+const FITCHECK_JD_MAX = 6000 // matches the server cap; client truncates to match
+const FITCHECK_COPY = {
+  en: {
+    entry: 'Check fit with a job description',
+    close: 'Close',
+    heading: 'Paste a job description',
+    intro: 'You will get an honest read: where the portfolio matches, and where it has no evidence. It will not oversell.',
+    placeholder: 'Paste the job posting here...',
+    hint: 'Paste the full posting. Up to 6000 characters.',
+    submit: 'Check the fit',
+    checking: 'Reading the posting...',
+    cancel: 'Cancel',
+    userTurn: 'Check Alief against this job description.',
+    tooShort: 'Paste a bit more of the posting so the check has something to work with.',
+    error: 'Could not run the check right now. Please try again in a moment.',
+    errorMode: 'The fit-check reads the portfolio, so switch the mode to Portfolio and try again.',
+  },
+  id: {
+    entry: 'Cek kecocokan dengan lowongan',
+    close: 'Tutup',
+    heading: 'Tempel deskripsi lowongan',
+    intro: 'Kamu bakal dapat penilaian jujur: bagian mana yang cocok dengan portofolio, dan mana yang belum ada buktinya. Nggak dilebih-lebihkan.',
+    placeholder: 'Tempel isi lowongannya di sini...',
+    hint: 'Tempel lowongan lengkapnya. Maksimal 6000 karakter.',
+    submit: 'Cek kecocokan',
+    checking: 'Membaca lowongan...',
+    cancel: 'Batal',
+    userTurn: 'Cek kecocokan Alief dengan lowongan ini.',
+    tooShort: 'Tempel lowongannya sedikit lebih lengkap biar ada yang bisa dinilai.',
+    error: 'Belum bisa menjalankan pengecekan sekarang. Coba lagi sebentar ya.',
+    errorMode: 'Fit-check membaca portofolio, jadi ganti mode ke Portofolio lalu coba lagi.',
+  },
+}
+
 // Explicit chat-mode picker (PK-4). "Auto" keeps the detectMode heuristic; the
 // other three force the mode the server already understands (portfolio runs the
 // hybrid RAG routing, companion and english bypass it). Labels follow the
@@ -676,6 +716,11 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   // a bot tends to fill. It is sent with the lead; the server silently drops a
   // submission when it is non-empty.
   const [ctaForm, setCtaForm] = useState({ open: false, email: '', note: '', hp: '', status: 'idle', done: '', drafting: false, draftError: '' })
+
+  // Fit-check (P3-5). `open` toggles the JD panel; `status` is 'idle' | 'short' |
+  // 'loading' | 'error'; `error` holds the resolved message line. The assessment
+  // itself lands as an assistant message, not here.
+  const [fitCheck, setFitCheck] = useState({ open: false, jd: '', status: 'idle', error: '' })
 
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
   const messagesEndRef = useRef(null)
@@ -1425,6 +1470,63 @@ useEffect(() => {
     else setCtaForm((f) => ({ ...f, status: 'error' }))
   }
 
+  // Run the fit-check (P3-5). Explicit, never auto-detected: the recruiter opens
+  // the panel and pastes a JD. The request shows as a user turn so the thread
+  // reads in order, then the grounded assessment arrives as an assistant message.
+  // Server-authoritative (it resolves the conversation, retrieves, grounds, and
+  // ASCII-normalizes); the client sends only the session id and the JD text. Any
+  // failure rolls back the optimistic user turn and leaves an inline error, so a
+  // failed check never strands a half-written turn in the thread.
+  const submitFitCheck = async () => {
+    const copy = FITCHECK_COPY[uiLang] || FITCHECK_COPY.en
+    const jd = fitCheck.jd.trim()
+    if (jd.length < FITCHECK_JD_MIN) { setFitCheck((f) => ({ ...f, status: 'short', error: copy.tooShort })); return }
+
+    // Snapshot the thread before the optimistic user turn, so an error can roll
+    // back to exactly this state.
+    const before = messages
+    const base = [...messages, { role: 'user', content: copy.userTurn }]
+    setMessages(base)
+    setFitCheck((f) => ({ ...f, status: 'loading', error: '' }))
+    setIsTyping(true)
+
+    try {
+      const res = await fetch(`${API_BASE}/api/fitcheck`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionIdRef.current, jd: jd.slice(0, FITCHECK_JD_MAX) }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.assessment) {
+        setIsTyping(false)
+        setMessages(before)
+        setFitCheck((f) => ({ ...f, status: 'error', error: res.status === 403 ? copy.errorMode : copy.error }))
+        return
+      }
+      // A JD paste is strong hire intent, so attach a gentle booking chip to the
+      // assessment, but only when a booking destination is configured. It rides
+      // the same `cta` field + claim gate as the chat path (turn-floor, once per
+      // session, dismissible), so it stays value-first and adds no new CTA logic.
+      // The forwarded `context` names the real action (a recruiter running a JD
+      // fit-check), which both reads honestly in the lead record and carries the
+      // "recruiter" keyword the server recomputes the booking tier from, so the
+      // lead actually persists instead of 400-ing as "no lead intent".
+      const bookingReady = !!(settings?.calendly_url?.trim())
+      const cta = bookingReady
+        ? { tier: 'hot', channel: 'booking', context: 'Recruiter ran a job description fit-check.' }
+        : null
+      const updated = [...base, { role: 'assistant', content: data.assessment, cta }]
+      setMessages(updated)
+      setIsTyping(false)
+      setFitCheck({ open: false, jd: '', status: 'idle', error: '' })
+      autoSpeakIfEnabled(data.assessment, updated.length - 1, false)
+    } catch {
+      setIsTyping(false)
+      setMessages(before)
+      setFitCheck((f) => ({ ...f, status: 'error', error: copy.error }))
+    }
+  }
+
   const handleSend = async () => {
     if (!input.trim() || isTyping) return
     const query = input.trim()
@@ -2008,6 +2110,83 @@ useEffect(() => {
 
           {/* Input */}
           <div className="border-t border-surface-border px-3 py-3 shrink-0 bg-surface-card">
+            {/* Fit-check (P3-5). An explicit affordance, never auto-detected: the
+                recruiter opens the panel and pastes a JD, and the grounded,
+                honest assessment arrives as an assistant message. The panel is
+                inline so it reuses the chat surface; loading shows in the thread
+                as the normal typing dots, errors stay inline here. */}
+            {(() => {
+              const FC = FITCHECK_COPY[uiLang] || FITCHECK_COPY.en
+              const loading = fitCheck.status === 'loading'
+              if (!fitCheck.open) {
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setFitCheck({ open: true, jd: '', status: 'idle', error: '' })}
+                    disabled={isTyping}
+                    dir="auto"
+                    className="mb-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono rounded border border-surface-border text-gray-400 hover:text-accent-cyan hover:border-accent-cyan/40 transition-colors disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h4m-7 4h10a2 2 0 002-2V7l-4-4H6a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <span>{FC.entry}</span>
+                  </button>
+                )
+              }
+              return (
+                <div dir="auto" className="mb-2 flex flex-col gap-2 rounded-lg border border-surface-border p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xs font-medium text-gray-200">{FC.heading}</span>
+                      <span className="text-[11px] text-gray-500 leading-relaxed">{FC.intro}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFitCheck({ open: false, jd: '', status: 'idle', error: '' })}
+                      aria-label={FC.close}
+                      className="shrink-0 px-1.5 py-0.5 text-[11px] font-mono rounded text-gray-500 hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                    >
+                      {FC.close}
+                    </button>
+                  </div>
+                  <textarea
+                    rows={6}
+                    autoFocus
+                    value={fitCheck.jd}
+                    maxLength={FITCHECK_JD_MAX}
+                    onChange={(e) => setFitCheck((f) => ({ ...f, jd: e.target.value, status: f.status === 'short' || f.status === 'error' ? 'idle' : f.status, error: '' }))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') { e.preventDefault(); setFitCheck({ open: false, jd: '', status: 'idle', error: '' }) }
+                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submitFitCheck() }
+                    }}
+                    placeholder={FC.placeholder}
+                    aria-label={FC.heading}
+                    className="w-full px-2.5 py-1.5 text-[13px] rounded border border-surface-border bg-primary/60 text-gray-200 placeholder-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50 resize-y"
+                  />
+                  <span className="text-[11px] font-mono text-gray-500">{FC.hint}</span>
+                  {fitCheck.error && <span className="text-[11px] font-mono text-red-400">{fitCheck.error}</span>}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={submitFitCheck}
+                      disabled={loading || !fitCheck.jd.trim()}
+                      className="px-2.5 py-1 text-[11px] font-mono rounded border border-accent-cyan/40 text-accent-cyan hover:border-accent-cyan hover:bg-accent-cyan/10 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                    >
+                      {loading ? FC.checking : FC.submit}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFitCheck({ open: false, jd: '', status: 'idle', error: '' })}
+                      disabled={loading}
+                      className="px-2.5 py-1 text-[11px] font-mono rounded text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                    >
+                      {FC.cancel}
+                    </button>
+                  </div>
+                </div>
+              )
+            })()}
             {/* Mode picker (PK-4): Auto keeps detectMode; an explicit pick is sent
                 on every message until changed. Hidden when the companion is off. */}
             {companionEnabled && (

@@ -13,6 +13,7 @@ import { settingsRouter } from './settings.js'
 import { RL_HEADERS } from './groq.js'
 import { chatRouter } from './chat.js'
 import { leadRouter } from './lead.js'
+import { fitcheckRouter } from './fitcheck.js'
 import { analyticsRouter } from './analytics.js'
 import { leadsAdminRouter } from './leadsAdmin.js'
 import { reindexRouter } from './reindex.js'
@@ -45,6 +46,7 @@ app.use('/api/auth/login', loginLimiter)   // brute-force protection
 app.use('/api/auth/forgot', loginLimiter)  // don't let forgot-password be spammed
 app.use('/api/chat', chatLimiter)          // protect the Groq quota from abuse
 app.use('/api/lead', leadLimiter)          // light abuse cap on lead submits
+app.use('/api/fitcheck', leadLimiter)      // reuse the lead cap for the JD fit-check (P3-5)
 
 // Uploaded images (served directly; nginx can also serve this path).
 app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '30d' }))
@@ -59,6 +61,7 @@ app.use('/api/github', githubRouter)
 app.use('/api/settings', settingsRouter)
 app.use('/api/chat', chatRouter)
 app.use('/api/lead', leadRouter)
+app.use('/api/fitcheck', fitcheckRouter)
 app.use('/api/admin/analytics', analyticsRouter)
 app.use('/api/admin/leads', leadsAdminRouter)
 app.use('/api/admin/reindex', reindexRouter)
