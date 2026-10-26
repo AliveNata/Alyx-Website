@@ -10,7 +10,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export const UPLOAD_DIR = path.join(__dirname, '..', 'uploads')
 fs.mkdirSync(UPLOAD_DIR, { recursive: true })
 
-const ALLOWED = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'])
+// Raster image types only. SVG is excluded on purpose: an uploaded .svg can
+// carry inline <script>, so allowing it opens a stored-XSS path on the serving
+// origin. The CMS never needs SVG uploads (bundled icons live in public/icons).
+const ALLOWED = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp'])
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),

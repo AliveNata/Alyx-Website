@@ -57,7 +57,12 @@ app.use('/api/fitcheck', leadLimiter)      // reuse the lead cap for the JD fit-
 app.use('/api/admin/prompt-preview', previewLimiter) // cap playground Groq calls
 
 // Uploaded images (served directly; nginx can also serve this path).
-app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '30d' }))
+// nosniff stops a browser from re-interpreting a stored file as HTML/JS, so a
+// file that slips past the upload filter can't execute on this origin.
+app.use('/uploads', express.static(UPLOAD_DIR, {
+  maxAge: '30d',
+  setHeaders: (res) => res.set('X-Content-Type-Options', 'nosniff'),
+}))
 
 app.get('/health', (_req, res) => res.json({ ok: true }))
 
