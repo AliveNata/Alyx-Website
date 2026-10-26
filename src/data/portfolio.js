@@ -7,6 +7,10 @@ export const personalInfo = {
   github: "https://github.com/AliveNata",
   linkedin: "https://www.linkedin.com/in/alvnts/",
   bio: `Data professional with 7+ years of experience transforming complex data into sharp, actionable business strategies. Specialized in building scalable data pipelines, automating ETL processes, data modeling, and BI reporting that drive real business impact.`,
+  // Indonesian bio supplied by the user verbatim (PK-10, option B1). Used by the
+  // ID `about` canned topic so an Indonesian bare-topic gets the curated dump
+  // instead of RAG. Do not auto-translate or edit: a bio is the owner's own words.
+  bioId: `Praktisi data dengan 7+ tahun pengalaman mengubah data kompleks jadi strategi bisnis yang tajam dan actionable. Fokus membangun data pipeline yang scalable, mengotomasi proses ETL, data modeling, dan BI reporting yang berdampak nyata ke bisnis.`,
 };
 
 export const skills = {
@@ -456,6 +460,12 @@ const _fmtExp = (list, label) => list.length
   ? `${label}:\n` + list.map((e, i) => `${i + 1}. ${e.role} | ${e.company} | Period: ${e.period} | ${e.description[0]}`).join('\n')
   : ''
 
+// Indonesian variant of _fmtExp (PK-10): same data, only the "Period" field
+// label is translated. The section label is passed in by the caller.
+const _fmtExpId = (list, label) => list.length
+  ? `${label}:\n` + list.map((e, i) => `${i + 1}. ${e.role} | ${e.company} | Periode: ${e.period} | ${e.description[0]}`).join('\n')
+  : ''
+
 const _fmtProjects = (list) => list
   .map(p => `• **${p.title}** — ${p.description}`)
   .join('\n')
@@ -497,6 +507,38 @@ ${_fmtExp(experiencesNonIT, 'Non-IT Experience')}`,
     certificates: `Alief's certifications:\n${_fmtCerts(certificates)}`,
 
     about: `${personalInfo.name} (${personalInfo.nickname}) is a ${personalInfo.title}. ${personalInfo.bio}`,
+  },
+  // Indonesian canned topics (PK-10). Same 8 keys, same portfolio data, same
+  // bullet/bold structure so renderMarkdown + toAscii behave identically to the
+  // English dump. Only the prose glue is in Indonesian; interpolated data (skill
+  // names, companies, projects, dates, email, links) stays verbatim. No facts are
+  // added or changed vs the English `topics` above.
+  topicsId: {
+    skills: `${personalInfo.name} berfokus di Data Engineering, Data Analytics, dan Business Intelligence. Tech stack-nya:\n` +
+      Object.entries(skills).map(([cat, items]) =>
+        `• **${cat}**: ${items.map(s => s.name).join(', ')}`
+      ).join('\n') +
+      `\nDia punya 7+ tahun pengalaman langsung. Catatan: Alief fokus ke data engineering dan analytics, bukan diposisikan sebagai AI/ML Engineer.`,
+
+    experience: `Alief punya 7+ tahun pengalaman profesional. Saat ini dia bekerja sebagai **${experiencesIT[0]?.role} di ${experiencesIT[0]?.company}** (${experiencesIT[0]?.period}).
+
+${_fmtExpId(experiencesIT, 'Pengalaman IT')}
+
+${_fmtExpId(experiencesFreelance, 'Pengalaman Freelance')}
+
+${_fmtExpId(experiencesNonIT, 'Pengalaman Non-IT')}`,
+
+    projects: `Beberapa proyek ${personalInfo.name} yang menonjol:\n${_fmtProjects(projects)}\nLihat selengkapnya di GitHub-nya: ${personalInfo.github}`,
+
+    contact: `Kamu bisa menghubungi ${personalInfo.name} lewat:\n• **Email**: ${personalInfo.email}\n• **LinkedIn**: ${personalInfo.linkedin}\n• **GitHub**: ${personalInfo.github}\nDia terbuka untuk proyek freelance dan peluang full-time di bidang Data Engineering dan Business Intelligence!`,
+
+    availability: `${personalInfo.name} saat ini terbuka untuk:\n• Posisi full-time Data Engineer / Data Analyst / BI Analyst\n• Proyek freelance data pipeline, data modeling, dan analytics\n• Pekerjaan BI dashboarding dan otomasi reporting\nSilakan hubungi lewat email di ${personalInfo.email}`,
+
+    awards: `Pencapaian dan penghargaan Alief:\n${_fmtAwards(awards)}`,
+
+    certificates: `Sertifikasi Alief:\n${_fmtCerts(certificates)}`,
+
+    about: `${personalInfo.name} (${personalInfo.nickname}) adalah ${personalInfo.title}. ${personalInfo.bioId}`,
   },
   suggestedQuestions: [
     "What are Alief's main skills?",

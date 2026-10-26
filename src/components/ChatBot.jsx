@@ -1234,9 +1234,18 @@ useEffect(() => {
     // (no English leak). isAiMlQuery still skips so the LLM owns the denial.
     if (mode === 'portfolio' && !node && !isAiMlQuery && !isFollowUp) {
       const topic = headTopicOf(query)
-      if (topic && !isNonEnglish && chatbotKnowledge.topics?.[topic]) {
+      // PK-10: pick the canned dump by language. English (!isNonEnglish) keeps
+      // topics[topic] byte-identical. An Indonesian-only query (Latin, not ja/zh/
+      // ko/ar) gets topicsId[topic] when a template exists. Everything else (other
+      // non-Latin, or ID with no ID template) stays null and falls through to RAG.
+      const isIndonesianOnly = isIndonesian && !isNonLatin
+      const cannedTopicText =
+        !isNonEnglish ? chatbotKnowledge.topics?.[topic] :
+        isIndonesianOnly ? chatbotKnowledge.topicsId?.[topic] :
+        null
+      if (topic && cannedTopicText) {
         await new Promise(r => setTimeout(r, 350))
-        const reply = chatbotKnowledge.topics[topic]
+        const reply = cannedTopicText
         // Canned lead cta (P3-2 gap). An availability/contact head question is
         // answered from chatbotKnowledge here with NO server turn, so the server's
         // done-meta cta never fires and the chip was lost. Mirror the server
