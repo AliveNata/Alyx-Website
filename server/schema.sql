@@ -145,11 +145,24 @@ CREATE TABLE IF NOT EXISTS site_settings (
   -- an upload). cv_lead_capture gates the optional post-download email capture.
   cv_url           TEXT NOT NULL DEFAULT '',
   cv_lead_capture  BOOLEAN NOT NULL DEFAULT false,
+  -- Gated page-1 viewer (PK-25). On a successful upload the PDF moves to the
+  -- private store and these are set: cv_file is the private PDF filename (never
+  -- exposed publicly; GET /api/cv-download and the authed admin route stream it),
+  -- cv_preview_url is the public page-1 PNG (the only public CV asset), cv_pages
+  -- is the page count. When the page-1 render fails, cv_preview_url stays blank
+  -- and cv_url keeps the old public-PDF behavior so the upload is never bricked
+  -- (fallback). An un-migrated row (all blank) also falls back to cv_url/static.
+  cv_file          TEXT NOT NULL DEFAULT '',
+  cv_preview_url   TEXT NOT NULL DEFAULT '',
+  cv_pages         INT  NOT NULL DEFAULT 0,
   CONSTRAINT site_settings_singleton CHECK (id = 1)
 );
 -- Idempotent for existing rows: the CREATE above only fires on a fresh install.
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS cv_url          TEXT NOT NULL DEFAULT '';
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS cv_lead_capture BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS cv_file         TEXT NOT NULL DEFAULT '';
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS cv_preview_url  TEXT NOT NULL DEFAULT '';
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS cv_pages        INT  NOT NULL DEFAULT 0;
 
 -- Single-row chatbot configuration (id is always 1). Read by the site at load,
 -- edited from the admin panel. The Groq API key stays server-side.

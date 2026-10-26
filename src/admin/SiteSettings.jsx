@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { apiGet, apiPut, apiPost, uploadCv } from './api'
+import { apiGet, apiPut, apiPost, uploadCv, fetchCvFileBlobUrl } from './api'
 import { PasswordInput, PasswordChecklist } from './PasswordField'
 import { passwordValid } from './passwordRules'
 
@@ -58,12 +58,34 @@ const labelCls = 'block font-mono text-[11px] uppercase tracking-wider text-gray
 const MAX_CV_BYTES = 8 * 1024 * 1024
 const fmtSize = (b) => (b >= 1024 * 1024 ? (b / 1024 / 1024).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB')
 
-function CvBlock({ cvUrl, onUploaded }) {
+// previewUrl + pages mark a gated CV (PK-25): the full PDF is private, so the
+// preview streams it through the authed /api/admin/cv/file as a blob. cvUrl is
+// the un-migrated fallback (an old public PDF), iframed directly. Admin keeps the
+// full multi-page preview either way.
+function CvBlock({ previewUrl, pages, cvUrl, onUploaded }) {
   const fileRef = useRef(null)
   const [state, setState] = useState({ status: 'idle', error: '' }) // idle | uploading | error
   // A picked file waits here for confirmation. Replacing overwrites the live CV
   // immediately, so nothing uploads until the admin confirms this file.
   const [pending, setPending] = useState(null)
+  // Authed blob URL for the gated preview; null until it loads (or on fallback).
+  const [gatedSrc, setGatedSrc] = useState(null)
+  const [gatedErr, setGatedErr] = useState('')
+
+  const gated = !!previewUrl
+  const hasCv = gated || !!cvUrl
+
+  // Fetch the private PDF as a blob for the gated preview, and revoke it on
+  // change/unmount so object URLs do not leak. Re-runs when a new upload lands.
+  useEffect(() => {
+    if (!gated) { setGatedSrc(null); setGatedErr(''); return }
+    let url = null, cancelled = false
+    setGatedSrc(null); setGatedErr('')
+    fetchCvFileBlobUrl()
+      .then((u) => { if (cancelled) { URL.revokeObjectURL(u); return } url = u; setGatedSrc(u) })
+      .catch((e) => { if (!cancelled) setGatedErr(e.message || 'Could not load the preview') })
+    return () => { cancelled = true; if (url) URL.revokeObjectURL(url) }
+  }, [gated, previewUrl])
 
   const pick = () => fileRef.current?.click()
 
@@ -87,8 +109,8 @@ function CvBlock({ cvUrl, onUploaded }) {
     if (!pending) return
     setState({ status: 'uploading', error: '' })
     try {
-      const url = await uploadCv(pending)
-      onUploaded(url)
+      const result = await uploadCv(pending)
+      onUploaded(result)
       setPending(null)
       setState({ status: 'idle', error: '' })
     } catch (err) {
@@ -104,14 +126,35 @@ function CvBlock({ cvUrl, onUploaded }) {
     <div className="mb-6">
       <label className={labelCls}>CV / Resume</label>
 
-      {cvUrl ? (
+      {gated ? (
         <div className="rounded-lg border border-surface-border overflow-hidden bg-primary">
-          {/* Tall enough for the PDF viewer's own scroll to reach every page,
-              instead of cropping to page 1. Capped to the viewport so the
-              upload controls below stay reachable. */}
+          {/* Gated CV: the full PDF streams through the authed route as a blob, so
+              the admin keeps the full multi-page preview while the public sees only
+              page 1. States: loading, error, ready (R-27). */}
+          {gatedErr ? (
+            <div className="flex items-center justify-center h-[32rem] bg-white/5 px-6 text-center text-sm text-red-400 font-mono">
+              {gatedErr}
+            </div>
+          ) : gatedSrc ? (
+            <iframe src={gatedSrc} title="Current CV" className="block w-full h-[75vh] min-h-[32rem] bg-white" />
+          ) : (
+            <div className="flex items-center justify-center h-[32rem] bg-white/5 text-sm text-gray-500 font-mono">
+              Loading preview...
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-surface-border">
+            <span className="text-gray-500 text-[11px] font-mono truncate">
+              Current CV{pages ? `, ${pages} page${pages === 1 ? '' : 's'}` : ''}. The public viewer shows page 1 only.
+            </span>
+          </div>
+        </div>
+      ) : cvUrl ? (
+        <div className="rounded-lg border border-surface-border overflow-hidden bg-primary">
+          {/* Fallback (un-migrated): an old public PDF, iframed directly. Re-upload
+              generates the page-1 teaser and moves it behind the gated viewer. */}
           <iframe src={cvUrl} title="Current CV" className="block w-full h-[75vh] min-h-[32rem] bg-white" />
           <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-surface-border">
-            <span className="text-gray-500 text-[11px] font-mono truncate">Current CV, scroll inside to view all pages</span>
+            <span className="text-gray-500 text-[11px] font-mono truncate">Current CV (not gated yet). Re-upload to generate the page-1 viewer.</span>
             <a href={cvUrl} target="_blank" rel="noopener noreferrer"
               className="text-accent-cyan text-[11px] font-mono hover:underline shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50 rounded">
               Open in new tab
@@ -130,15 +173,15 @@ function CvBlock({ cvUrl, onUploaded }) {
       {pending ? (
         <div className="mt-3 rounded-lg border border-accent-cyan/30 bg-accent-cyan/5 p-3">
           <p className="text-sm text-white">
-            {cvUrl ? 'Replace the current CV with ' : 'Upload '}
+            {hasCv ? 'Replace the current CV with ' : 'Upload '}
             <span className="font-mono break-all">{pending.name}</span>
             <span className="text-gray-500"> ({fmtSize(pending.size)})</span>?
           </p>
-          {cvUrl && <p className="text-gray-500 text-[11px] font-mono mt-1">This overwrites the CV the public site serves, right away.</p>}
+          {hasCv && <p className="text-gray-500 text-[11px] font-mono mt-1">This overwrites the CV the public site serves, right away.</p>}
           <div className="flex items-center gap-2 mt-3">
             <button onClick={confirmUpload} disabled={uploading}
               className="px-4 py-2 text-sm font-mono font-bold rounded-lg bg-accent-cyan text-primary hover:shadow-lg hover:shadow-accent-cyan/25 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50">
-              {uploading ? 'Uploading...' : cvUrl ? 'Replace CV' : 'Upload CV'}
+              {uploading ? 'Uploading...' : hasCv ? 'Replace CV' : 'Upload CV'}
             </button>
             <button onClick={cancelPending} disabled={uploading}
               className="px-4 py-2 text-sm font-mono rounded-lg border border-surface-border text-gray-300 hover:text-white hover:bg-surface-card disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50">
@@ -150,7 +193,7 @@ function CvBlock({ cvUrl, onUploaded }) {
         <div className="flex items-center gap-3 mt-3">
           <button onClick={pick}
             className="px-4 py-2 text-sm font-mono font-bold rounded-lg bg-accent-cyan text-primary hover:shadow-lg hover:shadow-accent-cyan/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50">
-            {cvUrl ? 'Replace CV' : 'Upload CV'}
+            {hasCv ? 'Replace CV' : 'Upload CV'}
           </button>
           <span className="text-gray-600 text-[10px] font-mono">PDF only, up to 8 MB.</span>
         </div>
@@ -164,8 +207,17 @@ export default function SiteSettings() {
   const [form, setForm] = useState(null)
   const [status, setStatus] = useState('')
 
-  useEffect(() => { apiGet('/api/settings/all').then(setForm).catch(() => setForm({ contact_endpoint: '', telegram_chat_id: '', cv_url: '', cv_lead_capture: false })) }, [])
+  useEffect(() => { apiGet('/api/settings/all').then(setForm).catch(() => setForm({ contact_endpoint: '', telegram_chat_id: '', cv_url: '', cv_preview_url: '', cv_pages: 0, cv_lead_capture: false })) }, [])
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+  // Merge the upload result: a gated upload returns cv_preview_url + cv_pages (and
+  // a blank cv_url); a render-failure fallback returns cv_url. Reflect all three
+  // so the preview switches shape immediately without a reload.
+  const onCvUploaded = (r) => setForm((f) => ({
+    ...f,
+    cv_url: r.cv_url ?? '',
+    cv_preview_url: r.cv_preview_url ?? '',
+    cv_pages: r.cv_pages ?? 0,
+  }))
 
   const save = async () => {
     setStatus('saving')
@@ -195,7 +247,7 @@ export default function SiteSettings() {
       </div>
 
       <div className="border-t border-surface-border pt-6 mb-2">
-        <CvBlock cvUrl={form.cv_url || ''} onUploaded={(url) => set('cv_url', url)} />
+        <CvBlock previewUrl={form.cv_preview_url || ''} pages={form.cv_pages || 0} cvUrl={form.cv_url || ''} onUploaded={onCvUploaded} />
 
         <label className="flex items-start gap-3 cursor-pointer select-none mb-6">
           <input type="checkbox" checked={!!form.cv_lead_capture} onChange={(e) => set('cv_lead_capture', e.target.checked)}

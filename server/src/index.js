@@ -23,7 +23,7 @@ import { promptVersionsRouter } from './promptVersions.js'
 import { promptPreviewRouter } from './promptPreview.js'
 import { reindexRouter } from './reindex.js'
 import { cvNotifyRouter } from './cvnotify.js'
-import { cvAdminRouter, cvDownloadRouter } from './cv.js'
+import { cvAdminRouter, cvAdminFileRouter, cvDownloadRouter } from './cv.js'
 import { uploadRouter, UPLOAD_DIR } from './upload.js'
 import { RESOURCES } from './resources.js'
 import { embed } from './embed.js'
@@ -104,6 +104,7 @@ app.use('/api/admin/prompt-versions', promptVersionsRouter)
 app.use('/api/admin/prompt-preview', promptPreviewRouter)
 app.use('/api/admin/reindex', reindexRouter)
 app.use('/api/cv-notify', cvNotifyRouter)
+app.use('/api/admin/cv/file', cvAdminFileRouter) // authed inline stream for the admin preview (PK-25)
 app.use('/api/admin/cv', cvAdminRouter)
 app.use('/api/cv-download', cvDownloadRouter)
 app.use('/api/upload', uploadRouter)

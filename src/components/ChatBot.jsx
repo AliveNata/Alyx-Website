@@ -3,6 +3,7 @@ import DOMPurify from 'dompurify'
 import { chatbotKnowledge, personalInfo } from '../data/portfolio'
 import { API_BASE } from '../lib/apiBase'
 import { fetchCvSettings, viewCv, downloadCv, logCv, STATIC_CV_URL } from '../lib/cv'
+import GatedCvViewer from './GatedCvViewer'
 
 // The server-authoritative chat endpoint owns the prompt, the context, and the
 // model. The browser sends only the message plus a few flags, and never sees
@@ -984,8 +985,12 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   // capture is per-session-ish, keyed by the offering message index in cvCapture,
   // so each get_cv reply owns its own small, dismissible email field. status is
   // idle | invalid | sending | error; done holds the one-line confirmation.
-  const [cvSettings, setCvSettings] = useState({ cvUrl: STATIC_CV_URL, leadCapture: false })
+  const [cvSettings, setCvSettings] = useState({ cvUrl: STATIC_CV_URL, previewUrl: '', pages: 0, leadCapture: false })
   const [cvCapture, setCvCapture] = useState({ hostIndex: null, email: '', hp: '', status: 'idle', done: '' })
+  // Gated page-1 viewer (PK-25). When a gated CV exists (previewUrl set), the
+  // get_cv reply offers a single "View CV" button that opens this instead of
+  // handing over the full PDF; the fallback path keeps the inline view/download.
+  const [cvViewerOpen, setCvViewerOpen] = useState(false)
 
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
   const messagesEndRef = useRef(null)
@@ -2314,6 +2319,22 @@ useEffect(() => {
                       {msg.cvOffer && (() => {
                         const copy = CV_COPY[uiLang] || CV_COPY.en
                         const captureOpen = cvSettings.leadCapture && cvCapture.hostIndex === i
+                        // Gated (PK-25): a single button opens the page-1 viewer,
+                        // which owns the download + its own lead capture. No inline
+                        // view/download handoff of the full PDF.
+                        if (cvSettings.previewUrl) {
+                          return (
+                            <div dir="auto" className="mt-2.5">
+                              <button
+                                type="button"
+                                onClick={() => setCvViewerOpen(true)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono rounded border border-accent-cyan/40 text-accent-cyan hover:border-accent-cyan hover:bg-accent-cyan/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                              >
+                                <i className="bi bi-eye" aria-hidden="true" /> {copy.view}
+                              </button>
+                            </div>
+                          )
+                        }
                         return (
                           <div dir="auto" className="mt-2.5 flex flex-col gap-2">
                             <div className="flex flex-wrap items-center gap-2">
@@ -2802,6 +2823,18 @@ useEffect(() => {
           </div>
         </>
       )}
+
+      {/* Gated page-1 CV viewer (PK-25). Portals to <body>, so the ChatBot's own
+          transform does not trap it; the get_cv reply toggles it open. */}
+      <GatedCvViewer
+        open={cvViewerOpen}
+        onClose={() => setCvViewerOpen(false)}
+        previewUrl={cvSettings.previewUrl}
+        pages={cvSettings.pages}
+        leadCapture={cvSettings.leadCapture}
+        sessionId={sessionIdRef.current}
+        lang={uiLang}
+      />
     </div>
   )
 }

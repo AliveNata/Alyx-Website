@@ -10,6 +10,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export const UPLOAD_DIR = path.join(__dirname, '..', 'uploads')
 fs.mkdirSync(UPLOAD_DIR, { recursive: true })
 
+// Private store for the managed CV PDF (PK-25). A sibling of UPLOAD_DIR that is
+// NOT behind the public /uploads static route, so the full CV never has a
+// guessable public URL. Only the page-1 PNG (written into UPLOAD_DIR) is public;
+// the PDF is streamed solely by the tracked GET /api/cv-download and the authed
+// admin preview route.
+export const CV_PRIVATE_DIR = path.join(__dirname, '..', 'cv-private')
+fs.mkdirSync(CV_PRIVATE_DIR, { recursive: true })
+
 // Raster image types only. SVG is excluded on purpose: an uploaded .svg can
 // carry inline <script>, so allowing it opens a stored-XSS path on the serving
 // origin. The CMS never needs SVG uploads (bundled icons live in public/icons).

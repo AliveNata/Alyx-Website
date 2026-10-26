@@ -52,8 +52,10 @@ export async function uploadImage(file) {
   return data.url
 }
 
-// Upload/replace the managed CV (PK-18). PDF only, enforced server-side; returns
-// the new cv_url the admin preview and public get_cv both read.
+// Upload/replace the managed CV (PK-18 + PK-25). PDF only, enforced server-side.
+// Returns the full upload result: on a gated upload { cv_preview_url, cv_pages },
+// on a render-failure fallback { cv_url }. The caller refreshes its preview from
+// whichever is present.
 export async function uploadCv(file) {
   const form = new FormData()
   form.append('file', file)
@@ -64,5 +66,22 @@ export async function uploadCv(file) {
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.error || 'Upload failed')
-  return data.cv_url
+  return data
+}
+
+// Fetch the gated CV PDF for the admin preview (PK-25). The full PDF is no longer
+// public, so the preview streams it through this authed endpoint and shows it as
+// a blob URL (an iframe cannot carry the Bearer header). The caller must revoke
+// the returned URL when it is done with it.
+export async function fetchCvFileBlobUrl() {
+  const res = await fetch(`${BASE}/api/admin/cv/file`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  })
+  if (res.status === 401) { clearToken(); throw new Error('Session expired - please log in again') }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || `Request failed (${res.status})`)
+  }
+  const blob = await res.blob()
+  return URL.createObjectURL(blob)
 }

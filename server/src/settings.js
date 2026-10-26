@@ -8,20 +8,25 @@ const TEXT_FIELDS = ['contact_endpoint', 'telegram_chat_id']
 
 export const settingsRouter = Router()
 
-// Public: the contact form endpoint plus the managed CV (PK-18). cv_url lets the
-// public get_cv serve the managed CV (blank -> the client's static fallback), and
+// Public: the contact form endpoint plus the managed CV (PK-18 + PK-25).
+// cv_preview_url (page-1 PNG) + cv_pages drive the gated viewer; when they are
+// set the client never fetches the full PDF directly (it streams via the tracked
+// GET /api/cv-download). cv_url is still exposed for the un-migrated fallback
+// (old upload / static), but it is blank once a gated CV is in place, so no
+// public full-PDF URL is advertised. cv_file (the private PDF) is NEVER exposed.
 // cv_lead_capture tells the client whether to show the optional post-download
-// capture. The telegram chat id is NOT exposed here; cv-notify reads it from the
-// DB directly.
+// capture. The telegram chat id is NOT exposed here; cv-notify reads it directly.
 settingsRouter.get('/', async (_req, res) => {
-  const { rows } = await query('SELECT contact_endpoint, cv_url, cv_lead_capture FROM site_settings WHERE id = 1')
-  res.json(rows[0] || { contact_endpoint: '', cv_url: '', cv_lead_capture: false })
+  const { rows } = await query('SELECT contact_endpoint, cv_url, cv_preview_url, cv_pages, cv_lead_capture FROM site_settings WHERE id = 1')
+  res.json(rows[0] || { contact_endpoint: '', cv_url: '', cv_preview_url: '', cv_pages: 0, cv_lead_capture: false })
 })
 
-// Admin-only: full settings for the Settings panel.
+// Admin-only: full settings for the Settings panel. cv_preview_url signals the
+// admin UI that a gated CV exists, so it previews via the authed file stream
+// instead of a public URL; cv_file itself is still not sent to the client.
 settingsRouter.get('/all', requireAuth, async (_req, res) => {
-  const { rows } = await query('SELECT contact_endpoint, telegram_chat_id, cv_url, cv_lead_capture FROM site_settings WHERE id = 1')
-  res.json(rows[0] || { contact_endpoint: '', telegram_chat_id: '', cv_url: '', cv_lead_capture: false })
+  const { rows } = await query('SELECT contact_endpoint, telegram_chat_id, cv_url, cv_preview_url, cv_pages, cv_lead_capture FROM site_settings WHERE id = 1')
+  res.json(rows[0] || { contact_endpoint: '', telegram_chat_id: '', cv_url: '', cv_preview_url: '', cv_pages: 0, cv_lead_capture: false })
 })
 
 settingsRouter.put('/', requireAuth, async (req, res) => {
