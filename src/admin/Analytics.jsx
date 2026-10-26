@@ -25,8 +25,11 @@ const compact = (n) => {
 const fmtInt = (n) => n.toLocaleString('en-US')
 const fmtMs = (n) => n == null ? '-' : Math.round(n).toLocaleString('en-US') + ' ms'
 const fmtPct = (r) => r == null ? '-' : (r * 100).toFixed(r < 0.1 ? 1 : 0) + '%'
-const dayShort = (iso) => { try { return new Date(iso).toISOString().slice(5, 10) } catch { return '' } }
-const dayFull = (iso) => { try { return new Date(iso).toISOString().slice(0, 10) } catch { return String(iso) } }
+// Axis dates read in UTC to match the daily buckets. Short form for ticks
+// ('25 Oct'), full form with year for tooltips ('25 Oct 2026').
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const dayShort = (iso) => { try { const d = new Date(iso); return `${d.getUTCDate()} ${MON[d.getUTCMonth()]}` } catch { return '' } }
+const dayFull = (iso) => { try { const d = new Date(iso); return `${d.getUTCDate()} ${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}` } catch { return String(iso) } }
 
 const niceMax = (v) => {
   if (!v || v <= 0) return 1
@@ -122,7 +125,12 @@ function LineChart({ rows, series, label, fmt }) {
 function BarChart({ rows, dataKey, color, label }) {
   const n = rows.length
   const yMax = niceMax(Math.max(1, ...rows.map((r) => int(r[dataKey]))))
-  const bw = Math.max(2, (plotW / n) * 0.62)
+  // Bars own their x placement: one slot per day, bar centered in its slot.
+  // (The line chart puts points on the plot edges, which would clip the first
+  // and last bar half off-plot, so BarChart does not reuse xAt.)
+  const slot = plotW / n
+  const bw = Math.max(2, slot * 0.62)
+  const barCenter = (i) => L + slot * (i + 0.5)
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={label} preserveAspectRatio="xMidYMid meet">
       <Axes rows={rows} yMax={yMax} />
@@ -131,7 +139,7 @@ function BarChart({ rows, dataKey, color, label }) {
         const y = yAt(v, yMax)
         const h = Math.max(0, TOP + plotH - y)
         return (
-          <rect key={i} x={xAt(i, n) - bw / 2} y={y} width={bw} height={h} rx="2" fill={color}>
+          <rect key={i} x={barCenter(i) - bw / 2} y={y} width={bw} height={h} rx="2" fill={color}>
             <title>{`${dayFull(r.day)}: ${fmtInt(v)} tokens out`}</title>
           </rect>
         )
@@ -217,20 +225,20 @@ function CvCard({ days }) {
       {cv.status === 'ok' && (
         <>
           <div className="grid grid-cols-3 gap-3">
-            <div>
+            <div title="Views plus downloads over the selected range.">
               <div className="text-2xl font-bold text-white tabular-nums">{fmtInt(int(cv.totals.total))}</div>
               <div className="text-[10px] font-mono text-gray-600 mt-0.5">Total events</div>
             </div>
-            <div>
+            <div title="The CV was opened inline in the browser.">
               <div className="text-2xl font-bold text-white tabular-nums">{fmtInt(int(cv.totals.views))}</div>
-              <div className="text-[10px] font-mono text-gray-600 mt-0.5">Views</div>
+              <div className="text-[10px] font-mono text-gray-600 mt-0.5 cursor-help underline decoration-dotted decoration-gray-700 underline-offset-2">Views</div>
             </div>
-            <div>
+            <div title="The visitor clicked download. Client-fired signal, not a verified saved file.">
               <div className="text-2xl font-bold text-white tabular-nums">{fmtInt(int(cv.totals.downloads))}</div>
-              <div className="text-[10px] font-mono text-gray-600 mt-0.5">Downloads</div>
+              <div className="text-[10px] font-mono text-gray-600 mt-0.5 cursor-help underline decoration-dotted decoration-gray-700 underline-offset-2">Downloads</div>
             </div>
           </div>
-          <p className="text-[10px] font-mono text-gray-600 mt-3 leading-relaxed">Client-fired signals over the selected range, not verified downloads.</p>
+          <p className="text-[10px] font-mono text-gray-600 mt-3 leading-relaxed">Views count inline opens, downloads count explicit download clicks. Both are client-fired signals over the selected range, not verified saved files.</p>
         </>
       )}
     </div>

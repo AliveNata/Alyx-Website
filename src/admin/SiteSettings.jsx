@@ -87,9 +87,12 @@ function CvBlock({ cvUrl, onUploaded }) {
 
       {cvUrl ? (
         <div className="rounded-lg border border-surface-border overflow-hidden bg-primary">
-          <iframe src={cvUrl} title="Current CV" className="w-full h-64 bg-white" />
+          {/* Tall enough for the PDF viewer's own scroll to reach every page,
+              instead of cropping to page 1. Capped to the viewport so the
+              upload controls below stay reachable. */}
+          <iframe src={cvUrl} title="Current CV" className="block w-full h-[75vh] min-h-[32rem] bg-white" />
           <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-surface-border">
-            <span className="text-gray-500 text-[11px] font-mono truncate">Current CV</span>
+            <span className="text-gray-500 text-[11px] font-mono truncate">Current CV, scroll inside to view all pages</span>
             <a href={cvUrl} target="_blank" rel="noopener noreferrer"
               className="text-accent-cyan text-[11px] font-mono hover:underline shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50 rounded">
               Open in new tab
