@@ -594,6 +594,34 @@ const headTopicOf = (query) => {
   return null
 }
 
+// ─── Follow-up detection (PK-2b) ─────────────────────────────────────────────
+// A context-dependent follow-up ("tell me more about that", "why?") must bypass
+// the portfolio client fast-paths (1a/1b/1c) and the history-blind localStorage
+// cache so it reaches the server, where PK-2 builds the contextualized retrieval
+// query from history. Without this, a follow-up matches a generic fast-path and
+// returns the bio instead of elaborating on the prior answer.
+//
+// Referential / continuation cues (EN + a few ID). Multi-word phrases sit in the
+// same alternation; \b keeps "it/this/that" whole-word so they don't fire inside
+// a longer word. No /g flag -> test() is stateless.
+const FOLLOWUP_CUES = /\b(that|it|this|those|these|them|they|there|more|else|also|another|again|elaborate|continue|go on|tell me more|what about|how about|why|itu|ini|lagi|lanjut|kenapa|terus|jelasin|lebih|selain itu)\b/i
+
+// A short mid-conversation turn leans on prior context even without a cue word.
+// Counted as plain whitespace tokens (not stopword-stripped) so an ordinary
+// standalone question like "what are his skills" stays >3 and is NOT a follow-up.
+const FOLLOWUP_MAX_TOKENS = 3
+
+// baseMessages is [greeting, (user, assistant)*, currentUser]. The >=2 user-turn
+// guard is the load-bearing one: a first question has exactly 1 user turn, so it
+// can never be a follow-up and first-turn routing stays byte-identical to today.
+const looksLikeFollowUp = (query, baseMessages) => {
+  const userTurns = baseMessages.filter(m => m.role === 'user').length
+  if (userTurns < 2) return false
+  if (FOLLOWUP_CUES.test(query)) return true
+  const tokens = query.trim().replace(/[?!.,;:]/g, ' ').split(/\s+/).filter(Boolean)
+  return tokens.length <= FOLLOWUP_MAX_TOKENS
+}
+
 const parseRateLimitHeaders = (headers, setRateLimit) => {
   const get = (...names) => { for (const n of names) { const v = headers.get(n); if (v) return v } return null }
   const getNum = (...names) => { const v = get(...names); if (!v) return null; const n = parseFloat(v); return Number.isFinite(n) ? n : v }
@@ -1181,8 +1209,15 @@ useEffect(() => {
     // server so the picked mode is honored no matter how the question is worded.
     const mode = (chatMode === 'auto' || !companionEnabled) ? detectMode(query) : chatMode
 
-    // 1a. Try EXACT tree match (portfolio mode only)
-    let node = mode === 'portfolio' ? findInTree(initialTree, query) : null
+    // PK-2b: a context-dependent follow-up in portfolio mode must skip the client
+    // fast-paths (1a/1b/1c) and the history-blind localStorage cache so it reaches
+    // the server's history-aware retrieval. Gated to portfolio so curhat/english
+    // (already server-bound) are untouched, and to prior-conversation so a first
+    // turn is never a follow-up (routing identical to today).
+    const isFollowUp = mode === 'portfolio' && looksLikeFollowUp(query, baseMessages)
+
+    // 1a. Try EXACT tree match (portfolio mode only; never for a follow-up)
+    let node = (mode === 'portfolio' && !isFollowUp) ? findInTree(initialTree, query) : null
 
     // 1b. Portfolio scraping — if query is about Alief or portfolio topics,
     //     answer from chatbotKnowledge.topics directly. NO LLM CALL → saves quota.
@@ -1197,7 +1232,7 @@ useEffect(() => {
     // answer. chatbotKnowledge.topics is English-only, so a non-English head
     // question also falls through to RAG and is answered in the user's language
     // (no English leak). isAiMlQuery still skips so the LLM owns the denial.
-    if (mode === 'portfolio' && !node && !isAiMlQuery) {
+    if (mode === 'portfolio' && !node && !isAiMlQuery && !isFollowUp) {
       const topic = headTopicOf(query)
       if (topic && !isNonEnglish && chatbotKnowledge.topics?.[topic]) {
         await new Promise(r => setTimeout(r, 350))
@@ -1225,7 +1260,7 @@ useEffect(() => {
     }
 
     // 1c. Fuzzy tree match — handle paraphrases before falling through to LLM
-    if (mode === 'portfolio' && !node) {
+    if (mode === 'portfolio' && !node && !isFollowUp) {
       node = fuzzyFindInTree(initialTree, query)
     }
 
@@ -1265,8 +1300,12 @@ useEffect(() => {
     // `mode` was resolved once at the top of respondToQuery (PK-4) and is reused
     // here, so the fast-path gate and this server call always agree on the mode.
     const normKey = mode + '|' + uiLang + '|' + query.toLowerCase().trim().replace(/\s+/g, ' ').replace(/[?!.,]/g, '')
+    // A follow-up skips the client cache entirely: its key (mode|lang|query) has
+    // no history, so replaying it would leak an answer meant for a different prior
+    // turn (the same leak PK-2 fixed server-side). Read is skipped here; write is
+    // skipped below. Non-follow-up turns use the cache exactly as today (quota).
     const cache = loadCache()
-    if (cache[normKey]) {
+    if (!isFollowUp && cache[normKey]) {
       await new Promise(r => setTimeout(r, 300))
       // v8 entries are { reply, citations }; tolerate any stray string entry.
       const hit = cache[normKey]
@@ -1315,7 +1354,7 @@ useEffect(() => {
             ? { ...meta.cta, context: query }
             : null
           setMessages([...baseMessages, { role: 'assistant', content: finalText, citations, cta: liveCta }])
-          if (!streamErr) { // cache only a complete reply, with its citations
+          if (!streamErr && !isFollowUp) { // cache only a complete, non-follow-up reply, with its citations
             const c = loadCache()
             c[normKey] = { reply, citations }
             const keys = Object.keys(c)
