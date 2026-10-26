@@ -1,6 +1,33 @@
-import { useState } from 'react'
-import * as simpleIcons from 'simple-icons'
+import { useState, useEffect } from 'react'
 import { usePortfolio } from '../lib/PortfolioContext'
+
+// simple-icons ships ~3000 icons and the icon key is admin-editable (si:<key>), so the
+// namespace import cannot be tree-shaken. Load it async on first si: icon to keep it out
+// of the main chunk. The promise is cached, so only the first si: icon waits.
+let siModPromise
+const loadSimpleIcons = () => (siModPromise ||= import('simple-icons'))
+
+// Async wrapper for the si: branch: renders a neutral size-matched placeholder until the
+// module resolves, then the SVG exactly as the sync path did (PK-9: si.path is still a
+// library constant, just loaded async).
+function SiIcon({ iconKey, colorOverride, size }) {
+  const [mod, setMod] = useState(null)
+
+  useEffect(() => {
+    let alive = true
+    loadSimpleIcons().then((m) => { if (alive) setMod(m) })
+    return () => { alive = false }
+  }, [])
+
+  // Same lookup as the old `import * as simpleIcons` namespace: mod is the resolved namespace object.
+  const si = mod && mod[iconKey]
+  if (si) {
+    const fill = colorOverride || `#${si.hex}`
+    return <svg role="img" viewBox="0 0 24 24" width={size} height={size} fill={fill} className="shrink-0" dangerouslySetInnerHTML={{ __html: si.path }} />
+  }
+  // Not loaded yet, or key not found once loaded: neutral placeholder that holds layout.
+  return mod ? null : <span className="shrink-0 inline-block" style={{ width: size, height: size }} />
+}
 
 export function SkillIcon({ icon, name, size = 20 }) {
   if (!icon) return null
@@ -9,11 +36,7 @@ export function SkillIcon({ icon, name, size = 20 }) {
   }
   if (icon.startsWith('si:')) {
     const [, key, colorOverride] = icon.split(':')
-    const si = simpleIcons[key]
-    if (si) {
-      const fill = colorOverride || `#${si.hex}`
-      return <svg role="img" viewBox="0 0 24 24" width={size} height={size} fill={fill} className="shrink-0" dangerouslySetInnerHTML={{ __html: si.path }} />
-    }
+    return <SiIcon iconKey={key} colorOverride={colorOverride} size={size} />
   }
   if (icon.startsWith('bi:')) {
     const [, biName, color] = icon.split(':')
