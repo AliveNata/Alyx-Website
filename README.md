@@ -77,7 +77,7 @@ Companion and english-practice modes bypass retrieval by design.
   pages and moves the full PDF to a private directory outside the web path.
 - The public viewer shows page 1 plus one tracked download path. The full PDF streams
   only through a rate-limited endpoint that logs a hashed view/download row.
-- Honest by design: this is friction and tracking, not DRM. See the PK-25 case study.
+- Honest by design: this is friction and tracking, not DRM, not a lock.
 - Optional, non-blocking email capture on download (default OFF).
 
 ### Admin panel (`/admin`)
@@ -184,18 +184,47 @@ secrets; all keys and endpoints live in the server environment.
 
 ---
 
-## Notes and caveats
+## Changelog
 
-- The gated CV viewer is friction and tracking, not DRM. A downloaded CV is a normal,
-  reshareable PDF and page 1 is public by design. See the PK-25 case study.
-- Companion-mode chat is treated as sensitive: it bypasses RAG and its content is not
-  stored.
-- The chatbot has a client-side fast path for broad or bare-topic questions (canned
-  answers from the portfolio tree) that answer without a server round-trip; specific
-  questions go to `POST /api/chat` and exercise RAG.
+### v4.0.0 - Ask Alyx AI: server-authoritative chat, RAG, lead funnel
+- Chat moved fully server-side (`POST /api/chat`): the server assembles the prompt,
+  retrieves context and streams the reply over SSE; the browser never holds the model
+  key or the prompt.
+- RAG over pgvector with section-level citations and a semantic cache; an honest
+  fit-check that reads a pasted job description against portfolio evidence only.
+- Explicit-intent lead funnel: a single CTA chip, a leads inbox, hot-lead email
+  notifications, and an optional AI-drafted handoff message.
+- CV management with a gated page-1 viewer: a public page-1 image, the full PDF kept
+  private and streamed only through a rate-limited, logged download.
+- Privacy-preserving logging (redaction + HMAC-hashed IP / user agent + consent) and an
+  analytics dashboard.
+- Security hardening: dependency patches, DOMPurify sanitizing, image / PDF upload
+  allowlists, CSP and rate limits.
+
+### v3.0.0 - Full-stack + admin CMS
+- Express + PostgreSQL API; the public site reads content live with a static fallback.
+- Admin panel (`/admin`): CRUD for every section, image upload, chatbot + site settings,
+  GitHub changelog mirror.
+- Auth: JWT single-session, email-verified password change, forgot/reset, idle
+  auto-logout, rate limiting.
+- Chatbot moved to a server-side route (key never in the browser); 8-language UI +
+  replies, time-aware greeting, Arabic RTL, flag-driven voice.
+- Security headers (HSTS, CSP, X-Frame-Options, ...) and hardening.
+
+### v2.1.0
+- Preloader boot sequence; language-aware chatbot; `$ get_cv` button; Telegram
+  CV-download notifications.
+
+### v2.0.0
+- Full UI overhaul (Bootstrap Icons / Devicons / Simple Icons), Alyx AI chatbot, 3
+  themes, experience tabs, dynamic years, contact form.
 
 ---
 
 ## License
 
-MIT. Feel free to use as a template. Attribution appreciated.
+Copyright (c) 2026 Alief Akbar. All rights reserved.
+
+This repository is published for portfolio and reference purposes. You are welcome to
+read the code, but it is not licensed for reuse, redistribution, or use as a template
+without written permission.
