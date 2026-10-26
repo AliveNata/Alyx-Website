@@ -5,11 +5,17 @@ import { snapshotPromptVersion } from './promptVersions.js'
 
 const FIELDS = ['model', 'reasoning_effort', 'temperature', 'max_tokens', 'system_prompt', 'greeting', 'enable_companion', 'enable_voice', 'enable_site_actions', 'calendly_url', 'sociabuzz_url', 'contact_email']
 
-// Columns the public site may read. contact_email is the inbox owner's address;
-// it never belongs in a no-auth payload every visitor loads (PK-24, email
-// harvesting). The client only needs to know whether the email channel is on,
-// which the derived contact_email_enabled boolean carries instead.
-const PUBLIC_FIELDS = FIELDS.filter((f) => f !== 'contact_email')
+// Columns the public site may read. Two fields are withheld from the no-auth
+// payload every visitor loads:
+//   - contact_email: the inbox owner's address, an email-harvesting target
+//     (PK-24). The client only needs to know if the email channel is on, which
+//     the derived contact_email_enabled boolean carries instead.
+//   - system_prompt: Alyx's full instructions, and it also embeds the contact
+//     address in prose (PK-26, prompt leakage). Prompt assembly is server-side,
+//     so the public chat client never reads it; only the admin editor does, via
+//     the auth-gated GET below.
+const PUBLIC_HIDDEN = ['contact_email', 'system_prompt']
+const PUBLIC_FIELDS = FIELDS.filter((f) => !PUBLIC_HIDDEN.includes(f))
 
 export const chatbotRouter = Router()
 
