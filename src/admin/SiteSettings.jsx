@@ -55,29 +55,48 @@ const labelCls = 'block font-mono text-[11px] uppercase tracking-wider text-gray
 // replacement. The upload is its own endpoint (POST /api/admin/cv), separate from
 // the Save button below, so the preview refreshes the moment it succeeds and
 // never waits on the text-field save.
+const MAX_CV_BYTES = 8 * 1024 * 1024
+const fmtSize = (b) => (b >= 1024 * 1024 ? (b / 1024 / 1024).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB')
+
 function CvBlock({ cvUrl, onUploaded }) {
   const fileRef = useRef(null)
   const [state, setState] = useState({ status: 'idle', error: '' }) // idle | uploading | error
+  // A picked file waits here for confirmation. Replacing overwrites the live CV
+  // immediately, so nothing uploads until the admin confirms this file.
+  const [pending, setPending] = useState(null)
 
   const pick = () => fileRef.current?.click()
 
-  const onFile = async (e) => {
+  const onFile = (e) => {
     const file = e.target.files?.[0]
-    e.target.value = '' // let the same file be re-picked after an error
+    e.target.value = '' // let the same file be re-picked after cancel or error
     if (!file) return
     if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
       setState({ status: 'error', error: 'Pick a PDF file.' })
       return
     }
+    if (file.size > MAX_CV_BYTES) {
+      setState({ status: 'error', error: `That PDF is ${fmtSize(file.size)}; the limit is 8 MB.` })
+      return
+    }
+    setPending(file)
+    setState({ status: 'idle', error: '' })
+  }
+
+  const confirmUpload = async () => {
+    if (!pending) return
     setState({ status: 'uploading', error: '' })
     try {
-      const url = await uploadCv(file)
+      const url = await uploadCv(pending)
       onUploaded(url)
+      setPending(null)
       setState({ status: 'idle', error: '' })
     } catch (err) {
       setState({ status: 'error', error: err.message || 'Upload failed' })
     }
   }
+
+  const cancelPending = () => { setPending(null); setState({ status: 'idle', error: '' }) }
 
   const uploading = state.status === 'uploading'
 
@@ -106,14 +125,36 @@ function CvBlock({ cvUrl, onUploaded }) {
         </div>
       )}
 
-      <div className="flex items-center gap-3 mt-3">
-        <input ref={fileRef} type="file" accept="application/pdf,.pdf" onChange={onFile} className="hidden" />
-        <button onClick={pick} disabled={uploading}
-          className="px-4 py-2 text-sm font-mono font-bold rounded-lg bg-accent-cyan text-primary hover:shadow-lg hover:shadow-accent-cyan/25 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50">
-          {uploading ? 'Uploading...' : cvUrl ? 'Replace CV' : 'Upload CV'}
-        </button>
-        <span className="text-gray-600 text-[10px] font-mono">PDF only, up to 8 MB.</span>
-      </div>
+      <input ref={fileRef} type="file" accept="application/pdf,.pdf" onChange={onFile} className="hidden" />
+
+      {pending ? (
+        <div className="mt-3 rounded-lg border border-accent-cyan/30 bg-accent-cyan/5 p-3">
+          <p className="text-sm text-white">
+            {cvUrl ? 'Replace the current CV with ' : 'Upload '}
+            <span className="font-mono break-all">{pending.name}</span>
+            <span className="text-gray-500"> ({fmtSize(pending.size)})</span>?
+          </p>
+          {cvUrl && <p className="text-gray-500 text-[11px] font-mono mt-1">This overwrites the CV the public site serves, right away.</p>}
+          <div className="flex items-center gap-2 mt-3">
+            <button onClick={confirmUpload} disabled={uploading}
+              className="px-4 py-2 text-sm font-mono font-bold rounded-lg bg-accent-cyan text-primary hover:shadow-lg hover:shadow-accent-cyan/25 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50">
+              {uploading ? 'Uploading...' : cvUrl ? 'Replace CV' : 'Upload CV'}
+            </button>
+            <button onClick={cancelPending} disabled={uploading}
+              className="px-4 py-2 text-sm font-mono rounded-lg border border-surface-border text-gray-300 hover:text-white hover:bg-surface-card disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50">
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 mt-3">
+          <button onClick={pick}
+            className="px-4 py-2 text-sm font-mono font-bold rounded-lg bg-accent-cyan text-primary hover:shadow-lg hover:shadow-accent-cyan/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50">
+            {cvUrl ? 'Replace CV' : 'Upload CV'}
+          </button>
+          <span className="text-gray-600 text-[10px] font-mono">PDF only, up to 8 MB.</span>
+        </div>
+      )}
       {state.status === 'error' && <p className="text-red-400 text-sm font-mono mt-2">{state.error}</p>}
     </div>
   )
