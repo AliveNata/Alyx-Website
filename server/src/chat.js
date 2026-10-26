@@ -486,13 +486,19 @@ chatRouter.post('/', async (req, res) => {
   let finishReason = null
   let answeredModel = streamModel || payload.model
   let aborted = false
+  // Once any delta reaches the client we must never re-run the stream, or the
+  // visitor would see the same answer twice. This flag is the double-send guard
+  // for the retry below: retry is allowed ONLY while it is still false.
+  let sentDelta = false
 
-  try {
-    // Parse Groq's SSE: `data: {json}` lines, delta content in choices[0].delta,
-    // a final include_usage chunk with totals, and a terminal `data: [DONE]`.
+  // Consume one Groq SSE response body: `data: {json}` lines, delta content in
+  // choices[0].delta, a final include_usage chunk with totals, and a terminal
+  // `data: [DONE]`. Forwards each delta and accumulates reply/usage/finish/model
+  // into the outer vars, so a second attempt continues the same accounting.
+  const consumeStream = async (readable) => {
     const decoder = new TextDecoder()
     let buf = ''
-    for await (const chunk of resp.body) {
+    for await (const chunk of readable) {
       buf += decoder.decode(chunk, { stream: true })
       let nl
       while ((nl = buf.indexOf('\n')) >= 0) {
@@ -508,9 +514,44 @@ chatRouter.post('/', async (req, res) => {
         const ch = evt.choices?.[0]
         if (ch?.finish_reason) finishReason = ch.finish_reason
         const delta = ch?.delta?.content
-        if (delta) { reply += delta; send({ type: 'delta', text: delta }) }
+        if (delta) { reply += delta; sentDelta = true; send({ type: 'delta', text: delta }) }
       }
     }
+  }
+
+  try {
+    await consumeStream(resp.body)
+
+    // Retry-on-empty. gpt-oss-20b intermittently returns a completion with zero
+    // deltas and a null finish_reason (seen most on english + scenario + history),
+    // which the client can only render as its generic fallback mid-roleplay. Re-run
+    // the exact same request ONCE when attempt 1 produced nothing: empty reply, no
+    // delta forwarded, not aborted. The no-delta guard is what keeps this safe,
+    // nothing was sent, so attempt 2 can start the stream cleanly with no risk of a
+    // double answer. Mode-agnostic (a bonus for portfolio/curhat too). One retry
+    // only (anti-loop); if attempt 2 is also empty we fall through to an empty
+    // `done` and the client shows its mode-aware fallback. Same AbortController, so
+    // a client disconnect still cancels the retry.
+    if (!reply && !sentDelta && !ac.signal.aborted) {
+      try {
+        const { resp: resp2, model: model2 } = await groqChatStream(payload, ac.signal)
+        if (resp2.status >= 200 && resp2.status < 300 && resp2.body) {
+          // Attempt 2 is now the kept attempt: adopt its model and telemetry so the
+          // single log row reflects the call that actually produced the answer.
+          if (model2) answeredModel = model2
+          usage = null
+          finishReason = null
+          await consumeStream(resp2.body)
+        }
+      } catch (err) {
+        if (ac.signal.aborted || err.name === 'AbortError') {
+          aborted = true // client left during the retry: do not log a turn for them
+        } else {
+          console.error('[chat] retry groq call failed:', err.message)
+        }
+      }
+    }
+
     // Lead cta (P3-1) computed fresh for this request, across every portfolio
     // path through here (grounded and legacy stuffing). detectLeadCta returns
     // null for curhat/english, so those modes never carry a cta.

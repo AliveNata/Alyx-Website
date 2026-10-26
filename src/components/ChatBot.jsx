@@ -117,6 +117,26 @@ function detectSiteAction(query, isIndonesian) {
 
 const FALLBACK_MSG = "I'm not sure I understand your question, but I can help you learn more about Alief's background, skills, or availability. What would you like to ask about?"
 
+// Mode-aware last-resort fallback (PK-7). When even the server retry streamed
+// nothing, portfolio keeps FALLBACK_MSG, but english and curhat get a short line
+// that stays in character, so a dropped turn never derails a role-play or a vent
+// into portfolio talk. en + id written; any other chat language falls back to en.
+// ASCII only.
+const MODE_FALLBACK = {
+  english: {
+    en: 'Sorry, I missed that. Could you say it another way?',
+    id: 'Maaf, aku belum nangkep. Coba ulangi dengan cara lain ya?',
+  },
+  curhat: {
+    en: "Sorry, I didn't quite catch that. Want to tell me again?",
+    id: 'Maaf, aku kurang nangkep. Mau cerita lagi pelan-pelan?',
+  },
+}
+const modeFallback = (mode, uiLang) => {
+  const m = MODE_FALLBACK[mode]
+  return m ? (m[uiLang] || m.en) : null
+}
+
 // BCP-47 tag per detected TTS language. Forcing utter.lang to this makes
 // multilingual/turbo voices switch accent (e.g. read Arabic in Arabic, not English).
 const LANG_BCP = { en: 'en-US', id: 'id-ID', ja: 'ja-JP', zh: 'zh-CN', ko: 'ko-KR', fr: 'fr-FR', de: 'de-DE', ar: 'ar-SA' }
@@ -1446,13 +1466,21 @@ useEffect(() => {
       console.warn('[Alyx] LLM disabled.')
     }
 
-    // 3. Fallback
+    // 3. Fallback. Mode-aware (PK-7): portfolio keeps FALLBACK_MSG; english and
+    // curhat get a neutral in-character line so a dropped turn (e.g. an empty
+    // model completion that survived the server retry) never breaks a role-play
+    // or a vent with portfolio talk.
     await new Promise(r => setTimeout(r, 400))
-    const newMessages = [...baseMessages, { role: 'assistant', content: T.fallback }]
+    const fallbackText = modeFallback(mode, uiLang) || T.fallback
+    const newMessages = [...baseMessages, { role: 'assistant', content: fallbackText }]
     setMessages(newMessages)
-    setCurrentSuggestions(uiLang === 'en' ? initialTree : T.suggestions.map(q => ({ question: q })))
+    // In English mode leave the chips/suggestions as they are, so an active
+    // scenario is not yanked back to the portfolio suggestion tree on a fallback.
+    if (mode !== 'english') {
+      setCurrentSuggestions(uiLang === 'en' ? initialTree : T.suggestions.map(q => ({ question: q })))
+    }
     setIsTyping(false)
-    autoSpeakIfEnabled(T.fallback, newMessages.length - 1, shouldSpeak)
+    autoSpeakIfEnabled(fallbackText, newMessages.length - 1, shouldSpeak)
   }
 
   // Keep refs fresh for speech recognition handler
