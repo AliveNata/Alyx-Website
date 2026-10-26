@@ -3,6 +3,11 @@ import { motion, AnimatePresence, useReducedMotion } from 'motion/react'
 import { usePortfolio } from '../lib/PortfolioContext'
 import { API_BASE } from '../lib/apiBase'
 
+// PK-23: the submit goes to our own POST /api/contact, which forwards to the
+// Google Sheet and emails the owner server-side and returns a real status. The
+// client no longer talks to the Apps Script directly, so there is no endpoint to
+// read or no-cors hop to make here.
+
 const b64url = (str) => btoa(str).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')
 
 function djb2(str) {
@@ -22,32 +27,22 @@ function generateToken() {
   return `${header}.${payload}.${signature}`
 }
 
-// Google Apps Script Web App endpoint that appends to the "Contact Me" sheet tab.
-// Env value is the fallback; the admin Settings panel can override it at runtime.
-const ENV_SHEET_ENDPOINT = import.meta.env.VITE_CONTACT_SHEET_URL || ''
-
 // primary_color tints Calendly's accent to the site cyan (applies on supported plans).
 const CALENDLY_URL = 'https://calendly.com/alivenata/30min?primary_color=00d4ff'
 const SOCIABUZZ_URL = 'https://sociabuzz.com/alyxlabs/support'
 
 export default function Contact() {
   const { personalInfo } = usePortfolio()
-  const [form, setForm] = useState({ name: '', email: '', message: '', token: '' })
+  // `honeypot` is a hidden offscreen field a human never sees and a bot tends to
+  // fill; the server silently drops a submission when it is non-empty (PK-23).
+  const [form, setForm] = useState({ name: '', email: '', message: '', token: '', honeypot: '' })
   const [generatedToken, setGeneratedToken] = useState('')
   const [tokenStatus, setTokenStatus] = useState('idle')
   const [status, setStatus] = useState(null)
   const [copied, setCopied] = useState(false)
   const [countdown, setCountdown] = useState(15)
-  const [sheetEndpoint, setSheetEndpoint] = useState(ENV_SHEET_ENDPOINT)
   const [bookStep, setBookStep] = useState(null) // null | 'choose' | 'mentoring'
   const reduceMotion = useReducedMotion()
-
-  // Prefer the admin-configured endpoint; keep the env value as fallback.
-  useEffect(() => {
-    fetch(`${API_BASE}/api/settings`).then((r) => r.ok ? r.json() : null)
-      .then((s) => { if (s?.contact_endpoint) setSheetEndpoint(s.contact_endpoint) })
-      .catch(() => {})
-  }, [])
 
   useEffect(() => {
     setGeneratedToken(generateToken())
@@ -107,17 +102,19 @@ export default function Contact() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!isFormValid || status === 'sending') return
-    if (!sheetEndpoint) { setStatus('error'); setTimeout(() => setStatus(null), 4000); return }
     setStatus('sending')
     try {
-      await fetch(sheetEndpoint, {
+      // Normal fetch (not no-cors): the server reads the JSON result, so 'sent'
+      // now means the message actually reached Alief, and a failure is a real
+      // non-ok status. Clear the form only on a confirmed send; keep it on error.
+      const res = await fetch(`${API_BASE}/api/contact`, {
         method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ name: form.name, email: form.email, message: form.message }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: form.name, email: form.email, message: form.message, honeypot: form.honeypot }),
       })
+      if (!res.ok) throw new Error('contact submit failed')
       setStatus('sent')
-      setForm({ name: '', email: '', message: '', token: '' })
+      setForm({ name: '', email: '', message: '', token: '', honeypot: '' })
       setTimeout(() => setStatus(null), 4000)
     } catch (err) {
       setStatus('error')
@@ -227,6 +224,23 @@ export default function Contact() {
                 }`} />
             </div>
 
+            {/* Honeypot (PK-23): offscreen (not display:none, so a bot still fills it),
+                out of the tab order. The name is deliberately non-semantic so no browser
+                autofill token matches it and fills it for a real person. A visually-hidden
+                label tells a screen-reader user to skip it. Only a bot completes it; the
+                server drops any filled value. Same pattern as the chat lead form. */}
+            <label className="sm:col-span-2" style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>
+              Leave this field blank
+              <input
+                type="text"
+                name="contact_ref_x"
+                tabIndex={-1}
+                autoComplete="off"
+                value={form.honeypot}
+                onChange={(e) => setForm({ ...form, honeypot: e.target.value })}
+              />
+            </label>
+
             {/* send */}
             <button type="submit" disabled={!isFormValid || status === 'sending'}
               className={`sm:col-span-2 w-full py-3 font-mono text-sm font-bold rounded-lg transition-all ${
@@ -294,7 +308,8 @@ export default function Contact() {
 
       {/* Send feedback toast. Driven by the existing `status`: enter/exit motion is the signal that
           the request finished (sent) or failed (error), so the result is not just a button-text change.
-          no-cors makes the response opaque, so success means dispatched, not confirmed delivery. */}
+          The submit now reads a real result from /api/contact, so 'sent' means the message actually
+          reached Alief and the copy can say so without hedging (PK-23). */}
       <AnimatePresence>
         {(status === 'sent' || status === 'error') && (
           <motion.div
@@ -317,7 +332,7 @@ export default function Contact() {
                   {status === 'sent' ? 'Message sent' : "Couldn't send"}
                 </p>
                 <p className="text-gray-300 text-[12.5px] mt-0.5 leading-snug">
-                  {status === 'sent' ? "Thanks, I'll get back to you by email." : 'Something went wrong. Please try again.'}
+                  {status === 'sent' ? "It reached my inbox. I'll reply by email." : 'Something went wrong. Please try again.'}
                 </p>
               </div>
               <button type="button" onClick={dismissToast} aria-label="Dismiss notification"

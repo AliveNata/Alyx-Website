@@ -15,6 +15,7 @@ import { RL_HEADERS } from './groq.js'
 import { chatRouter } from './chat.js'
 import { englishScenariosRouter } from './englishScenarios.js'
 import { leadRouter } from './lead.js'
+import { contactRouter } from './contact.js'
 import { fitcheckRouter } from './fitcheck.js'
 import { analyticsRouter } from './analytics.js'
 import { leadsAdminRouter } from './leadsAdmin.js'
@@ -47,6 +48,9 @@ const chatLimiter = rateLimit({ windowMs: 5 * 60 * 1000, max: 40, standardHeader
 // Light per-IP cap on lead writes (P3-2, decision G). A human engages a CTA a
 // handful of times at most; the dedicated leadLimiter + honeypot land in P3-3.
 const leadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, please slow down.' } })
+// Contact form (PK-23). A human submits a message a handful of times at most;
+// each submit fans out to an Apps Script forward plus an email, so cap it tight.
+const contactLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, please slow down.' } })
 // Admin playground (PK-1): auth-gated already, but each preview is a Groq call,
 // so cap it to stop a stuck UI (or a leaked token) from draining the quota.
 const previewLimiter = rateLimit({ windowMs: 5 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, please slow down.' } })
@@ -59,6 +63,7 @@ app.use('/api/auth/login', loginLimiter)   // brute-force protection
 app.use('/api/auth/forgot', loginLimiter)  // don't let forgot-password be spammed
 app.use('/api/chat', chatLimiter)          // protect the Groq quota from abuse
 app.use('/api/lead', leadLimiter)          // light abuse cap on lead submits
+app.use('/api/contact', contactLimiter)    // cap contact-form submits (Sheet + email fan-out)
 app.use('/api/fitcheck', leadLimiter)      // reuse the lead cap for the JD fit-check (P3-5)
 app.use('/api/admin/prompt-preview', previewLimiter) // cap playground Groq calls
 app.use('/api/admin/cv', cvUploadLimiter)  // cap CV uploads even behind auth
@@ -91,6 +96,7 @@ app.use('/api/settings', settingsRouter)
 app.use('/api/chat', chatRouter)
 app.use('/api/english-scenarios', englishScenariosRouter)
 app.use('/api/lead', leadRouter)
+app.use('/api/contact', contactRouter)
 app.use('/api/fitcheck', fitcheckRouter)
 app.use('/api/admin/analytics', analyticsRouter)
 app.use('/api/admin/leads', leadsAdminRouter)
