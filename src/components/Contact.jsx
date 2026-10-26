@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react'
 import { usePortfolio } from '../lib/PortfolioContext'
 import { API_BASE } from '../lib/apiBase'
 
@@ -233,8 +233,8 @@ export default function Contact() {
                 isFormValid ? 'bg-gradient-to-r from-accent-cyan to-accent-blue text-primary cursor-pointer hover:shadow-lg hover:shadow-accent-cyan/25' : 'bg-surface-border text-gray-500 cursor-not-allowed opacity-60'
               }`}>
               {status === 'sending' ? '$ sending...'
-                : status === 'sent' ? '✓ Message Sent!'
-                : status === 'error' ? '✗ Failed, try again'
+                : status === 'sent' ? '[ok] Message Sent!'
+                : status === 'error' ? '[x] Failed, try again'
                 : !isFormValid ? '$ send_message() [DISABLED]'
                 : '$ send_message()'}
             </button>
