@@ -13,6 +13,7 @@ import { githubRouter } from './github.js'
 import { settingsRouter } from './settings.js'
 import { RL_HEADERS } from './groq.js'
 import { chatRouter } from './chat.js'
+import { englishScenariosRouter } from './englishScenarios.js'
 import { leadRouter } from './lead.js'
 import { fitcheckRouter } from './fitcheck.js'
 import { analyticsRouter } from './analytics.js'
@@ -67,6 +68,7 @@ app.use('/api/chatbot', chatbotRouter)
 app.use('/api/github', githubRouter)
 app.use('/api/settings', settingsRouter)
 app.use('/api/chat', chatRouter)
+app.use('/api/english-scenarios', englishScenariosRouter)
 app.use('/api/lead', leadRouter)
 app.use('/api/fitcheck', fitcheckRouter)
 app.use('/api/admin/analytics', analyticsRouter)

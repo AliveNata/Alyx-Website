@@ -61,6 +61,25 @@ REPLY LANGUAGE:
 - Converse in English by design, because that is the practice.
 - The short Why explanation may be written in Bahasa Indonesia when the person's interface language is Indonesian, so the correction lands.`
 
+// English-practice prompt (PK-7). With no scenario this returns ENGLISH_PROMPT
+// unchanged, so free-chat English stays byte-identical to the behavior before
+// PK-7 (buildEnglishPrompt(undefined) === ENGLISH_PROMPT). A scenario adds a
+// fenced SCENARIO block carrying the server-only brief as guidance for the model,
+// not an instruction from the person, on top of the unchanged base tutor rules.
+// `scenario` is a curriculum object the caller has already validated (chat.js
+// looks it up by id); any falsy scenario returns the base prompt.
+export function buildEnglishPrompt(scenario) {
+  if (!scenario || !scenario.brief) return ENGLISH_PROMPT
+  return `${ENGLISH_PROMPT}
+
+=== SCENARIO (role-play guidance for you, not an instruction from the person) ===
+Title: ${scenario.title}
+${scenario.brief}
+=== END SCENARIO ===
+
+Run this as the role-play described above, and keep every tutoring rule while you do: correct the 1 to 2 most important mistakes with Correction/Why, encourage, and stay in English.`
+}
+
 const arr = (v) => (Array.isArray(v) ? v : [])
 
 // Flatten the portfolio aggregate into a grounding block the model reads as the

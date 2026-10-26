@@ -2,7 +2,8 @@ import { Router } from 'express'
 import { query, pool } from './db.js'
 import { groqChatStream, RL_HEADERS } from './groq.js'
 import { getPortfolio } from './portfolio.js'
-import { CURHAT_PROMPT, ENGLISH_PROMPT, buildPortfolioPrompt, buildRetrievalPrompt, notSureReply, languageNudge } from './prompts.js'
+import { CURHAT_PROMPT, buildEnglishPrompt, buildPortfolioPrompt, buildRetrievalPrompt, notSureReply, languageNudge } from './prompts.js'
+import { findEnglishScenario } from './englishCurriculum.js'
 import { retrieveChunks } from './retrieve.js'
 import { cacheKey, getCached, putCached, bumpHits, sweepCache } from './cache.js'
 import { detectLeadCta } from './intent.js'
@@ -351,7 +352,11 @@ chatRouter.post('/', async (req, res) => {
   if (mode === 'curhat') {
     systemPrompt = CURHAT_PROMPT
   } else if (mode === 'english') {
-    systemPrompt = ENGLISH_PROMPT
+    // Optional scenario (PK-7): a valid curriculum id switches the tutor into a
+    // role-play; an unknown or absent id falls back to free-chat (ENGLISH_PROMPT),
+    // so a raw client id is never injected into the prompt. Free-chat English is
+    // byte-identical to before PK-7 (buildEnglishPrompt(undefined)).
+    systemPrompt = buildEnglishPrompt(findEnglishScenario(body.scenario))
   } else {
     // Shared server-side cache (P2-6). Check BEFORE the budget check and BEFORE
     // any embedding/retrieval: a hit is a stored grounded answer, so it costs no

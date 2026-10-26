@@ -436,6 +436,17 @@ const MODE_LABELS = {
   },
 }
 
+// Scenario-practice chip copy (PK-7). English mode only. en + id are written; any
+// other chat language falls back to en, matching the GREET/NOTICE/MODE pattern.
+// PRACTICE_LEAD is the start of the visible user turn that kicks off a role-play
+// ("Let's practice: <title>") and stays English: it is the message sent to the
+// English tutor, and the scenario titles are English too.
+const PRACTICE_LABELS = {
+  en: { heading: 'Or practice a scenario', hint: 'Pick one, or just keep typing to chat freely.', active: 'Practicing', end: 'End scenario' },
+  id: { heading: 'Atau coba satu skenario', hint: 'Pilih satu, atau tetap ketik buat ngobrol bebas.', active: 'Lagi latihan', end: 'Selesai' },
+}
+const PRACTICE_LEAD = "Let's practice"
+
 // ============================================================
 // VOICE PRESETS
 // ============================================================
@@ -693,6 +704,16 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
     try { return localStorage.getItem('alyx-suggestions-expanded') !== '0' } catch { return true }
   })
 
+  // English-practice scenarios (PK-7). `englishScenarios` is null until the first
+  // fetch on entering English mode (public GET /api/english-scenarios, which
+  // returns id/category/title only, never the server-side briefs). `activeScenario`
+  // holds the picked scenario object, or null for free-chat; `activeScenarioRef`
+  // mirrors it so respondToQuery reads the live value without a stale closure. A
+  // scenario only ever applies to English mode.
+  const [englishScenarios, setEnglishScenarios] = useState(null)
+  const [activeScenario, setActiveScenario] = useState(null)
+  const activeScenarioRef = useRef(null)
+
   // Voice state
   const [voiceEnabled, setVoiceEnabled] = useState(false)
   const [showVoiceSettings, setShowVoiceSettings] = useState(false)
@@ -827,6 +848,8 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   const noticeRtl = isRtl
   // Mode picker labels for the current chat language, en fallback (PK-4).
   const M = MODE_LABELS[uiLang] || MODE_LABELS.en
+  // Scenario-practice labels for the current chat language, en fallback (PK-7).
+  const P = PRACTICE_LABELS[uiLang] || PRACTICE_LABELS.en
 
   // Admin greeting override wins; otherwise the time-aware localized greeting.
   const greetingFor = (lang) => settings?.greeting?.trim() || buildGreeting(lang)
@@ -961,6 +984,28 @@ useEffect(() => {
   useEffect(() => {
     try { localStorage.setItem('alyx-suggestions-expanded', suggestionsExpanded ? '1' : '0') } catch {}
   }, [suggestionsExpanded])
+
+  // Load the scenario chips once, the first time the visitor opens English mode
+  // (PK-7). Lazy so the public site never fetches them until they are needed; a
+  // failure stays silent and simply leaves English as free-chat only.
+  useEffect(() => {
+    if (chatMode !== 'english' || englishScenarios !== null) return
+    let cancelled = false
+    fetch(`${API_BASE}/api/english-scenarios`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((list) => { if (!cancelled && Array.isArray(list)) setEnglishScenarios(list) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [chatMode, englishScenarios])
+
+  // Leaving English mode drops any active scenario, so switching to Portfolio or
+  // Companion and back always starts clean at free-chat (PK-7).
+  useEffect(() => {
+    if (chatMode !== 'english' && activeScenarioRef.current) {
+      activeScenarioRef.current = null
+      setActiveScenario(null)
+    }
+  }, [chatMode])
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
   useEffect(() => { if (!minimized) inputRef.current?.focus() }, [minimized])
@@ -1134,7 +1179,7 @@ useEffect(() => {
   // recent history. onDelta receives the full accumulated reply each time it grows,
   // so the bubble can fill live. Pre-stream errors (budget/rate_limited/busy) still
   // arrive as a normal JSON response and throw here for the caller to handle.
-  const sendToChat = async ({ message, history, mode, lang, onDelta }) => {
+  const sendToChat = async ({ message, history, mode, lang, scenario, onDelta }) => {
     const response = await fetch(CHAT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1143,6 +1188,9 @@ useEffect(() => {
         mode,
         message,
         lang,
+        // Scenario id rides only on English turns (PK-7); the server validates it
+        // against the curriculum and ignores an unknown id. Omitted everywhere else.
+        ...(mode === 'english' && scenario ? { scenario } : {}),
         history: history.slice(-8).map(m => ({ role: m.role, content: m.content })),
         consent: !privacy.optedOut,
       }),
@@ -1344,7 +1392,11 @@ useEffect(() => {
           }
         }
         // Prior turns only; the current question goes in `message`.
-        const { reply, meta, streamErr } = await sendToChat({ message: query, history: baseMessages.slice(0, -1), mode, lang, onDelta })
+        // Carry the active scenario id on English turns so the role-play stays on
+        // the same scenario until the visitor ends it or picks another (PK-7). Read
+        // from the ref to dodge a stale closure right after a chip is picked.
+        const scenario = mode === 'english' ? (activeScenarioRef.current?.id || null) : null
+        const { reply, meta, streamErr } = await sendToChat({ message: query, history: baseMessages.slice(0, -1), mode, lang, scenario, onDelta })
 
         if (reply) {
           // A broken stream keeps the partial text plus a short note.
@@ -1617,6 +1669,26 @@ useEffect(() => {
     const newMessages = [...messages, userMessage]
     setMessages(newMessages)
     await respondToQuery(node.question, newMessages)
+  }
+
+  // Start an English role-play (PK-7). Set the ref first so the sendToChat call
+  // inside respondToQuery carries the scenario id on this very turn, then post a
+  // visible user turn that opens the role-play. English mode only.
+  const startScenario = async (scenario) => {
+    if (isTyping) return
+    activeScenarioRef.current = scenario
+    setActiveScenario(scenario)
+    const query = `${PRACTICE_LEAD}: ${scenario.title}`
+    const newMessages = [...messages, { role: 'user', content: query }]
+    setMessages(newMessages)
+    await respondToQuery(query, newMessages)
+  }
+
+  // Clear the scenario and return to free-chat English (PK-7). No message is sent;
+  // the next turn simply carries no scenario id.
+  const endScenario = () => {
+    activeScenarioRef.current = null
+    setActiveScenario(null)
   }
 
   // Scroll the portfolio to a cited section (P2-4). `section` always comes from
@@ -2272,6 +2344,45 @@ useEffect(() => {
                   </button>
                 ))}
               </div>
+            )}
+            {/* Scenario practice (PK-7): English mode only. A gentle set of chips
+                that open a role-play; free-chat stays the default, so typing in
+                the box works whether or not a scenario is picked. Reuses the
+                suggestion-chip visual, no new palette. */}
+            {companionEnabled && chatMode === 'english' && (
+              activeScenario ? (
+                <div dir="auto" className="mb-2 flex items-center gap-2 text-[10px] font-mono text-gray-500">
+                  <span className="truncate">{P.active}: <span className="text-accent-cyan">{activeScenario.title}</span></span>
+                  <button
+                    type="button"
+                    onClick={endScenario}
+                    disabled={isTyping}
+                    className="shrink-0 px-2 py-0.5 rounded border border-surface-border text-gray-400 hover:text-accent-cyan hover:border-accent-cyan/40 transition-colors disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                  >
+                    {P.end}
+                  </button>
+                </div>
+              ) : Array.isArray(englishScenarios) && englishScenarios.length > 0 ? (
+                <div dir="auto" className="mb-2">
+                  <div className="flex items-baseline gap-1.5 mb-1.5 text-[10px] font-mono text-gray-500">
+                    <span>{P.heading}</span>
+                    <span className="text-gray-600">{P.hint}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto scrollbar-hide">
+                    {englishScenarios.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => startScenario(s)}
+                        disabled={isTyping}
+                        className="px-2.5 py-1 bg-surface-card border border-surface-border rounded-full text-xs text-gray-400 hover:text-accent-cyan hover:border-accent-cyan/40 transition-all disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                      >
+                        {s.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null
             )}
             {voiceAllowed && speechSupported && (
               <div dir="auto" className="text-[10px] font-mono text-gray-500 mb-1.5 flex items-center gap-1.5">
