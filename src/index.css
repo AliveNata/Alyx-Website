@@ -317,6 +317,11 @@ body.theme-light #home .hero-lastname {
   animation: npmSpinner 1s steps(10) infinite;
 }
 
+/* Calendly's popup widget adds its own 3-dot spinner on top of the loading
+   screen the booking iframe already shows, so the opening popup flashes two
+   loaders. Hide the widget's extra one; the iframe's own loader is enough. */
+.calendly-spinner { display: none !important; }
+
 /* progress bar shimmer */
 @keyframes npmProgress {
   0%   { width: 0%; }
