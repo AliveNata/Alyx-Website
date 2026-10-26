@@ -17,6 +17,10 @@ import { buildFitCheckPrompt, asciiNormalize } from './prompts.js'
 // before returning. Any upstream problem returns 5xx so the client shows its
 // error state. Mounted behind the leadLimiter in index.js.
 
+// The eight chat languages the frontend offers (ChatBot.jsx UI_TEXT). The client
+// sends the selected uiLang so the grounded assessment comes back in the
+// visitor's language; an unknown or missing value degrades to English.
+const FIT_LANGS = new Set(['en', 'id', 'ja', 'zh', 'ko', 'fr', 'de', 'ar'])
 const JD_MAX = 6000         // cap the pasted JD before retrieval / Groq (decision A)
 const FIT_TOP_K = 8         // a JD spans several areas, so retrieve wider than chat
 const FIT_TEMPERATURE = 0.3 // low, to keep the assessment close to the evidence
@@ -36,6 +40,7 @@ fitcheckRouter.post('/', async (req, res) => {
   const body = req.body || {}
   const sessionId = typeof body.session_id === 'string' ? body.session_id.trim() : ''
   const jd = typeof body.jd === 'string' ? body.jd.trim().slice(0, JD_MAX) : ''
+  const lang = typeof body.lang === 'string' && FIT_LANGS.has(body.lang) ? body.lang : 'en'
   if (!sessionId) return res.status(400).json({ error: 'session_id is required' })
   if (!jd) return res.status(400).json({ error: 'a job description is required' })
 
@@ -70,7 +75,7 @@ fitcheckRouter.post('/', async (req, res) => {
     temperature: FIT_TEMPERATURE,
     max_tokens: FIT_MAX_TOKENS,
     messages: [
-      { role: 'system', content: buildFitCheckPrompt(jd, chunks) },
+      { role: 'system', content: buildFitCheckPrompt(jd, chunks, lang) },
       { role: 'user', content: 'Assess the fit now.' },
     ],
   }

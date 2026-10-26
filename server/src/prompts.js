@@ -215,12 +215,21 @@ Output only the message text, nothing else.`
 // never evidence, and an unsupported requirement must be named a gap, never
 // softened into a strength. `jd` is already trimmed and length-capped by the
 // caller; it is wrapped as data (not instructions) to blunt prompt injection.
-export function buildFitCheckPrompt(jd, chunks) {
+export function buildFitCheckPrompt(jd, chunks, lang = 'en') {
   const evidence = arr(chunks).map((c) => {
     // Same labelling as buildRetrievalPrompt so the model can cite a section.
     const label = c.anchor ? String(c.anchor).replace(/^#/, '') : c.source_id
     return `[${c.source_table}#${label}] ${c.content}`
   }).join('\n\n') || '(no portfolio evidence was retrieved for this job description)'
+
+  // Mirror the visitor's chat language, the same discipline as languageNudge.
+  // Only added for a known non-English language, so the English path (and its
+  // tests) keep their exact prompt. It governs the writing language only; every
+  // grounding and anti-fabrication rule below is untouched.
+  const langName = LANG_NAMES[lang]
+  const languageLine = langName && lang !== 'en'
+    ? `\n\nREPLY LANGUAGE: Write the whole assessment, including the section labels (Strong match / Partial / adjacent / Gaps / Verdict), in ${langName}. This changes only the language you write in: keep every grounding rule above, cite the same portfolio evidence, and invent nothing.`
+    : ''
 
   return `You assess how well Alief fits a job description, for a recruiter. Be honest and useful: a fit-check that names real gaps is worth far more than one that oversells. Your job is to suppress the urge to say he is a great fit for everything.
 
@@ -257,7 +266,7 @@ Gaps - no evidence:
 - <requirement> - no evidence in the portfolio for this
 (list every requirement the evidence does not support; if there are none, write "None.")
 
-Verdict: one honest sentence on the overall fit, whether strong or weak. Do not oversell.`
+Verdict: one honest sentence on the overall fit, whether strong or weak. Do not oversell.${languageLine}`
 }
 
 // Language-aware "not sure" reply for the retrieval path (P2-3, decisions B/E).
