@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import DOMPurify from 'dompurify'
 import { chatbotKnowledge, personalInfo } from '../data/portfolio'
 import { API_BASE } from '../lib/apiBase'
 
@@ -1870,7 +1871,12 @@ useEffect(() => {
                 }`} dir="auto">
                   {msg.role === 'assistant' ? (
                     <>
-                      <div dir="auto" dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+                      {/* Assistant content comes from the LLM / RAG corpus, so a prompt
+                          injection could smuggle raw HTML into the reply. renderMarkdown emits
+                          only strong/em/code/span/br with class/dir, so we sanitize to exactly
+                          that allowlist: legit formatting survives, any injected tag or attribute
+                          (script, img, onerror, href, style) is stripped before it reaches the DOM. */}
+                      <div dir="auto" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(msg.content), { ALLOWED_TAGS: ['strong', 'em', 'code', 'span', 'br'], ALLOWED_ATTR: ['class', 'dir'] }) }} />
                       {voiceAllowed && <button
                         onClick={() => speakingIndex === i ? stopSpeaking() : speak(msg.content, i)}
                         className={`mt-1.5 inline-flex items-center gap-1 text-[10px] font-mono transition-all ${

@@ -1,6 +1,21 @@
 import { useEffect, useState } from 'react'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import { apiGet, apiPut, apiPost } from './api'
+
+// A README is fetched from GitHub, so it is third-party HTML we render as-is. Keep the
+// rich formatting a README needs (headings, lists, tables, links, images, code) but strip
+// anything executable. FORBID_TAGS + the on*/javascript: defaults DOMPurify already applies
+// close the script/style/iframe and inline-handler paths.
+const README_SANITIZE = {
+  ALLOWED_TAGS: [
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'ul', 'ol', 'li',
+    'code', 'pre', 'strong', 'em', 'img', 'table', 'thead', 'tbody',
+    'tr', 'th', 'td', 'blockquote', 'hr', 'br', 'span', 'del',
+  ],
+  ALLOWED_ATTR: ['href', 'src', 'alt', 'class', 'title'],
+  FORBID_TAGS: ['script', 'style', 'iframe'],
+}
 
 // Render README markdown to HTML and resolve relative image/link paths to GitHub.
 function renderReadme(markdown, repo, branch) {
@@ -96,7 +111,7 @@ export default function GitHubPanel() {
           <p className="text-gray-600 font-mono text-sm">No README found in this repo.</p>
         ) : readme.html ? (
           <div className="gh-readme border border-surface-border rounded-xl p-5 bg-surface-card/30 max-h-[520px] overflow-y-auto"
-            dangerouslySetInnerHTML={{ __html: readme.html }} />
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(readme.html, README_SANITIZE) }} />
         ) : (
           <p className="text-red-400 font-mono text-sm">{readme.error || 'Could not render README.'}</p>
         )}
