@@ -5,10 +5,30 @@ import { snapshotPromptVersion } from './promptVersions.js'
 
 const FIELDS = ['model', 'reasoning_effort', 'temperature', 'max_tokens', 'system_prompt', 'greeting', 'enable_companion', 'enable_voice', 'enable_site_actions', 'calendly_url', 'sociabuzz_url', 'contact_email']
 
+// Columns the public site may read. contact_email is the inbox owner's address;
+// it never belongs in a no-auth payload every visitor loads (PK-24, email
+// harvesting). The client only needs to know whether the email channel is on,
+// which the derived contact_email_enabled boolean carries instead.
+const PUBLIC_FIELDS = FIELDS.filter((f) => f !== 'contact_email')
+
 export const chatbotRouter = Router()
 
-// Public: the site reads chatbot config at load (no secrets here).
+// Public: the site reads chatbot config at load (no secrets, no contact email).
 chatbotRouter.get('/', async (_req, res) => {
+  const cols = PUBLIC_FIELDS.join(', ')
+  const { rows } = await query(
+    `SELECT ${cols}, (btrim(contact_email) <> '') AS contact_email_enabled
+     FROM chatbot_settings WHERE id = 1`,
+  )
+  res.json(rows[0] || {})
+})
+
+// Admin: the settings form needs the full row (contact_email included) to edit
+// it, so it reads this auth-gated endpoint (mounted at /api/admin/chatbot)
+// instead of the public GET above.
+export const chatbotAdminRouter = Router()
+
+chatbotAdminRouter.get('/', requireAuth, async (_req, res) => {
   const { rows } = await query('SELECT * FROM chatbot_settings WHERE id = 1')
   res.json(rows[0] || {})
 })

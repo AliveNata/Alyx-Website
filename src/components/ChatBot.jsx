@@ -1696,7 +1696,10 @@ useEffect(() => {
   const ctaDestination = (channel) => {
     if (channel === 'booking') return settings?.calendly_url?.trim() || ''
     if (channel === 'sociabuzz') return settings?.sociabuzz_url?.trim() || ''
-    if (channel === 'email') return settings?.contact_email?.trim() || ''
+    // The public payload no longer carries the raw contact email (PK-24); it only
+    // says whether the channel is on. The email chip opens an inline form that
+    // submits via /api/lead, so this value only gates the chip and is never a URL.
+    if (channel === 'email') return settings?.contact_email_enabled ? 'enabled' : ''
     return ''
   }
 

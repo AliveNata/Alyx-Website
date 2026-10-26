@@ -188,7 +188,9 @@ export default function ChatbotSettings() {
   // Bumped after a successful save so the history panel refetches the new version.
   const [savedAt, setSavedAt] = useState(0)
 
-  useEffect(() => { apiGet('/api/chatbot').then((d) => setForm({ ...d, temperature: Number(d.temperature ?? 0.7) })).catch(() => setForm({})) }, [])
+  // Authed load: the admin form edits contact_email, which the public GET no
+  // longer returns (PK-24), so it reads the full row from /api/admin/chatbot.
+  useEffect(() => { apiGet('/api/admin/chatbot').then((d) => setForm({ ...d, temperature: Number(d.temperature ?? 0.7) })).catch(() => setForm({})) }, [])
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
   // Pull a saved snapshot back into the form fields. Non-destructive: it only

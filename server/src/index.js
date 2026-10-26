@@ -8,7 +8,7 @@ import { authRouter } from './auth.js'
 import { crudRouter } from './crud.js'
 import { personalRouter } from './personal.js'
 import { portfolioRouter } from './portfolio.js'
-import { chatbotRouter } from './chatbot.js'
+import { chatbotRouter, chatbotAdminRouter } from './chatbot.js'
 import { githubRouter } from './github.js'
 import { settingsRouter } from './settings.js'
 import { RL_HEADERS } from './groq.js'
@@ -98,6 +98,7 @@ app.use('/api/english-scenarios', englishScenariosRouter)
 app.use('/api/lead', leadRouter)
 app.use('/api/contact', contactRouter)
 app.use('/api/fitcheck', fitcheckRouter)
+app.use('/api/admin/chatbot', chatbotAdminRouter) // full row (incl. contact_email) for the settings form
 app.use('/api/admin/analytics', analyticsRouter)
 app.use('/api/admin/leads', leadsAdminRouter)
 app.use('/api/admin/prompt-versions', promptVersionsRouter)
