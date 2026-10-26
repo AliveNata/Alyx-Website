@@ -3,7 +3,7 @@
 > Full-stack personal portfolio for Alief Akbar, Data Engineer / BI, with a
 > content-managed admin panel and a server-authoritative AI assistant named Alyx.
 
-Live: alyxlabs.tech
+Live: **[alyxlabs.tech](https://alyxlabs.tech)**
 
 ---
 
