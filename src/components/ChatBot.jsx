@@ -425,9 +425,10 @@ const FITCHECK_COPY = {
     errorMode: 'Fit-check membaca portofolio, jadi ganti mode ke Portofolio lalu coba lagi.',
   },
   // ja/zh/ko/ar carry their native script, matching UI_TEXT / NOTICE. The mode
-  // picker labels fall back to en for these six languages, so errorMode names the
-  // mode as the literal "Portfolio" the visitor actually sees. First-pass copy;
-  // native-speaker review welcome later, as with the consent notice.
+  // picker's "Portfolio" label stays the literal "Portfolio" in every language
+  // (it is the feature name), so errorMode names that same literal the visitor
+  // sees. First-pass copy; native-speaker review welcome later, as with the
+  // consent notice.
   ja: {
     entry: '求人情報との相性をチェック',
     close: '閉じる',
@@ -545,6 +546,71 @@ const MODE_LABELS = {
       portfolio: 'Menjawab dari portofolio Alief',
       curhat: 'Teman ngobrol yang hangat dan mau mendengar',
       english: 'Latihan bahasa Inggris plus koreksi',
+    },
+  },
+  // ja/zh/ko/ar carry their native script, matching UI_TEXT / NOTICE. "Portfolio"
+  // stays the Latin feature name (the fit-check errorMode points visitors at that
+  // same literal), "auto" and the companion mode are translated to their meaning,
+  // and "english" takes each language's own name for English, as id does ("Inggris").
+  // First-pass copy; native-speaker review welcome later.
+  ja: {
+    label: 'モード',
+    auto: '自動', portfolio: 'Portfolio', curhat: '話し相手', english: '英語',
+    tip: {
+      auto: 'Alyxが各メッセージを読んでモードを選びます',
+      portfolio: 'アリフのポートフォリオから回答します',
+      curhat: '温かく話を聞く相手とのチャット',
+      english: '英語を練習して添削を受けられます',
+    },
+  },
+  zh: {
+    label: '模式',
+    auto: '自动', portfolio: 'Portfolio', curhat: '陪伴', english: '英语',
+    tip: {
+      auto: 'Alyx 读取每条消息并自动选择模式',
+      portfolio: '根据 Alief 的作品集作答',
+      curhat: '温暖倾听的陪伴聊天',
+      english: '练习英语并获得纠正',
+    },
+  },
+  ko: {
+    label: '모드',
+    auto: '자동', portfolio: 'Portfolio', curhat: '말벗', english: '영어',
+    tip: {
+      auto: 'Alyx가 메시지마다 읽고 모드를 고릅니다',
+      portfolio: 'Alief의 포트폴리오를 바탕으로 답합니다',
+      curhat: '따뜻하게 들어주는 말벗 대화',
+      english: '영어를 연습하고 교정을 받아요',
+    },
+  },
+  fr: {
+    label: 'Mode',
+    auto: 'Auto', portfolio: 'Portfolio', curhat: 'Compagnon', english: 'Anglais',
+    tip: {
+      auto: 'Alyx lit chaque message et choisit le mode',
+      portfolio: "Répond à partir du portfolio d'Alief",
+      curhat: "Une conversation chaleureuse à l'écoute",
+      english: "S'entraîner en anglais et recevoir des corrections",
+    },
+  },
+  de: {
+    label: 'Modus',
+    auto: 'Auto', portfolio: 'Portfolio', curhat: 'Begleiter', english: 'Englisch',
+    tip: {
+      auto: 'Alyx liest jede Nachricht und wählt den Modus',
+      portfolio: 'Antwortet aus Aliefs Portfolio',
+      curhat: 'Ein warmes, zuhörendes Begleitgespräch',
+      english: 'Englisch üben und Korrekturen bekommen',
+    },
+  },
+  ar: {
+    label: 'الوضع',
+    auto: 'تلقائي', portfolio: 'Portfolio', curhat: 'رفيق', english: 'الإنجليزية',
+    tip: {
+      auto: 'يقرأ Alyx كل رسالة ويختار الوضع',
+      portfolio: 'يجيب من ملف أعمال Alief',
+      curhat: 'محادثة رفيق دافئة تنصت إليك',
+      english: 'تدرّب على الإنجليزية واحصل على تصحيحات',
     },
   },
 }
