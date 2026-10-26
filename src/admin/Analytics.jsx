@@ -53,7 +53,9 @@ const tickIdx = (n) => {
 }
 
 // Gridlines, y labels, x-day ticks, baseline. Shared by the line and bar charts.
-function Axes({ rows, yMax }) {
+// xTick maps a row index to the x where its day label sits: line points sit on
+// the plot edges (xAt), bars sit at slot centers, so each chart passes its own.
+function Axes({ rows, yMax, xTick = xAt }) {
   const n = rows.length
   return (
     <>
@@ -67,7 +69,7 @@ function Axes({ rows, yMax }) {
         )
       })}
       {tickIdx(n).map((i) => (
-        <text key={i} x={xAt(i, n)} y={H - 10} textAnchor="middle" fontSize="9" fill={INK} fontFamily="monospace">{dayShort(rows[i].day)}</text>
+        <text key={i} x={xTick(i, n)} y={H - 10} textAnchor="middle" fontSize="9" fill={INK} fontFamily="monospace">{dayShort(rows[i].day)}</text>
       ))}
     </>
   )
@@ -133,7 +135,7 @@ function BarChart({ rows, dataKey, color, label }) {
   const barCenter = (i) => L + slot * (i + 0.5)
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={label} preserveAspectRatio="xMidYMid meet">
-      <Axes rows={rows} yMax={yMax} />
+      <Axes rows={rows} yMax={yMax} xTick={barCenter} />
       {rows.map((r, i) => {
         const v = int(r[dataKey])
         const y = yAt(v, yMax)
@@ -180,11 +182,12 @@ function Breakdown({ title, segments }) {
   )
 }
 
-function Tile({ icon, label, value, hint }) {
+function Tile({ icon, label, value, hint, desc }) {
   return (
-    <div className="bg-surface-card border border-surface-border rounded-xl p-4">
+    <div className="bg-surface-card border border-surface-border rounded-xl p-4" title={desc || undefined}>
       <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-gray-500 mb-2">
-        <i className={`bi ${icon} text-accent-cyan`} aria-hidden="true" /> {label}
+        <i className={`bi ${icon} text-accent-cyan`} aria-hidden="true" />
+        <span className={desc ? 'cursor-help underline decoration-dotted decoration-gray-700 underline-offset-2' : undefined}>{label}</span>
       </div>
       <div className="text-2xl font-bold text-white tabular-nums">{value}</div>
       {hint && <div className="text-[10px] font-mono text-gray-600 mt-1">{hint}</div>}
@@ -322,13 +325,20 @@ export default function Analytics() {
         <div className="space-y-5">
           {/* KPI tiles */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            <Tile icon="bi-chat-dots" label="Conversations" value={fmtInt(sum('conversations'))} />
-            <Tile icon="bi-chat-text" label="Messages" value={fmtInt(sum('messages'))} />
-            <Tile icon="bi-cpu" label="Tokens out" value={fmtInt(sum('tokens_out'))} />
-            <Tile icon="bi-speedometer2" label="Avg latency" value={fmtMs(weightedLatency)} />
-            <Tile icon="bi-activity" label="p95 latency" value={fmtMs(p95Peak)} hint="daily peak" />
-            <Tile icon="bi-shield-slash" label="Opt-out rate" value={fmtPct(avgOf('opt_out_rate'))} hint="avg of active days" />
-            <Tile icon="bi-lightning-charge" label="Cache-hit rate" value={fmtPct(avgOf('cache_hit_rate'))} hint="avg of active days" />
+            <Tile icon="bi-chat-dots" label="Conversations" value={fmtInt(sum('conversations'))}
+              desc="Distinct chat sessions started in this range." />
+            <Tile icon="bi-chat-text" label="Messages" value={fmtInt(sum('messages'))}
+              desc="All messages exchanged, visitor and Alyx, in this range." />
+            <Tile icon="bi-cpu" label="Tokens out" value={fmtInt(sum('tokens_out'))}
+              desc="Completion tokens Alyx generated in this range." />
+            <Tile icon="bi-speedometer2" label="Avg latency" value={fmtMs(weightedLatency)}
+              desc="Mean response time, weighted by message count so it is a true mean." />
+            <Tile icon="bi-activity" label="p95 latency" value={fmtMs(p95Peak)} hint="daily peak"
+              desc="Highest daily p95 response time in this range." />
+            <Tile icon="bi-shield-slash" label="Opt-out rate" value={fmtPct(avgOf('opt_out_rate'))} hint="avg of active days"
+              desc="Share of sessions where the visitor opted out of logging, averaged over days with activity." />
+            <Tile icon="bi-lightning-charge" label="Cache-hit rate" value={fmtPct(avgOf('cache_hit_rate'))} hint="avg of active days"
+              desc="Share of responses served from cache, averaged over days with activity." />
           </div>
 
           {/* Time series */}
