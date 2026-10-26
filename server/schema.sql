@@ -168,6 +168,27 @@ ALTER TABLE chatbot_settings ADD COLUMN IF NOT EXISTS calendly_url  TEXT NOT NUL
 ALTER TABLE chatbot_settings ADD COLUMN IF NOT EXISTS sociabuzz_url TEXT NOT NULL DEFAULT '';
 ALTER TABLE chatbot_settings ADD COLUMN IF NOT EXISTS contact_email TEXT NOT NULL DEFAULT '';
 
+-- Prompt version history (PK-1). A snapshot of the portfolio-mode prompt + its
+-- LLM tuning, captured after a settings save when either changed (chatbot.js).
+-- It is a safety net for prompt edits: the admin can load an old config back
+-- into the editor and re-save it. Config only, no PII, so the full prompt text
+-- is safe to serve to the authed admin. The table is bounded to the newest 50
+-- rows by the snapshot path, so it never grows unbounded. gen_random_uuid() is
+-- PG 18 core (same as conversations/leads), so no pgcrypto extension is needed.
+CREATE TABLE IF NOT EXISTS prompt_versions (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  system_prompt    TEXT    NOT NULL DEFAULT '',
+  model            TEXT    NOT NULL DEFAULT '',
+  reasoning_effort TEXT    NOT NULL DEFAULT '',
+  temperature      NUMERIC,
+  max_tokens       INT,
+  greeting         TEXT    NOT NULL DEFAULT '',
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- The history panel lists newest-first; this index serves that order and the
+-- "keep the newest 50" prune.
+CREATE INDEX IF NOT EXISTS prompt_versions_created_at_idx ON prompt_versions(created_at DESC);
+
 -- Chat logging (P1-1). No raw PII is stored: content is redacted before insert
 -- (or NULL for curhat / opted-out), and ip/ua are HMAC-hashed, never raw.
 -- gen_random_uuid() is in PG 18 core, so no pgcrypto extension is required.

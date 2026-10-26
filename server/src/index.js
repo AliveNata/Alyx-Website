@@ -17,6 +17,8 @@ import { leadRouter } from './lead.js'
 import { fitcheckRouter } from './fitcheck.js'
 import { analyticsRouter } from './analytics.js'
 import { leadsAdminRouter } from './leadsAdmin.js'
+import { promptVersionsRouter } from './promptVersions.js'
+import { promptPreviewRouter } from './promptPreview.js'
 import { reindexRouter } from './reindex.js'
 import { cvNotifyRouter } from './cvnotify.js'
 import { uploadRouter, UPLOAD_DIR } from './upload.js'
@@ -43,11 +45,15 @@ const chatLimiter = rateLimit({ windowMs: 5 * 60 * 1000, max: 40, standardHeader
 // Light per-IP cap on lead writes (P3-2, decision G). A human engages a CTA a
 // handful of times at most; the dedicated leadLimiter + honeypot land in P3-3.
 const leadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, please slow down.' } })
+// Admin playground (PK-1): auth-gated already, but each preview is a Groq call,
+// so cap it to stop a stuck UI (or a leaked token) from draining the quota.
+const previewLimiter = rateLimit({ windowMs: 5 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, please slow down.' } })
 app.use('/api/auth/login', loginLimiter)   // brute-force protection
 app.use('/api/auth/forgot', loginLimiter)  // don't let forgot-password be spammed
 app.use('/api/chat', chatLimiter)          // protect the Groq quota from abuse
 app.use('/api/lead', leadLimiter)          // light abuse cap on lead submits
 app.use('/api/fitcheck', leadLimiter)      // reuse the lead cap for the JD fit-check (P3-5)
+app.use('/api/admin/prompt-preview', previewLimiter) // cap playground Groq calls
 
 // Uploaded images (served directly; nginx can also serve this path).
 app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '30d' }))
@@ -65,6 +71,8 @@ app.use('/api/lead', leadRouter)
 app.use('/api/fitcheck', fitcheckRouter)
 app.use('/api/admin/analytics', analyticsRouter)
 app.use('/api/admin/leads', leadsAdminRouter)
+app.use('/api/admin/prompt-versions', promptVersionsRouter)
+app.use('/api/admin/prompt-preview', promptPreviewRouter)
 app.use('/api/admin/reindex', reindexRouter)
 app.use('/api/cv-notify', cvNotifyRouter)
 app.use('/api/upload', uploadRouter)

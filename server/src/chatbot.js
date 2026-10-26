@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { query } from './db.js'
 import { requireAuth } from './auth.js'
+import { snapshotPromptVersion } from './promptVersions.js'
 
 const FIELDS = ['model', 'reasoning_effort', 'temperature', 'max_tokens', 'system_prompt', 'greeting', 'enable_companion', 'enable_voice', 'enable_site_actions', 'calendly_url', 'sociabuzz_url', 'contact_email']
 
@@ -28,5 +29,11 @@ chatbotRouter.put('/', requireAuth, async (req, res) => {
      ON CONFLICT (id) DO UPDATE SET ${assignments} RETURNING *`,
     values,
   )
+
+  // Snapshot the saved config into prompt_versions (PK-1). Best-effort and
+  // self-guarding: a snapshot failure is logged inside snapshotPromptVersion and
+  // never reaches here, so the save still returns 200 with the settings row.
+  await snapshotPromptVersion(rows[0])
+
   res.json(rows[0])
 })
