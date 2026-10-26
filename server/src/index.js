@@ -22,6 +22,7 @@ import { promptVersionsRouter } from './promptVersions.js'
 import { promptPreviewRouter } from './promptPreview.js'
 import { reindexRouter } from './reindex.js'
 import { cvNotifyRouter } from './cvnotify.js'
+import { cvAdminRouter, cvDownloadRouter } from './cv.js'
 import { uploadRouter, UPLOAD_DIR } from './upload.js'
 import { RESOURCES } from './resources.js'
 import { embed } from './embed.js'
@@ -49,19 +50,34 @@ const leadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeade
 // Admin playground (PK-1): auth-gated already, but each preview is a Groq call,
 // so cap it to stop a stuck UI (or a leaked token) from draining the quota.
 const previewLimiter = rateLimit({ windowMs: 5 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, please slow down.' } })
+// CV management (PK-18). The upload is auth-gated, but still capped so a leaked
+// token can't churn the disk; the public download log is a cheap write a visitor
+// fires a couple of times per visit, so a looser cap is enough to bound abuse.
+const cvUploadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, please slow down.' } })
+const cvDownloadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, please slow down.' } })
 app.use('/api/auth/login', loginLimiter)   // brute-force protection
 app.use('/api/auth/forgot', loginLimiter)  // don't let forgot-password be spammed
 app.use('/api/chat', chatLimiter)          // protect the Groq quota from abuse
 app.use('/api/lead', leadLimiter)          // light abuse cap on lead submits
 app.use('/api/fitcheck', leadLimiter)      // reuse the lead cap for the JD fit-check (P3-5)
 app.use('/api/admin/prompt-preview', previewLimiter) // cap playground Groq calls
+app.use('/api/admin/cv', cvUploadLimiter)  // cap CV uploads even behind auth
+app.use('/api/cv-download', cvDownloadLimiter) // bound the public CV log
 
 // Uploaded images (served directly; nginx can also serve this path).
 // nosniff stops a browser from re-interpreting a stored file as HTML/JS, so a
 // file that slips past the upload filter can't execute on this origin.
 app.use('/uploads', express.static(UPLOAD_DIR, {
   maxAge: '30d',
-  setHeaders: (res) => res.set('X-Content-Type-Options', 'nosniff'),
+  setHeaders: (res, filePath) => {
+    res.set('X-Content-Type-Options', 'nosniff')
+    // The managed CV (PK-18) is served inline so "View CV" opens in the browser's
+    // PDF viewer; the filename makes a browser-initiated save land as a readable
+    // name rather than a UUID. Images keep their default (no disposition).
+    if (filePath.toLowerCase().endsWith('.pdf')) {
+      res.set('Content-Disposition', 'inline; filename="Curriculum Vitae - Alief Akbar.pdf"')
+    }
+  },
 }))
 
 app.get('/health', (_req, res) => res.json({ ok: true }))
@@ -82,6 +98,8 @@ app.use('/api/admin/prompt-versions', promptVersionsRouter)
 app.use('/api/admin/prompt-preview', promptPreviewRouter)
 app.use('/api/admin/reindex', reindexRouter)
 app.use('/api/cv-notify', cvNotifyRouter)
+app.use('/api/admin/cv', cvAdminRouter)
+app.use('/api/cv-download', cvDownloadRouter)
 app.use('/api/upload', uploadRouter)
 for (const [name, cfg] of Object.entries(RESOURCES)) {
   app.use(`/api/${name}`, crudRouter(cfg))
@@ -95,7 +113,7 @@ app.use((err, _req, res, _next) => {
   // Multer rejections (e.g. file too large) are the caller's fault, not ours.
   // Its messages ("File too large", etc.) are safe to surface; no internals leak.
   if (err instanceof MulterError) return res.status(400).json({ error: err.message })
-  const isClientError = /not allowed|only image|no file/i.test(err.message || '')
+  const isClientError = /not allowed|only image|only a pdf|no file/i.test(err.message || '')
   if (isClientError) return res.status(400).json({ error: err.message })
   res.status(500).json({ error: 'Server error' })
 })

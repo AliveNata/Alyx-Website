@@ -193,6 +193,50 @@ function Card({ title, children }) {
   )
 }
 
+// CV view/download card (PK-18). A small, honest counter: these are client-fired
+// signals, not verified downloads, so the hint says exactly that.
+function CvCard({ days }) {
+  const [cv, setCv] = useState({ status: 'loading', totals: null, error: '' })
+
+  useEffect(() => {
+    let alive = true
+    setCv((s) => ({ ...s, status: 'loading', error: '' }))
+    apiGet(`/api/admin/analytics/cv?days=${days}`)
+      .then((d) => { if (alive) setCv({ status: 'ok', totals: d.totals || { total: 0, views: 0, downloads: 0 }, error: '' }) })
+      .catch((e) => { if (alive) setCv({ status: 'error', totals: null, error: e.message || 'Failed to load' }) })
+    return () => { alive = false }
+  }, [days])
+
+  return (
+    <div className="bg-surface-card border border-surface-border rounded-xl p-4">
+      <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-gray-500 mb-3">
+        <i className="bi bi-file-earmark-pdf text-accent-cyan" aria-hidden="true" /> CV activity
+      </div>
+      {cv.status === 'loading' && <p className="text-xs font-mono text-gray-500">Loading...</p>}
+      {cv.status === 'error' && <p className="text-xs font-mono text-red-400">{cv.error}</p>}
+      {cv.status === 'ok' && (
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <div className="text-2xl font-bold text-white tabular-nums">{fmtInt(int(cv.totals.total))}</div>
+              <div className="text-[10px] font-mono text-gray-600 mt-0.5">Total events</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-white tabular-nums">{fmtInt(int(cv.totals.views))}</div>
+              <div className="text-[10px] font-mono text-gray-600 mt-0.5">Views</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-white tabular-nums">{fmtInt(int(cv.totals.downloads))}</div>
+              <div className="text-[10px] font-mono text-gray-600 mt-0.5">Downloads</div>
+            </div>
+          </div>
+          <p className="text-[10px] font-mono text-gray-600 mt-3 leading-relaxed">Client-fired signals over the selected range, not verified downloads.</p>
+        </>
+      )}
+    </div>
+  )
+}
+
 export default function Analytics() {
   const [days, setDays] = useState(30)
   const [state, setState] = useState({ status: 'loading', rows: [], error: '' })
@@ -238,6 +282,10 @@ export default function Analytics() {
         </div>
       </div>
       <p className="text-gray-500 text-xs font-mono mb-6">// chat activity from mv_chat_daily - aggregates only, no message content</p>
+
+      <div className="mb-6">
+        <CvCard days={days} />
+      </div>
 
       {status === 'loading' && (
         <div className="flex items-center gap-2 text-gray-500 font-mono text-sm py-16 justify-center">

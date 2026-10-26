@@ -51,3 +51,18 @@ export async function uploadImage(file) {
   if (!res.ok) throw new Error(data.error || 'Upload failed')
   return data.url
 }
+
+// Upload/replace the managed CV (PK-18). PDF only, enforced server-side; returns
+// the new cv_url the admin preview and public get_cv both read.
+export async function uploadCv(file) {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch(`${BASE}/api/admin/cv`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getToken()}` },
+    body: form,
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || 'Upload failed')
+  return data.cv_url
+}

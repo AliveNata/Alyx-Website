@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import DOMPurify from 'dompurify'
 import { chatbotKnowledge, personalInfo } from '../data/portfolio'
 import { API_BASE } from '../lib/apiBase'
+import { fetchCvSettings, viewCv, downloadCv, logCv, STATIC_CV_URL } from '../lib/cv'
 
 // The server-authoritative chat endpoint owns the prompt, the context, and the
 // model. The browser sends only the message plus a few flags, and never sees
@@ -58,14 +59,12 @@ const SITE_ACTIONS = [
     reply: { id: 'Membuka GitHub Alief di tab baru! 🐙', en: "Opening Alief's GitHub in a new tab! 🐙" },
   },
   {
+    // get_cv (PK-18): no longer force-downloads. The reply carries a view +
+    // download affordance (cvOffer) so the visitor can read it in a tab first.
     patterns: [/\b(cv|resume|curriculum\s*vitae|unduh\s*cv|download\s*cv)\b/i],
-    action: () => {
-      const a = document.createElement('a')
-      a.href = '/Curriculum%20Vitae%20-%20Alief%20Akbar.pdf'
-      a.download = 'Curriculum Vitae - Alief Akbar.pdf'
-      a.click()
-    },
-    reply: { id: 'Mendownload CV Alief... 📄', en: "Downloading Alief's CV... 📄" },
+    action: () => {},
+    cvOffer: true,
+    reply: { id: 'Ini CV Alief. Kamu bisa lihat dulu atau langsung unduh.', en: "Here is Alief's CV. You can view it first or download it." },
   },
   {
     patterns: [/\b(copy|salin|kopas)\b.*\b(email)\b|\bemail\b.*\b(copy|salin|kopas)\b/i],
@@ -467,6 +466,34 @@ const PRACTICE_LABELS = {
 }
 const PRACTICE_LEAD = "Let's practice"
 
+// get_cv affordance copy (PK-18). en + id written, every other chat language
+// falls back to en, matching the GREET/NOTICE pattern. The capture copy is
+// honest: it asks, it never claims a verified download.
+const CV_COPY = {
+  en: {
+    view: 'View CV',
+    download: 'Download',
+    captureLead: 'Want Alief to follow up? Leave your email.',
+    emailLabel: 'Your email',
+    send: 'Send',
+    cancel: 'No thanks',
+    invalid: 'Enter a valid email.',
+    error: 'Could not send. Please try again.',
+    sent: 'Thanks. Alief will be in touch.',
+  },
+  id: {
+    view: 'Lihat CV',
+    download: 'Unduh',
+    captureLead: 'Mau Alief follow up? Tinggalkan emailmu.',
+    emailLabel: 'Email kamu',
+    send: 'Kirim',
+    cancel: 'Nggak dulu',
+    invalid: 'Masukkan email yang valid.',
+    error: 'Gagal mengirim. Coba lagi ya.',
+    sent: 'Makasih. Alief bakal menghubungi kamu.',
+  },
+}
+
 // ============================================================
 // VOICE PRESETS
 // ============================================================
@@ -792,6 +819,14 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
   // itself lands as an assistant message, not here.
   const [fitCheck, setFitCheck] = useState({ open: false, jd: '', status: 'idle', error: '' })
 
+  // get_cv (PK-18). cvSettings resolves the managed CV + the capture toggle; it
+  // starts on the static fallback so get_cv works before the fetch returns. The
+  // capture is per-session-ish, keyed by the offering message index in cvCapture,
+  // so each get_cv reply owns its own small, dismissible email field. status is
+  // idle | invalid | sending | error; done holds the one-line confirmation.
+  const [cvSettings, setCvSettings] = useState({ cvUrl: STATIC_CV_URL, leadCapture: false })
+  const [cvCapture, setCvCapture] = useState({ hostIndex: null, email: '', hp: '', status: 'idle', done: '' })
+
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
@@ -884,6 +919,10 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
     fetch(url).then((r) => r.ok ? r.json() : null).then((s) => { if (s && s.model) setSettings(s) }).catch(() => {})
   }, [])
 
+  // Resolve the managed CV + capture toggle once (PK-18). Fails open to the
+  // static fallback inside fetchCvSettings, so get_cv never breaks.
+  useEffect(() => { fetchCvSettings().then(setCvSettings) }, [])
+
   // Apply a greeting override to a fresh conversation once settings arrive.
   useEffect(() => {
     if (settings?.greeting?.trim() && messages.length === 1 && messages[0].role === 'assistant') {
@@ -941,7 +980,7 @@ export default function ChatBot({ onClose, showHeaderClose = false }) {
     if (siteAction) {
       try { siteAction.action() } catch (e) { console.warn('[Alyx] Action failed:', e) }
       const reply = isId ? siteAction.reply.id : siteAction.reply.en
-      const updated = [...newMessages, { role: 'assistant', content: reply }]
+      const updated = [...newMessages, { role: 'assistant', content: reply, ...(siteAction.cvOffer ? { cvOffer: true } : {}) }]
       setMessages(updated)
       speak(reply, updated.length - 1)
       return
@@ -1604,6 +1643,38 @@ useEffect(() => {
     else setCtaForm((f) => ({ ...f, status: 'error' }))
   }
 
+  // get_cv affordance (PK-18). View opens the managed CV (static fallback) in a
+  // new tab; download forces a save. Both log a hashed signal row, never raw PII.
+  const handleCvView = () => { logCv('view'); viewCv(cvSettings.cvUrl) }
+  const handleCvDownload = (hostIndex) => {
+    logCv('download')
+    downloadCv(cvSettings.cvUrl) // never awaited: the download is not blocked
+    // Soft lead capture (#2), gated by the admin toggle and OFF by default. Just
+    // reveals the dismissible field; it reuses the P3 /api/lead path on submit.
+    if (cvSettings.leadCapture) setCvCapture({ hostIndex, email: '', hp: '', status: 'idle', done: '' })
+  }
+
+  // Submit the optional CV follow-up (#2) through the EXISTING lead funnel. The
+  // context names the real action and carries the "email" keyword the server's
+  // earned-cta guard recomputes an email lead from, so the lead persists and the
+  // P3-4 soft handoff fires. The download already happened; this never blocks it.
+  const submitCvLead = async () => {
+    const copy = CV_COPY[uiLang] || CV_COPY.en
+    const email = cvCapture.email.trim()
+    if (!isValidEmail(email)) { setCvCapture((f) => ({ ...f, status: 'invalid' })); return }
+    setCvCapture((f) => ({ ...f, status: 'sending' }))
+    const ok = await postLead({
+      channel: 'email',
+      contactValue: email,
+      context: 'Downloaded the CV and asked Alief to follow up by email.',
+      honeypot: cvCapture.hp,
+    })
+    if (ok) setCvCapture((f) => ({ ...f, email: '', hp: '', status: 'idle', done: copy.sent }))
+    else setCvCapture((f) => ({ ...f, status: 'error' }))
+  }
+
+  const dismissCvCapture = () => setCvCapture((f) => ({ ...f, hostIndex: null, status: 'idle', done: '' }))
+
   // Run the fit-check (P3-5). Explicit, never auto-detected: the recruiter opens
   // the panel and pastes a JD. The request shows as a user turn so the thread
   // reads in order, then the grounded assessment arrives as an assistant message.
@@ -1679,7 +1750,7 @@ useEffect(() => {
     if (siteAction) {
       try { siteAction.action() } catch (e) { console.warn('[Alyx] Action failed:', e) }
       const reply = isId ? siteAction.reply.id : siteAction.reply.en
-      const updated = [...newMessages, { role: 'assistant', content: reply }]
+      const updated = [...newMessages, { role: 'assistant', content: reply, ...(siteAction.cvOffer ? { cvOffer: true } : {}) }]
       setMessages(updated)
       speak(reply, updated.length - 1)
       return
@@ -2076,6 +2147,91 @@ useEffect(() => {
                           </div>
                         )
                       })()}
+                      {/* get_cv affordance (PK-18). View opens the CV in a tab,
+                          Download saves it. When the admin turned the capture on,
+                          Download reveals a small, dismissible email field that
+                          rides the existing lead funnel; it never blocks the save. */}
+                      {msg.cvOffer && (() => {
+                        const copy = CV_COPY[uiLang] || CV_COPY.en
+                        const captureOpen = cvSettings.leadCapture && cvCapture.hostIndex === i
+                        return (
+                          <div dir="auto" className="mt-2.5 flex flex-col gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={handleCvView}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono rounded border border-accent-cyan/40 text-accent-cyan hover:border-accent-cyan hover:bg-accent-cyan/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                              >
+                                <i className="bi bi-eye" aria-hidden="true" /> {copy.view}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleCvDownload(i)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono rounded border border-surface-border text-gray-300 hover:text-accent-cyan hover:border-accent-cyan/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                              >
+                                <i className="bi bi-download" aria-hidden="true" /> {copy.download}
+                              </button>
+                            </div>
+
+                            {cvCapture.done && cvCapture.hostIndex === i && (
+                              <span className="text-[11px] font-mono text-accent-green">{cvCapture.done}</span>
+                            )}
+
+                            {captureOpen && !cvCapture.done && (
+                              <div className="flex flex-col gap-2 rounded-lg border border-surface-border p-3">
+                                <label className="flex flex-col gap-1">
+                                  <span className="text-[11px] font-mono text-gray-500">{copy.captureLead}</span>
+                                  <input
+                                    type="email"
+                                    inputMode="email"
+                                    autoComplete="email"
+                                    aria-label={copy.emailLabel}
+                                    value={cvCapture.email}
+                                    onChange={(e) => setCvCapture((f) => ({ ...f, email: e.target.value, status: f.status === 'invalid' ? 'idle' : f.status }))}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitCvLead() } }}
+                                    placeholder="email@example.com"
+                                    className="w-full px-2.5 py-1.5 text-[13px] rounded border border-surface-border bg-primary/60 text-gray-200 placeholder-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                                  />
+                                </label>
+                                {/* Honeypot (reuses the P3-3 pattern): offscreen, out of tab order,
+                                    non-semantic name so autofill never touches it. Server drops any
+                                    filled value. */}
+                                <label style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>
+                                  Leave this field blank
+                                  <input
+                                    type="text"
+                                    name="contact_ref_x"
+                                    tabIndex={-1}
+                                    autoComplete="off"
+                                    value={cvCapture.hp}
+                                    onChange={(e) => setCvCapture((f) => ({ ...f, hp: e.target.value }))}
+                                  />
+                                </label>
+                                {cvCapture.status === 'invalid' && <span className="text-[11px] font-mono text-red-400">{copy.invalid}</span>}
+                                {cvCapture.status === 'error' && <span className="text-[11px] font-mono text-red-400">{copy.error}</span>}
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={submitCvLead}
+                                    disabled={cvCapture.status === 'sending'}
+                                    className="px-2.5 py-1 text-[11px] font-mono rounded border border-accent-cyan/40 text-accent-cyan hover:border-accent-cyan hover:bg-accent-cyan/10 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                                  >
+                                    {cvCapture.status === 'sending' ? '...' : copy.send}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={dismissCvCapture}
+                                    className="px-2.5 py-1 text-[11px] font-mono rounded text-gray-500 hover:text-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                                  >
+                                    {copy.cancel}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
+
                       {/* Lead CTA chip (P3-2). Shown under the one claimed host
                           message, from a LIVE cta only. Copy is gentle and lang
                           aware; the engage control reuses the plain citation-chip

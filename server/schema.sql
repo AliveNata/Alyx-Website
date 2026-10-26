@@ -140,8 +140,16 @@ CREATE TABLE IF NOT EXISTS site_settings (
   id               INT PRIMARY KEY DEFAULT 1,
   contact_endpoint TEXT NOT NULL DEFAULT '',  -- Google Apps Script URL for the contact form
   telegram_chat_id TEXT NOT NULL DEFAULT '',  -- destination for CV-download notifications
+  -- CV / resume management (PK-18). cv_url is the managed CV the public get_cv
+  -- serves; blank falls back to the static file in public/ (no regression before
+  -- an upload). cv_lead_capture gates the optional post-download email capture.
+  cv_url           TEXT NOT NULL DEFAULT '',
+  cv_lead_capture  BOOLEAN NOT NULL DEFAULT false,
   CONSTRAINT site_settings_singleton CHECK (id = 1)
 );
+-- Idempotent for existing rows: the CREATE above only fires on a fresh install.
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS cv_url          TEXT NOT NULL DEFAULT '';
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS cv_lead_capture BOOLEAN NOT NULL DEFAULT false;
 
 -- Single-row chatbot configuration (id is always 1). Read by the site at load,
 -- edited from the admin panel. The Groq API key stays server-side.
@@ -382,3 +390,19 @@ CREATE TABLE IF NOT EXISTS leads (
 
 CREATE INDEX IF NOT EXISTS leads_created_at_idx ON leads(created_at);
 CREATE INDEX IF NOT EXISTS leads_status_idx ON leads(status);
+
+-- CV download/view log (PK-18, analytics signal #1). One row per view or download
+-- fired by the client, so it is a signal, not a verified-download audit; the per-IP
+-- rate limit and the hashing bound abuse. No raw PII: ip/ua are HMAC-hashed with
+-- redact.js hashValue (NULL when LOG_HASH_SALT is unset), exactly like the chat
+-- logging in conversations. referrer is a short, bounded string. gen_random_uuid()
+-- is PG 18 core, same as leads/conversations above.
+CREATE TABLE IF NOT EXISTS cv_downloads (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ip_hash    TEXT,                               -- HMAC-SHA256(ip, salt); NULL if salt unset
+  ua_hash    TEXT,                               -- HMAC-SHA256(ua, salt); NULL if salt unset
+  referrer   TEXT,
+  action     TEXT NOT NULL DEFAULT 'download'    -- 'view' | 'download'
+);
+CREATE INDEX IF NOT EXISTS cv_downloads_created_at_idx ON cv_downloads(created_at);
