@@ -3,6 +3,7 @@ import express from 'express'
 import 'express-async-errors' // route async errors reach the error handler instead of crashing the process
 import cors from 'cors'
 import rateLimit from 'express-rate-limit'
+import { MulterError } from 'multer'
 import { authRouter } from './auth.js'
 import { crudRouter } from './crud.js'
 import { personalRouter } from './personal.js'
@@ -76,6 +77,9 @@ for (const [name, cfg] of Object.entries(RESOURCES)) {
 // detail is logged server-side only, so DB/internal errors never leak.
 app.use((err, _req, res, _next) => {
   console.error('[api]', err.stack || err.message)
+  // Multer rejections (e.g. file too large) are the caller's fault, not ours.
+  // Its messages ("File too large", etc.) are safe to surface; no internals leak.
+  if (err instanceof MulterError) return res.status(400).json({ error: err.message })
   const isClientError = /not allowed|only image|no file/i.test(err.message || '')
   if (isClientError) return res.status(400).json({ error: err.message })
   res.status(500).json({ error: 'Server error' })
