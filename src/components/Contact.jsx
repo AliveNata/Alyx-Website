@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { usePortfolio } from '../lib/PortfolioContext'
 import { API_BASE } from '../lib/apiBase'
 
@@ -39,6 +40,7 @@ export default function Contact() {
   const [countdown, setCountdown] = useState(15)
   const [sheetEndpoint, setSheetEndpoint] = useState(ENV_SHEET_ENDPOINT)
   const [bookStep, setBookStep] = useState(null) // null | 'choose' | 'mentoring'
+  const reduceMotion = useReducedMotion()
 
   // Prefer the admin-configured endpoint; keep the env value as fallback.
   useEffect(() => {
@@ -122,6 +124,9 @@ export default function Contact() {
       setTimeout(() => setStatus(null), 4000)
     }
   }
+
+  // Let the feedback toast be dismissed early; the handleSubmit timeout still clears status on its own.
+  const dismissToast = () => setStatus(null)
 
   const copyToken = async () => {
     try {
@@ -286,6 +291,43 @@ export default function Contact() {
           </div>
         </div>
       )}
+
+      {/* Send feedback toast. Driven by the existing `status`: enter/exit motion is the signal that
+          the request finished (sent) or failed (error), so the result is not just a button-text change.
+          no-cors makes the response opaque, so success means dispatched, not confirmed delivery. */}
+      <AnimatePresence>
+        {(status === 'sent' || status === 'error') && (
+          <motion.div
+            key={status}
+            role={status === 'error' ? 'alert' : 'status'}
+            aria-live={status === 'error' ? 'assertive' : 'polite'}
+            // Transform + opacity only (no layout properties) so the animation stays off the main thread.
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 24, scale: 0.98 }}
+            animate={reduceMotion
+              ? { opacity: 1, transition: { duration: 0.15 } }
+              : { opacity: 1, x: 0, scale: 1, transition: { type: 'spring', stiffness: 420, damping: 32 } }}
+            exit={reduceMotion ? { opacity: 0, transition: { duration: 0.12 } } : { opacity: 0, x: 16, transition: { duration: 0.18, ease: 'easeIn' } }}
+            className="fixed z-[70] bottom-4 left-4 right-4 sm:left-auto sm:bottom-6 sm:right-6 sm:max-w-sm"
+          >
+            {/* Shadow marks this as the one elevated overlay layer above the page content. */}
+            <div className={`flex items-start gap-3 rounded-xl border bg-surface-card px-4 py-3.5 shadow-lg ${status === 'sent' ? 'border-accent-green/40' : 'border-red-500/40'}`}>
+              <i className={`bi text-lg leading-none mt-0.5 ${status === 'sent' ? 'bi-check-circle-fill text-accent-green' : 'bi-exclamation-triangle-fill text-red-400'}`} />
+              <div className="min-w-0 flex-1">
+                <p className={`font-mono text-[13px] font-semibold ${status === 'sent' ? 'text-accent-green' : 'text-red-400'}`}>
+                  {status === 'sent' ? 'Message sent' : "Couldn't send"}
+                </p>
+                <p className="text-gray-300 text-[12.5px] mt-0.5 leading-snug">
+                  {status === 'sent' ? "Thanks, I'll get back to you by email." : 'Something went wrong. Please try again.'}
+                </p>
+              </div>
+              <button type="button" onClick={dismissToast} aria-label="Dismiss notification"
+                className="shrink-0 -mr-1 -mt-0.5 rounded text-gray-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-accent-cyan/40 transition-colors">
+                <i className="bi bi-x-lg leading-none text-sm" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   )
 }
