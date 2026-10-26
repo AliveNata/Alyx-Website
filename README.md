@@ -227,4 +227,4 @@ Copyright (c) 2026 Alief Akbar. All rights reserved.
 
 This repository is published for portfolio and reference purposes. You are welcome to
 read the code, but it is not licensed for reuse, redistribution, or use as a template
-without written permission.
+without written permission. See the [LICENSE](LICENSE) file for the full terms.
