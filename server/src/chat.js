@@ -99,6 +99,45 @@ function capHistory(history) {
   return kept
 }
 
+// Cap for the contextualized retrieval query (PK-2). Big enough to carry a
+// couple of prior user turns plus the current message, small enough to keep the
+// embedding focused on the live topic.
+const RETRIEVAL_QUERY_MAX = 512
+
+// Build the embedding input for portfolio retrieval (PK-2). A follow-up like
+// "tell me more about that" embeds nothing useful on its own and falls below
+// RAG_MIN_SIM, so prepend the recent USER turns from the already-capped history
+// (oldest->newest) with the current message LAST. Only user turns feed the
+// vector: assistant wording would pull it toward the bot's own phrasing.
+//
+// The current message is always kept WHOLE - it is the live topic and must never
+// be truncated. Prior user turns fill only the budget left after reserving the
+// full current message (RETRIEVAL_QUERY_MAX): a prior turn that would overflow is
+// dropped, not sliced. If the current message alone is >= the cap, it is used as
+// is with no prepend (e5 accepts a longer query; truncating it would lose intent).
+// Empty/absent history -> returns the message unchanged, so a first turn embeds
+// exactly as before (no regression).
+function buildRetrievalQuery(history, message) {
+  const userTurns = (Array.isArray(history) ? history : [])
+    .filter((m) => m && m.role === 'user' && typeof m.content === 'string')
+    .slice(-2)
+    .map((m) => m.content)
+  if (!userTurns.length) return message
+
+  // Reserve the full current message; prepend prior turns oldest->newest only
+  // while they fit the remaining budget (+1 per turn for the join newline).
+  let remaining = RETRIEVAL_QUERY_MAX - message.length
+  const prepended = []
+  for (let i = userTurns.length - 1; i >= 0; i--) {
+    const cost = userTurns[i].length + 1
+    if (cost > remaining) continue
+    remaining -= cost
+    prepended.unshift(userTurns[i])
+  }
+  if (!prepended.length) return message
+  return [...prepended, message].join('\n')
+}
+
 // Best-effort logging (P1-1). A failure here is logged and swallowed so the
 // visitor always gets their reply. Content gating: curhat and opted-out store
 // metadata only (content NULL); otherwise content is redacted first. The P1-2
@@ -158,7 +197,7 @@ async function logTurn({ sessionId, lang, mode, consent, ip, ua, userText, reply
 //   - embed() / retrieval throws              -> legacy whole-portfolio stuffing
 //   - chunks exist but none pass the threshold -> not-sure (NOT stuffing)
 //   - a chunk clears the threshold            -> grounded prompt on those chunks
-async function resolvePortfolioPrompt(settings, message) {
+async function resolvePortfolioPrompt(settings, retrievalQuery) {
   // Fail-open: an empty vector store means RAG data is missing, so keep the old
   // behavior rather than regress to a bot with no portfolio knowledge.
   try {
@@ -175,7 +214,7 @@ async function resolvePortfolioPrompt(settings, message) {
   // Fail-open: a model-load / embedding error must never break the reply.
   let chunks
   try {
-    chunks = await retrieveChunks(message, RAG_TOP_K)
+    chunks = await retrieveChunks(retrievalQuery, RAG_TOP_K)
   } catch (err) {
     console.error('[chat] retrieval failed; using legacy portfolio stuffing:', err.message)
     return { systemPrompt: buildPortfolioPrompt(settings.system_prompt, await getPortfolio()) }
@@ -296,6 +335,11 @@ chatRouter.post('/', async (req, res) => {
 
   const sessionId = typeof body.session_id === 'string' ? body.session_id : null
 
+  // Single source of truth for "the history" (PK-2, decision C): cap it once and
+  // reuse the same turns for the contextualized retrieval query, the cache key,
+  // and the LLM messages array below. No second notion of history.
+  const history = capHistory(body.history)
+
   let systemPrompt
   // Section-level citations for the done meta (P2-4). Only the grounded portfolio
   // path sets this; curhat, english, not-sure, and legacy stuffing leave it null.
@@ -314,7 +358,7 @@ chatRouter.post('/', async (req, res) => {
     // Groq call and must not consume the token budget. Only grounded replies are
     // ever stored, so a hit always maps to a real grounded answer. A lookup error
     // is treated as a miss (fail-open), matching the rest of this handler.
-    const key = cacheKey(mode, lang, message)
+    const key = cacheKey(mode, lang, message, history)
     const lookupStartedAt = Date.now()
     let cached = null
     try {
@@ -331,8 +375,11 @@ chatRouter.post('/', async (req, res) => {
     }
 
     // Portfolio is the only mode that retrieves. Ground on the retrieved chunks,
-    // or short-circuit to the streamed not-sure reply (P2-3).
-    const resolved = await resolvePortfolioPrompt(settings, message)
+    // or short-circuit to the streamed not-sure reply (P2-3). The EMBEDDING input
+    // is the contextualized query (PK-2 decision A) so a follow-up resolves
+    // against the conversation; the raw `message` still drives cta, citations and
+    // the not-sure reply (its own call sites below).
+    const resolved = await resolvePortfolioPrompt(settings, buildRetrievalQuery(history, message))
     if (resolved.notSure) return streamNotSure(req, res, { sessionId, lang, mode, message, body })
     systemPrompt = resolved.systemPrompt
     citations = resolved.citations || null
@@ -345,7 +392,7 @@ chatRouter.post('/', async (req, res) => {
 
   const messages = [
     { role: 'system', content: systemPrompt },
-    ...capHistory(body.history),
+    ...history,
     { role: 'user', content: message },
   ]
 

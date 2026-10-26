@@ -29,12 +29,27 @@ function normalizeQuery(text) {
     .replace(/[?!.,]/g, '')
 }
 
-// sha256 hex of mode|lang|normalizedQuery. Hashing keeps the primary key a fixed
-// length regardless of how long the question is. mode is always 'portfolio' at
-// the only call site; lang is the resolved reply language (replies differ per
-// language, so it is part of the identity of a cached answer).
-export function cacheKey(mode, lang, text) {
-  const basis = `${mode}|${lang || ''}|${normalizeQuery(text)}`
+// sha256 hex of mode|lang|normalizedQuery, optionally scoped by conversation
+// history. Hashing keeps the primary key a fixed length regardless of how long
+// the question is. mode is always 'portfolio' at the only call site; lang is the
+// resolved reply language (replies differ per language, so it is part of the
+// identity of a cached answer).
+//
+// history is the capped turns the LLM actually saw (PK-2). A context-dependent
+// follow-up ("tell me more") means different things after different prior turns,
+// so its cached answer must not replay across sessions: when history is present
+// its hash is folded into the key, scoping the entry to that exact conversation.
+// When history is empty the component is omitted entirely, so the basis is
+// byte-identical to the pre-PK-2 format and a first-turn FAQ still shares ONE
+// cache row across all sessions (the P2-6 cross-session hit is preserved).
+export function cacheKey(mode, lang, text, history) {
+  let basis = `${mode}|${lang || ''}|${normalizeQuery(text)}`
+  const turns = Array.isArray(history) ? history : []
+  if (turns.length) {
+    const histBasis = turns.map((m) => `${m.role}:${m.content}`).join('\n')
+    const histHash = crypto.createHash('sha256').update(histBasis).digest('hex')
+    basis += `|${histHash}`
+  }
   return crypto.createHash('sha256').update(basis).digest('hex')
 }
 
